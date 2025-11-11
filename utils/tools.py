@@ -9,9 +9,10 @@ import math
 plt.switch_backend('agg')
 
 class ProgressBar():
-    def __init__(self, iteration):
+    def __init__(self, iteration, bin = 100):
         self._iteration = iteration
         self.postfix = ""
+        self.bin = bin
 
     def __iter__(self):
         self.len_pre_print = 0
@@ -23,8 +24,8 @@ class ProgressBar():
             yield item
     
     def show(self):
-        percentage = round(self.i*100/len(self._iteration))
-        progress = "\r|"+"="*percentage + " "*(100-percentage)+f"| {percentage}% "+ self.postfix 
+        percentage = round(self.i*self.bin/len(self._iteration))
+        progress = "\r|"+"="*percentage + " "*(self.bin-percentage)+f"| {percentage}% "+ self.postfix 
         len_current_print = len(progress)
         end_blank = (self.len_pre_print-len_current_print) if len_current_print<self.len_pre_print else 0
         print(progress + " "*end_blank, end="")
