@@ -20,7 +20,7 @@ class ProgressBar():
             self.show()
             if i == len(self._iteration)-1:
                 print()
-            yield self._iteration[i]
+            yield item
     
     def show(self):
         percentage = round(self.i*100/len(self._iteration))
