@@ -18,6 +18,8 @@ class ProgressBar():
         for i in range(self._iteration):
             self.i = i
             self.show()
+            if i == len(self._iteration)-1:
+                print()
             yield self._iteration[i]
     
     def show(self):
