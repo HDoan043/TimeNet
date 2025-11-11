@@ -102,7 +102,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
-            pbar = ProgressBar(train_loader)
+            pbar = ProgressBar(train_loader, bin = 60)
             i = 0
             for batch_x, batch_y, batch_x_mark, batch_y_mark in pbar:
                 aggregate_steps +=1
