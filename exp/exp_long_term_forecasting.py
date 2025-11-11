@@ -102,8 +102,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
-            pbar = ProgressBar(enumerate(train_loader))
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in pbar:
+            pbar = ProgressBar(train_loader)
+            i = 0
+            for batch_x, batch_y, batch_x_mark, batch_y_mark in pbar:
                 aggregate_steps +=1
                 iter_count += 1
                 model_optim.zero_grad()
@@ -167,6 +168,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 else:
                     loss.backward()
                     model_optim.step()
+                i+=1
 
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
