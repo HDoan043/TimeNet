@@ -11,6 +11,7 @@ import warnings
 import numpy as np
 from utils.dtw_metric import dtw, accelerated_dtw
 from utils.augmentation import run_augmentation, run_augmentation_single
+from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
 
@@ -83,7 +84,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             os.makedirs(path)
 
         time_now = time.time()
-
+        time_begin = time.time()
+        aggregate_steps = 0
+        
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
@@ -94,12 +97,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             scaler = torch.cuda.amp.GradScaler()
 
         for epoch in range(self.args.train_epochs):
+            print("Epoch [{}]:".format(epoch)+"-"*30)
             iter_count = 0
             train_loss = []
 
             self.model.train()
             epoch_time = time.time()
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+            pbar = tqdm(enumerate(train_loader))
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in pbar:
+                aggregate_steps +=1
                 iter_count += 1
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
@@ -129,14 +135,31 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
                     loss = criterion(outputs, batch_y)
                     train_loss.append(loss.item())
-
-                if (i + 1) % 100 == 0:
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                    speed = (time.time() - time_now) / iter_count
-                    left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                    iter_count = 0
-                    time_now = time.time()
+                speed = (time.time() - time_begin) / aggregate_steps
+                left_time_s = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                if left_time_s <60: 
+                    left_time = f"{round(left_time_s,4)}s"
+                elif left_time_s<3600:
+                    left_time = f"{round(left_time_s/60,4)}mins"
+                else: left_time = f"{round(left_time_s/3600,4)}hs"
+    
+                pbar.set_postfix(
+                    {
+                        "Epoch": epoch,
+                        "Iteration": i,
+                        "Loss": loss.item(),
+                        "Speed": f"{round(speed, 4)}s/iter,
+                        "Left time": left_time
+                    }
+                )
+                
+                # if (i + 1) % 100 == 0:
+                #     print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                #     speed = (time.time() - time_now) / iter_count
+                #     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                #     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                #     iter_count = 0
+                #     time_now = time.time()
 
                 if self.args.use_amp:
                     scaler.scale(loss).backward()
