@@ -11,7 +11,7 @@ import warnings
 import numpy as np
 from utils.dtw_metric import dtw, accelerated_dtw
 from utils.augmentation import run_augmentation, run_augmentation_single
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 warnings.filterwarnings('ignore')
 
@@ -97,7 +97,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             scaler = torch.cuda.amp.GradScaler()
 
         for epoch in range(self.args.train_epochs):
-            print("Epoch [{}]:".format(epoch)+"-"*30)
+            print("="*25 + " Epoch [{}]: ".format(epoch)+"="*25)
             iter_count = 0
             train_loss = []
 
@@ -146,7 +146,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 pbar.set_postfix(
                     {
                         "Epoch": epoch,
-                        "Iteration": i,
+                        "Iteration": f"{i+1}/{train_steps}",
                         "Loss": loss.item(),
                         "Speed": f"{round(speed, 4)}s/iter",
                         "Left time": left_time
