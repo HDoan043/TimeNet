@@ -8,6 +8,33 @@ import math
 
 plt.switch_backend('agg')
 
+class ProgressBar():
+    def __init__(self, iteration):
+        self._iteration = iteration
+        self.postfix = ""
+
+    def __iter__(self):
+        self.len_pre_print = 0
+        for i in range(self._iteration):
+            self.i = i
+            self.show()
+            yield self._iteration[i]
+    
+    def show(self):
+        percentage = round(self.i*100/len(self._iteration))
+        progress = "\r|"+"="*percentage + " "*(100-percentage)+f"| {percentage}% "+ self.postfix 
+        len_current_print = len(progress)
+        end_blank = (self.len_pre_print-len_current_print) if len_current_print<self.len_pre_print else 0
+        print(progress + " "*end_blank, end="")
+        self.len_pre_print =  len_current_print
+        
+    def set_postfix(self, postfix={}):
+        postfix_ls = []
+        for key, value in postfix.items():
+            postfix_ls.append(f" {key} : {value}")
+        if len(postfix_ls)>0:
+            self.postfix = "[" + ",".join(postfix_ls) + "]"
+            self.show()
 
 def adjust_learning_rate(optimizer, epoch, args):
     # lr = args.learning_rate * (0.2 ** (epoch // 2))
