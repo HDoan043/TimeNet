@@ -148,7 +148,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                         "Epoch": epoch,
                         "Iteration": i,
                         "Loss": loss.item(),
-                        "Speed": f"{round(speed, 4)}s/iter,
+                        "Speed": f"{round(speed, 4)}s/iter",
                         "Left time": left_time
                     }
                 )
