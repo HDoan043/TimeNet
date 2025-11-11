@@ -1,6 +1,6 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from utils.tools import EarlyStopping, adjust_learning_rate, visual
+from utils.tools import EarlyStopping, adjust_learning_rate, visual, ProgressBar
 from utils.metrics import metric
 import torch
 import torch.nn as nn
@@ -11,7 +11,6 @@ import warnings
 import numpy as np
 from utils.dtw_metric import dtw, accelerated_dtw
 from utils.augmentation import run_augmentation, run_augmentation_single
-from tqdm.auto import tqdm
 
 warnings.filterwarnings('ignore')
 
@@ -103,7 +102,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
-            pbar = tqdm(enumerate(train_loader))
+            pbar = ProgressBar(enumerate(train_loader))
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in pbar:
                 aggregate_steps +=1
                 iter_count += 1
