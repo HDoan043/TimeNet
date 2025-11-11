@@ -15,7 +15,7 @@ class ProgressBar():
 
     def __iter__(self):
         self.len_pre_print = 0
-        for i in range(self._iteration):
+        for i, item in enumerate(self._iteration):
             self.i = i
             self.show()
             if i == len(self._iteration)-1:
