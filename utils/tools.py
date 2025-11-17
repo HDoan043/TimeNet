@@ -25,7 +25,7 @@ class ProgressBar():
     
     def show(self):
         percentage = self.i/len(self._iteration)
-        progress = "\r|"+"="*round(percentage*self.bin) + " "*(self.bin-round(percentage*self.bin))+f"| {round(percentage*100)}% "+ self.postfix 
+        progress = "\r["+"="*round(percentage*self.bin) + "-"*(self.bin-round(percentage*self.bin))+f"] {round(percentage*100)}% "+ self.postfix 
         len_current_print = len(progress)
         end_blank = (self.len_pre_print-len_current_print) if len_current_print<self.len_pre_print else 0
         print(progress + " "*end_blank, end="")
