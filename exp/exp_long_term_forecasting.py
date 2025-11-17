@@ -96,7 +96,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             scaler = torch.cuda.amp.GradScaler()
 
         for epoch in range(self.args.train_epochs):
+            print()
             print("="*25 + " Epoch [{}]: ".format(epoch)+"="*25)
+            print()
             iter_count = 0
             train_loss = []
 
@@ -145,7 +147,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
     
                 pbar.set_postfix(
                     {
-                        "Epoch": epoch,
+                        "Epoch": epoch + 1,
                         "Iteration": f"{i+1}/{train_steps}",
                         "Loss": loss.item(),
                         "Speed": f"{round(speed, 4)}s/iter",
