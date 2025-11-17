@@ -95,6 +95,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if self.args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
 
+        start_train_time = time.time()
         for epoch in range(self.args.train_epochs):
             print()
             print("="*25 + " Epoch [{}]: ".format(epoch)+"="*25)
@@ -189,6 +190,16 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
+        end_train_time = time.time()
+        print()
+        total_training_time = end_train_time - start_train_time
+        if total_training_time < 60:
+            total_training_time = "{} s".format(round(total_training_time, 4))
+        elif total_training_time < 3600:
+            total_training_time = "{} mins".format(round(total_training_time/60, 4)
+        else:
+             total_training_time = "{} hours".format(round(total_training_time/3600, 4)                                      
+        print("Total training time: {}".format(total_training_time))
         return self.model
 
     def test(self, setting, test=0):
