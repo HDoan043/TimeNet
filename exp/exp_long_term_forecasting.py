@@ -98,7 +98,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         start_train_time = time.time()
         for epoch in range(self.args.train_epochs):
             print()
-            print("="*25 + " Epoch [{}]: ".format(epoch)+"="*25)
+            print("="*25 + " Epoch [{}]: ".format(epoch+1)+"="*25)
             print()
             iter_count = 0
             train_loss = []
