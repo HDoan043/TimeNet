@@ -198,7 +198,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         elif total_training_time < 3600:
             total_training_time = "{} mins".format(round(total_training_time/60, 4)
         else:
-             total_training_time = "{} hours".format(round(total_training_time/3600, 4)                                      
+            total_training_time = "{} hours".format(round(total_training_time/3600, 4)                                      
         print("Total training time: {}".format(total_training_time))
         return self.model
 
