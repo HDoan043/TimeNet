@@ -19,9 +19,8 @@ class ProgressBar():
         for i, item in enumerate(self._iteration):
             self.i = i
             self.show()
-            if i == len(self._iteration)-1:
-                print()
             yield item
+        print()
     
     def show(self):
         percentage = self.i/len(self._iteration)
