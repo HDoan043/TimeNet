@@ -32,7 +32,7 @@ class TimesBlockUpdate(nn.Module):
 
         inner_mlp = []
         outer_mlp = []
-        for _ in range(2):
+        for _ in range(3):
             inner_mlp.extend([
                 nn.Linear(configs.d_model, 1024),
                 nn.GELU(),
