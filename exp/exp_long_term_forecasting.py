@@ -241,11 +241,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.model == "TimesNetUpdate":
-                            outputs = self.model(index, batch_x, batch_x_mark, dec_inp, batch_y_mark))
+                            outputs = self.model(index, batch_x, batch_x_mark, dec_inp, batch_y_mark)
                         else: outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 else:
                     if self.args.model == "TimesNetUpdate":
-                        outputs = self.model(index, batch_x, batch_x_mark, dec_inp, batch_y_mark))
+                        outputs = self.model(index, batch_x, batch_x_mark, dec_inp, batch_y_mark)
                     else: outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
 
                 f_dim = -1 if self.args.features == 'MS' else 0
