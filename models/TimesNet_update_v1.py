@@ -140,12 +140,7 @@ class Model(nn.Module):
             self.projection = nn.Linear(
                 configs.d_model * configs.seq_len, configs.num_class)
 
-    def forecast(self, index_x, x_enc, x_mark_enc, x_dec, x_mark_dec): 
-        # If index of sample x is not in dictionary self.periods -> x has not been calculated FFT yet
-        if index_x not in self.periods:
-            periods, _ = FFT_for_Period(x_enc, k=1)
-            self.periods[index_x] = periods[0]
-  
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec): 
         # Normalization from Non-stationary Transformer
         means = x_enc.mean(1, keepdim=True).detach()
         x_enc = x_enc.sub(means)
@@ -156,26 +151,16 @@ class Model(nn.Module):
         # ============================TRANSFORM 1D -> 2D===========================
         # padding
         B, _, N = x_enc.shape
-        period = self.periods[index_x]
-        print(x_enc.shape)
+        periods, _ = FFT_for_Period(x_enc, k=1)
+        period = periods[0]
         if (self.seq_len + self.pred_len) % period != 0:
-            print("seq_len + pred_len % period != 0")
             length = (((self.seq_len + self.pred_len) // period) + 1) * period
             padding = torch.zeros([x_enc.shape[0], (length - (self.seq_len + self.pred_len)), x_enc.shape[2]]).to(x_enc.device)
             out = torch.cat([x_enc, padding], dim=1)
-            print("padding: {}".format(padding.shape))
-            print("after padding: {}".format(out.shape))
-            
         else:
-            print("seq_len + pred_len % period == 0")
             length = (self.seq_len + self.pred_len)
             out = x_enc
         # reshape
-        print(out.shape)
-        print("Batch size: {}".format(B))
-        print("f: {}".format(length //period))
-        print("period length: {}".format(period))
-        print("channels: {}".format(N))
         out = out.reshape(B, period, length // period, N).contiguous()    # out: [Batch_size x period_i x f_i x nvars]
       
         # ==============================EMBEDDING======================================
@@ -281,7 +266,7 @@ class Model(nn.Module):
         output = self.projection(output)  # (batch_size, num_classes)
         return output
 
-    def forward(self, index, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(index, x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len:, :]  # [B, L, D]
