@@ -155,7 +155,7 @@ class Model(nn.Module):
 
         # TRANSFORM 1D -> 2D
         # padding
-        B, _, N = x_enc.shape[0]
+        B, _, N = x_enc.shape
         period = self.periods[index_x]
         if (self.seq_len + self.pred_len) % period != 0:
             length = (((self.seq_len + self.pred_len) // period) + 1) * period
