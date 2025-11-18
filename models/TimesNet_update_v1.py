@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.fft
-from layers.Embed import DataEmbedding
+from layers.Embed import DataEmbedding, PositionalEmbedding
 from layers.Conv_Blocks import Inception_Block_V1
 
 
@@ -23,6 +23,8 @@ class TimesBlockUpdate(nn.Module):
         super(TimesBlockUpdate, self).__init__()
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
+
+        self.enc_embedding = PositionalEmbedding(configs.d_model)
       
         self.att_inner = nn.MultiheadAttention(configs.d_model, configs.n_heads, batch_first = True)
         self.att_outer = nn.MultiheadAttention(configs.d_model, configs.n_heads, batch_first = True)
@@ -45,7 +47,7 @@ class TimesBlockUpdate(nn.Module):
         self.feedforward_inner = nn.Sequential(*inner_mlp)
         self.feedforward_outer = nn.Sequential(*outer_mlp)
         
-        ff_mlp = []
+        ff_mlp = [nn.Linear(2*configs.d_model, configs.d_model), nn.GELU()]
         for _ in range(configs.d_ff):
             ff_mlp.extend( [
                 nn.Linear(configs.d_model, 1024),
@@ -54,55 +56,56 @@ class TimesBlockUpdate(nn.Module):
                 nn.GELU()])
         self.feedforward = nn.Sequential( *ff_mlp)
 
-    def forward(self, x_inner, x_outer):                                     # x_inner: [Batch_size x period x f x d_model], 
-                                                                             # x_outer: [Batch_size x period x f x d_model]
-        B, P, F, D = x_inner.shape
+    def forward(self, x):                                     # x: [batch_size x (seq_len + pred_len) x d_model] 
 
-        x_inner = torch.reshape( x_inner, (B*F, P, D))
-        x_outer = torch.reshape( x_outer, (B*P, F, D))
+        # ============================TRANSFORM 1D -> 2D===========================
+        # padding
+        B, _, N = x.shape
+        periods, _ = FFT_for_Period(x, k=1)
+        period = periods[0]
+        if (self.seq_len + self.pred_len) % period != 0:
+            length = (((self.seq_len + self.pred_len) // period) + 1) * period
+            padding = torch.zeros([x.shape[0], (length - (self.seq_len + self.pred_len)), x.shape[2]]).to(x.device)
+            out = torch.cat([x, padding], dim=1)
+        else:
+            length = (self.seq_len + self.pred_len)
+            out = x
+        # reshape
+        out = out.reshape(B, length // period, period, N).contiguous()     # out: [Batch_size x f x period x nvars]
+
+        # ============================== EMBEDDING ================================
+        B, F, P, D = out.shape
+        # [1] - Embedding with dimension of f_i: Embedding for inside a period
+        out_f = torch.reshape( out, (B*F, P, D) )              # out_f: [Batch_size*f x period x d_model]
+        f_pe = self.enc_embedding(out_f)                       # f_pe: [Batch_size*f x period x d_model]
+        out_f = out_f + f_pe                                   # out_f: [Batch_size*f x period x d_model
         
-        # inner
-        p = x_inner.shape[1]
-        att_in = self.att_inner(x_inner, x_inner, x_inner)
-        x_inner = x_inner + att_in
-        x_inner = self.feedforward_inner(x_inner)                            # x_in: [Batch_size*f x period x d_model]
+        # [2] - Embedding with dimension of p_i: Embedding across the period
+        out_p = torch.reshape( out, (B*P, F, D))               # out_p: [Batch_size*period x f x d_model]
+        p_pe = self.enc_embedding(out_p)                       # p_pe: [Batch_size*period x f x d_model]
+        out_p = out_p + p_pe                                   # out_p: [batch_size*period x f x d_model]
 
-        # outer
-        f = x_outer.shape[2]
-        att_out = self.att_outer(x_outer, x_outer, x_outer)
-        x_outer = x_outer + att_out
-        x_outer = self.feedforward_outer(x_outer)                            # x_out: [Batch_size *period x f x d_model]
-
-        # combine inner and outer
-        x_inner = torch.reshape( x_inner, (B*P*F, D))                        # x_inner: [Batch_size * period * f x d_model]
-        x_outer = torch.reshape( x_outer, (B*P*F, D))                        # x_outer: [Batch_size * period * f x d_model]
-        x = torch.cat([x_inner, x_outer], dim=0)                             # x: [2* Batch_size * period * f x d_model]
-        att_combine = self.att_combine(x, x, x)
-        x = x + atta_combine                                                 # x: [2* Batch_size * period * f x d_model]
-        x = self.feedforward(x)                                              # x: [2 * Batch_size * period * f x d_model]
-
-        length = x.shape[0]
-        new_x_inner = x[:length/2,:]                                         # new_x_inner: [Batch_size * period * f x d_model]
-        new_x_inner = torch.reshape(new_x_inner, (B, P, F, D))               # new_x_inner: [Batch_size x period x f x d_model]
-        new_x_outer = x[length/2:, :]                                        # new_x_outer: [Batch_size * period * f x d_model]
-        new_x_outer = torch.reshape(new_x_outer, (B, P, F, D))               # new_x_outer: [Batch_size x period x f x d_model]
+        # ================= INTERNAL RELATION & EXTERNAL RELATION ===================
+        att_in, _ = self.att_inner(out_f, out_f, out_f)        # att_in: [batch_size*f x period x d_model]
+        x_in = out_f + att_in                                  # x_in: [batch_size*f x period x d_model]
+        x_in = self.feedforward_inner(x_in)                    # x_in: [batch_size*f x period x d_model]
+        x_in = torch.reshape( x_in, (B, P*F, D))               # x_in: [batch_size x f*period x d_model]
         
-        return new_x_inner, new_x_outer
+        att_out,_ = self.att_outer(out_p, out_p, out_p)        # att_out: [batch_size*period x f x d_model]
+        x_out = out_p + att_out                                # x_out: [batch_size*period x f x d_model]
+        x_out = self.feedforward_outer(x_out)                  # x_out: [batch_size*period x f x d_model]
+        x_out = torch.reshape(x_out, (B, F*P, D))              # x_out: [batch_size x period*f x d_model]
 
-class CombineHead(nn.Module):
-    def __init__(self, d_model):
-        super(CombineHead, self).__init__()
-        self.d_model = d_model
-        self.combine = nn.Linear( 2*d_model, d_model)
-    def forward(self, x_p, x_f):                                            # x_p: [Batch_size x period x f x d_model]
-                                                                            # x_f: [Batch_size x period x f x d_model]
-        B, P, F, D = x_p.shape
-        x_p = torch.reshape(x_p, (B*P*F, D))                                # x_p: [Batch_size * period * f x d_model]
-        x_f = torch.reshape(x_f, (B*P*F, D))                                # x_f: [Batch_size * period * f x d_model]
-        x = torch.cat([x_p, x_f], dim=1)                                    # x: [Batch_size * period * f x 2 * d_model]
-        x = self.combine(x)                                                 # x: [Batch_size * period *f x d_model]
-        x = torch.reshape( x, (B, P, F, D))                                 # x: [Batch_size x period x f x d_model]
+        # =============================== COMBINATION ===============================
+        x = torch.cat([x_in, x_out], dim=1])                   # x: [batch_size x 2*period*f x d_model]
+        att, _ = self.att_combine(x, x, x)                     # att:[batch_size x 2*period*f x d_model]
+        x = att + x                                            # x: [batch_size x period*f x d_model]
+        x = torch.reshape(x, (B, P*F, 2*D))                    # x: [batch_size x period*f x 2*d_model]
+        x = self.feedforward(x)                                # x: [batch_size x period*f x d_model]
 
+        # ============================== RECONSTRUCT TO 1D ==========================
+        x = x[:, :(self.seq_len + self.pred_len), :]           # x: [batch_size x (seq_len + pred_len) x d_model]
+        
         return x
         
 class Model(nn.Module):
@@ -128,7 +131,6 @@ class Model(nn.Module):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             self.predict_linear = nn.Linear(
                 self.seq_len, self.pred_len + self.seq_len)
-            self.combine_head = CombineHead(configs.d_model)
             self.projection = nn.Linear(
                 configs.d_model, configs.c_out, bias=True)
         if self.task_name == 'imputation' or self.task_name == 'anomaly_detection':
@@ -146,45 +148,21 @@ class Model(nn.Module):
         x_enc = x_enc.sub(means)
         stdev = torch.sqrt(
             torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
-        x_enc = x_enc.div(stdev)
+        x_enc = x_enc.div(stdev)                                            # x_enc: [batch_size x seq_len x nvars]
 
-        # ============================TRANSFORM 1D -> 2D===========================
-        # padding
-        B, _, N = x_enc.shape
-        periods, _ = FFT_for_Period(x_enc, k=1)
-        period = periods[0]
-        if (self.seq_len + self.pred_len) % period != 0:
-            length = (((self.seq_len + self.pred_len) // period) + 1) * period
-            padding = torch.zeros([x_enc.shape[0], (length - (self.seq_len + self.pred_len)), x_enc.shape[2]]).to(x_enc.device)
-            out = torch.cat([x_enc, padding], dim=1)
-        else:
-            length = (self.seq_len + self.pred_len)
-            out = x_enc
-        # reshape
-        out = out.reshape(B, period, length // period, N).contiguous()    # out: [Batch_size x period_i x f_i x nvars]
-      
         # ==============================EMBEDDING======================================
-        B, P, F, N = out.shape
-        # [1] - Embedding with dimension of f_i: Embedding for inside a period
-        out_f = torch.reshape( out, (B*F, P, N) )              # out_f: [Batch_size*f_i x period_i x nvars]
-        out_f = self.enc_embedding(out_f)                      # out_f: [Batch_size*f_i x period_i x d_model]
-        out_f = torch.reshape( out_f, (B, P, F, -1))           # out_f: [Batch_size x period_i x f_i x d_model]
-    
-        # [2] - Embedding with dimension of p_i: Embedding across the period
-        out_p = torch.reshape( out, (B*P, F, N))               # out_p: [Batch_size*period_i x f_i x nvars]
-        out_p = self.enc_embedding(out_p)                      # out_p: [Batch_size*period_i x f_i x d_model]
-        out_p = torch.reshape( out_f, (B, P, F, -1))           # out_p: [Batch_size x period_i x f_i x d_model]
+        enc_out = self.enc_embedding(x_enc, x_mark_enc)                    # enc_out: [batch_size x seq_len x d_model]
 
+        # ==============================PROJECT =======================================
+        enc_out = self.predict_linear(enc_out.permute(0, 2, 1)).permute(
+            0, 2, 1)  # align temporal dimension                           # enc_out: [batch_size x (seq_len + pred_len) x d_model]
+        
         # ============================PASS IN BACKBONE=================================
-        for each in self.model:
-            out_f, out_p = each(out_f, out_p)
-            out_f = self.layer_norm(out_f)
-            out_p = self.layer_norm(out_p)
-
-        # Combine out_f and out_p
-        enc_out = self.combine_head(out_f, out_p)              # enc_out: [Batch_size x period_i x f_i x d_model]
+        for i in range(self.layer):
+            enc_out = self.layer_norm(self.model[i](enc_out))
+            
         # project back
-        dec_out = self.projection(enc_out)                     # dec_out: [Batch_size x period_i x f_i x nvars]
+        dec_out = self.projection(enc_out)                                 # dec_out: [Batch_size x (seq_len + pred_len) x nvars]
 
         # De-Normalization from Non-stationary Transformer
         dec_out = dec_out.mul(
