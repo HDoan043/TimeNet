@@ -144,7 +144,7 @@ class Model(nn.Module):
         # If index of sample x is not in dictionary self.periods -> x has not been calculated FFT yet
         if index_x not in self.periods:
             period, _ = FFT_for_Period(x_enc, k=1)
-            self.periods[index_x] = period
+            self.periods[index_x] = period[0]
   
         # Normalization from Non-stationary Transformer
         means = x_enc.mean(1, keepdim=True).detach()
