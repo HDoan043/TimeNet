@@ -39,19 +39,21 @@ class TimesBlock(nn.Module):
 
         res = []
         for i in range(self.k):
+            print("input shape: {}".format(x.shape))
             period = period_list[i]
+            print("period: {}".format(period))
+            print("seq_len: {}, pred_len: {}, seq_len + pred_len: {}".format(self.seq_len, self.pred_len, self.seq_len + self.pred_len))
             # padding
             if (self.seq_len + self.pred_len) % period != 0:
-                length = (
-                                 ((self.seq_len + self.pred_len) // period) + 1) * period
+                length = (((self.seq_len + self.pred_len) // period) + 1) * period
                 padding = torch.zeros([x.shape[0], (length - (self.seq_len + self.pred_len)), x.shape[2]]).to(x.device)
                 out = torch.cat([x, padding], dim=1)
             else:
                 length = (self.seq_len + self.pred_len)
                 out = x
             # reshape
-            out = out.reshape(B, length // period, period,
-                              N).permute(0, 3, 1, 2).contiguous()
+            print("out shape: {}".format(out.shape))
+            out = out.reshape(B, length // period, period,N).permute(0, 3, 1, 2).contiguous()
             # 2D conv: from 1d Variation to 2d Variation
             out = self.conv(out)
             # reshape back
