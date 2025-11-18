@@ -107,7 +107,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             epoch_time = time.time()
             pbar = ProgressBar(train_loader, bin = 60)
             i = 0
-            for batch_x, batch_y, batch_x_mark, batch_y_mark in pbar:
+            for index, batch_x, batch_y, batch_x_mark, batch_y_mark in pbar:
                 aggregate_steps +=1
                 iter_count += 1
                 model_optim.zero_grad()
@@ -131,6 +131,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                         loss = criterion(outputs, batch_y)
                         train_loss.append(loss.item())
                 else:
+                    
                     outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
 
                     f_dim = -1 if self.args.features == 'MS' else 0
