@@ -143,7 +143,7 @@ class Model(nn.Module):
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec, index_x): 
         # If index of sample x is not in dictionary self.periods -> x has not been calculated FFT yet
         if index_x not in self.periods:
-            period, _ = FFT_for_period(x_enc, k=1)
+            period, _ = FFT_for_Period(x_enc, k=1)
             self.periods[index_x] = period
   
         # Normalization from Non-stationary Transformer
