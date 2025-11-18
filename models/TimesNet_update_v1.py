@@ -140,7 +140,7 @@ class Model(nn.Module):
             self.projection = nn.Linear(
                 configs.d_model * configs.seq_len, configs.num_class)
 
-    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec, index_x): 
+    def forecast(self, index_x, x_enc, x_mark_enc, x_dec, x_mark_dec): 
         # If index of sample x is not in dictionary self.periods -> x has not been calculated FFT yet
         if index_x not in self.periods:
             period, _ = FFT_for_Period(x_enc, k=1)
