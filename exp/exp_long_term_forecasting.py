@@ -57,12 +57,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.model == "TimesNetUpdate":
-                            outputs = self.model(index, batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                            outputs = self.model(f"{index}vali", batch_x, batch_x_mark, dec_inp, batch_y_mark)
                         else:
                             outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 else:
                     if self.args.model == "TimesNetUpdate":
-                        outputs = self.model(index, batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                        outputs = self.model(f"{index}vali", batch_x, batch_x_mark, dec_inp, batch_y_mark)
                     else: outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, -self.args.pred_len:, f_dim:]
@@ -129,7 +129,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.model == "TimesNetUpdate":
-                            outputs = self.model(str(index), batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                            outputs = self.model(f"{index}train", batch_x, batch_x_mark, dec_inp, batch_y_mark)
                         else:
                             outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
 
@@ -140,7 +140,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                         train_loss.append(loss.item())
                 else:
                     if self.args.model == "TimesNetUpdate":
-                        outputs = self.model(str(index), batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                        outputs = self.model(f"{index}train", batch_x, batch_x_mark, dec_inp, batch_y_mark)
                     else:
                         outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
 
@@ -241,11 +241,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.model == "TimesNetUpdate":
-                            outputs = self.model(index, batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                            outputs = self.model(f"{index}test", batch_x, batch_x_mark, dec_inp, batch_y_mark)
                         else: outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 else:
                     if self.args.model == "TimesNetUpdate":
-                        outputs = self.model(index, batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                        outputs = self.model(f"{index}test", batch_x, batch_x_mark, dec_inp, batch_y_mark)
                     else: outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
 
                 f_dim = -1 if self.args.features == 'MS' else 0
