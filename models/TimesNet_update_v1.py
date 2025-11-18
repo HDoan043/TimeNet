@@ -143,8 +143,8 @@ class Model(nn.Module):
     def forecast(self, index_x, x_enc, x_mark_enc, x_dec, x_mark_dec): 
         # If index of sample x is not in dictionary self.periods -> x has not been calculated FFT yet
         if index_x not in self.periods:
-            period, _ = FFT_for_Period(x_enc, k=1)
-            self.periods[index_x] = period[0]
+            periods, _ = FFT_for_Period(x_enc, k=1)
+            self.periods[index_x] = periods[0]
   
         # Normalization from Non-stationary Transformer
         means = x_enc.mean(1, keepdim=True).detach()
@@ -153,15 +153,21 @@ class Model(nn.Module):
             torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
         x_enc = x_enc.div(stdev)
 
-        # TRANSFORM 1D -> 2D
+        # ============================TRANSFORM 1D -> 2D===========================
         # padding
         B, _, N = x_enc.shape
         period = self.periods[index_x]
+        print(x_enc.shape)
         if (self.seq_len + self.pred_len) % period != 0:
+            print("seq_len + pred_len % period != 0")
             length = (((self.seq_len + self.pred_len) // period) + 1) * period
             padding = torch.zeros([x_enc.shape[0], (length - (self.seq_len + self.pred_len)), x_enc.shape[2]]).to(x_enc.device)
             out = torch.cat([x_enc, padding], dim=1)
+            print("padding: {}".format(padding.shape))
+            print("after padding: {}".format(out.shape))
+            
         else:
+            print("seq_len + pred_len % period == 0")
             length = (self.seq_len + self.pred_len)
             out = x_enc
         # reshape
@@ -172,7 +178,7 @@ class Model(nn.Module):
         print("channels: {}".format(N))
         out = out.reshape(B, period, length // period, N).contiguous()    # out: [Batch_size x period_i x f_i x nvars]
       
-        # EMBEDDING
+        # ==============================EMBEDDING======================================
         B, P, F, N = out.shape
         # [1] - Embedding with dimension of f_i: Embedding for inside a period
         out_f = torch.reshape( out, (B*F, P, N) )              # out_f: [Batch_size*f_i x period_i x nvars]
@@ -184,7 +190,7 @@ class Model(nn.Module):
         out_p = self.enc_embedding(out_p)                      # out_p: [Batch_size*period_i x f_i x d_model]
         out_p = torch.reshape( out_f, (B, P, F, -1))           # out_p: [Batch_size x period_i x f_i x d_model]
 
-        # PASS IN BACKBONE
+        # ============================PASS IN BACKBONE=================================
         for each in self.model:
             out_f, out_p = each(out_f, out_p)
             out_f = self.layer_norm(out_f)
