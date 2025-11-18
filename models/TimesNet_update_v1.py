@@ -47,12 +47,12 @@ class TimesBlockUpdate(nn.Module):
         
         ff_mlp = []
         for _ in range(configs.d_ff):
-            ff.extend( [
+            ff_mlp.extend( [
                 nn.Linear(configs.d_model, 1024),
                 nn.GeLU(),
                 nn.Linear(1024, configs.d_model),
                 nn.GELU()])
-        self.feedforward = nn.Sequential( *ff)
+        self.feedforward = nn.Sequential( *ff_mlp)
 
     def forward(self, x_inner, x_outer):                                     # x_inner: [Batch_size x period x f x d_model], 
                                                                              # x_outer: [Batch_size x period x f x d_model]
