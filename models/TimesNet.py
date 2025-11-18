@@ -39,10 +39,7 @@ class TimesBlock(nn.Module):
 
         res = []
         for i in range(self.k):
-            print("input times block shape: {}".format(x.shape))
             period = period_list[i]
-            print("period: {}".format(period))
-            print("seq_len: {}, pred_len: {}, seq_len + pred_len: {}".format(self.seq_len, self.pred_len, self.seq_len + self.pred_len))
             # padding
             if (self.seq_len + self.pred_len) % period != 0:
                 length = (((self.seq_len + self.pred_len) // period) + 1) * period
@@ -52,7 +49,6 @@ class TimesBlock(nn.Module):
                 length = (self.seq_len + self.pred_len)
                 out = x
             # reshape
-            print("out shape: {}".format(out.shape))
             out = out.reshape(B, length // period, period,N).permute(0, 3, 1, 2).contiguous()
             # 2D conv: from 1d Variation to 2d Variation
             out = self.conv(out)
@@ -103,7 +99,6 @@ class Model(nn.Module):
                 configs.d_model * configs.seq_len, configs.num_class)
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
-        print("input model shape: {}".format(x_enc.shape))
         # Normalization from Non-stationary Transformer
         means = x_enc.mean(1, keepdim=True).detach()
         x_enc = x_enc.sub(means)
@@ -115,7 +110,6 @@ class Model(nn.Module):
         enc_out = self.enc_embedding(x_enc, x_mark_enc)  # [B,T,C]
         enc_out = self.predict_linear(enc_out.permute(0, 2, 1)).permute(
             0, 2, 1)  # align temporal dimension
-        print("after embedding shape: {}".format(enc_out.shape))
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))
