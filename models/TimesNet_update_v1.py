@@ -165,8 +165,12 @@ class Model(nn.Module):
             length = (self.seq_len + self.pred_len)
             out = x_enc
         # reshape
-        out = out.reshape(B, length // period, period,
-                          N).contiguous()    # out: [Batch_size x period_i x f_i x nvars]
+        print(out.shape)
+        print("Batch size: {}".format(B))
+        print("f: {}".format(length //period))
+        print("period length: {}".format(period))
+        print("channels: {}".format(N))
+        out = out.reshape(B, period, length // period, N).contiguous()    # out: [Batch_size x period_i x f_i x nvars]
       
         # EMBEDDING
         B, P, F, N = out.shape
