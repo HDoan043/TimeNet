@@ -153,7 +153,9 @@ class Model(nn.Module):
             torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
         x_enc = x_enc.div(stdev)
 
+        # TRANSFORM 1D -> 2D
         # padding
+        B = x_enc.shape[0]
         period = self.periods[index_x]
         if (self.seq_len + self.pred_len) % period != 0:
             length = (((self.seq_len + self.pred_len) // period) + 1) * period
