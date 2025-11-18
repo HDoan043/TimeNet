@@ -49,7 +49,7 @@ class TimesBlockUpdate(nn.Module):
         for _ in range(configs.d_ff):
             ff_mlp.extend( [
                 nn.Linear(configs.d_model, 1024),
-                nn.GeLU(),
+                nn.GELU(),
                 nn.Linear(1024, configs.d_model),
                 nn.GELU()])
         self.feedforward = nn.Sequential( *ff_mlp)
