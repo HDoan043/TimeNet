@@ -113,9 +113,9 @@ class Model(nn.Module):
 
         # embedding
         enc_out = self.enc_embedding(x_enc, x_mark_enc)  # [B,T,C]
-        print("after embedding shape: {}".format(enc_out.shape))
         enc_out = self.predict_linear(enc_out.permute(0, 2, 1)).permute(
             0, 2, 1)  # align temporal dimension
+        print("after embedding shape: {}".format(enc_out.shape))
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))
