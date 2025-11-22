@@ -36,14 +36,15 @@ class TimesBlock(nn.Module):
 
     def forward(self, x):
         B, T, N = x.size()
+        total_time = time.time()
         ###############################################
         # print("***TimesBlock")
         # print("---- FFT ----")
-        # fft_time = time.time()
+        fft_time = time.time()
         ###############################################
         period_list, period_weight = FFT_for_Period(x, self.k)
         ###############################################
-        # fft_time = time.time() - fft_time
+        fft_time = time.time() - fft_time
         # print("    ~ FFT time: {}s".format(fft_time))
         # print()
         # print("---- Loop for each period ----")
@@ -63,14 +64,14 @@ class TimesBlock(nn.Module):
             # reshape
             out = out.reshape(B, length // period, period,N).permute(0, 3, 1, 2).contiguous()
             #############################################
-            # transform_time = time.time() - transform_time
+            transform_time = time.time() - transform_time
             # print("    ~ Transform 1D to 2D: {}s".format(transform_time))
             #############################################
             # 2D conv: from 1d Variation to 2d Variation
             inception_time = time.time()
             out = self.conv(out)
             #############################################
-            # inception_time = time.time() - inception_time
+            inception_time = time.time() - inception_time
             # print("    ~ Inception block time: {}s".format(inception_time))
             #############################################
             # reshape back
@@ -78,12 +79,12 @@ class TimesBlock(nn.Module):
             out = out.permute(0, 2, 3, 1).reshape(B, -1, N)
             res.append(out[:, :(self.seq_len + self.pred_len), :])
             #############################################
-            # reshape_back_time = time.time() - reshape_back_time
+            reshape_back_time = time.time() - reshape_back_time
             # print("    ~ Reshape back time: {}s".format(reshape_back_time))
             #############################################
         #############################################
         # print("----Combine----")
-        # combine_time = time.time()
+        combine_time = time.time()
         #############################################
         res = torch.stack(res, dim=-1)
         # adaptive aggregation
@@ -92,11 +93,18 @@ class TimesBlock(nn.Module):
             1).unsqueeze(1).repeat(1, T, N, 1)
         res = torch.sum(res * period_weight, -1)
         #############################################
-        # combine_time = time.time() - combine_time
+        combine_time = time.time() - combine_time
         # print("    ~ Combine time: {}s".format(combine_time))
         #############################################
         # residual connection
         res = res + x
+        total_time = time.time() - total_time
+        print("="*50)
+        print("_ FFT: {}%".format(round(fft_time*100/total_time)))
+        print("_ Transform: {}%".format(round(transform_time*100/total_time)))
+        print("_ Inception: {}%".format(round(inception_time*100/total_time)))
+        print("_ Reshape back: {}%".format(round(reshape_back_time*100/total_time)))
+        print("_ Combine: {}%".format(round(combind_time*100/total_time)))
         return res
 
 
@@ -200,12 +208,12 @@ class Model(nn.Module):
         # print("- De normalization time: {}s".format(denorm_time))
         #############################################
         total_time = time.time() - total_time
-        print("="*50)
-        print("_ Normalization: {}%".format(round(norm_time*100/total_time)))
-        print("_ Embedding: {}%".format(round(embed_time*100/total_time)))
-        print("_ TimesBlocks: {}".format(round(timesblock_time*100/total_time)))
-        print("_ Project Back: {}".format(round(project_back_time*100/total_time)))
-        print("_ De normalization: {}".format(round(denorm_time*100/total_time)))
+        # print("="*50)
+        # print("_ Normalization: {}%".format(round(norm_time*100/total_time)))
+        # print("_ Embedding: {}%".format(round(embed_time*100/total_time)))
+        # print("_ TimesBlocks: {}%".format(round(timesblock_time*100/total_time)))
+        # print("_ Project Back: {}%".format(round(project_back_time*100/total_time)))
+        # print("_ De normalization: {}%".format(round(denorm_time*100/total_time)))
         return dec_out
 
     def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
