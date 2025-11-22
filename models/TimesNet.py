@@ -104,7 +104,7 @@ class TimesBlock(nn.Module):
         print("_ Transform: {}%".format(round(transform_time*100/total_time)))
         print("_ Inception: {}%".format(round(inception_time*100/total_time)))
         print("_ Reshape back: {}%".format(round(reshape_back_time*100/total_time)))
-        print("_ Combine: {}%".format(round(combind_time*100/total_time)))
+        print("_ Combine: {}%".format(round(combine_time*100/total_time)))
         return res
 
 
