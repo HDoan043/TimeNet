@@ -134,8 +134,10 @@ class Model(nn.Module):
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         # Normalization from Non-stationary Transformer
-        print("="*25 + "[1]-NORMALIZATION"+"="*25)
-        norm_time = time.time()
+        #############################################
+        # print("="*25 + "[1]-NORMALIZATION"+"="*25)
+        # norm_time = time.time()
+        #############################################
         means = x_enc.mean(1, keepdim=True).detach()
         x_enc = x_enc.sub(means)
         stdev = torch.sqrt(
@@ -143,46 +145,46 @@ class Model(nn.Module):
         x_enc = x_enc.div(stdev)
 
         ##############################################
-        norm_time = time.time() - norm_time
-        print("- Normalization time: {}s".format(norm_time))
-        print()
+        # norm_time = time.time() - norm_time
+        # print("- Normalization time: {}s".format(norm_time))
+        # print()
         ##############################################
         # embedding
         ##############################################
-        print("="*25 + "[2]-EMBEDDING" + "="*25)
-        embed_time = time.time()
+        # print("="*25 + "[2]-EMBEDDING" + "="*25)
+        # embed_time = time.time()
         ##############################################
         enc_out = self.enc_embedding(x_enc, x_mark_enc)  # [B,T,C]
         enc_out = self.predict_linear(enc_out.permute(0, 2, 1)).permute(
             0, 2, 1)  # align temporal dimension
         ##############################################
-        embed_time = time.time() - embed_time
-        print("- Embedding time: {}s".format(embed_time))
+        # embed_time = time.time() - embed_time
+        # print("- Embedding time: {}s".format(embed_time))
         ##############################################
         # TimesNet
         ##############################################
-        print()
-        print("="*25 + "[3]-TIMESBLOCK LAYERS" + "="*25)
+        # print()
+        # print("="*25 + "[3]-TIMESBLOCK LAYERS" + "="*25)
         ##############################################
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))
         # project back
         ##############################################
-        print()
-        print("="*25 + "[4]-PROJECTION BACK" +"="*25)
-        project_back_time = time.time()
+        # print()
+        # print("="*25 + "[4]-PROJECTION BACK" +"="*25)
+        # project_back_time = time.time()
         ##############################################
         dec_out = self.projection(enc_out)
         #############################################
-        project_back_time = time.time() - project_back_time
-        print("- Project back time: {}s".format(project_back_time))
+        # project_back_time = time.time() - project_back_time
+        # print("- Project back time: {}s".format(project_back_time))
         #############################################
 
         # De-Normalization from Non-stationary Transformer
         #############################################
-        print()
-        print("="*25 + "[5]-DE NORMALIZATION" + "="*25)
-        denorm_time = time.time()
+        # print()
+        # print("="*25 + "[5]-DE NORMALIZATION" + "="*25)
+        # denorm_time = time.time()
         #############################################
         dec_out = dec_out.mul(
                   (stdev[:, 0, :].unsqueeze(1).repeat(
@@ -191,8 +193,8 @@ class Model(nn.Module):
                   (means[:, 0, :].unsqueeze(1).repeat(
                       1, self.pred_len + self.seq_len, 1)))
         #############################################
-        denorm_time = time.time() - denorm_time
-        print("- De normalization time: {}s".format(denorm_time))
+        # denorm_time = time.time() - denorm_time
+        # print("- De normalization time: {}s".format(denorm_time))
         #############################################
         return dec_out
 
