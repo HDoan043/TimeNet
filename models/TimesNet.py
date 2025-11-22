@@ -36,14 +36,18 @@ class TimesBlock(nn.Module):
 
     def forward(self, x):
         B, T, N = x.size()
-        print("***TimesBlock")
-        print("---- FFT ----")
-        fft_time = time.time()
+        ###############################################
+        # print("***TimesBlock")
+        # print("---- FFT ----")
+        # fft_time = time.time()
+        ###############################################
         period_list, period_weight = FFT_for_Period(x, self.k)
-        fft_time = time.time() - fft_time
-        print("    ~ FFT time: {}s".format(fft_time))
-        print()
-        print("---- Loop for each period ----")
+        ###############################################
+        # fft_time = time.time() - fft_time
+        # print("    ~ FFT time: {}s".format(fft_time))
+        # print()
+        # print("---- Loop for each period ----")
+        ###############################################
         res = []
         for i in range(self.k):
             transform_time = time.time()
@@ -58,29 +62,39 @@ class TimesBlock(nn.Module):
                 out = x
             # reshape
             out = out.reshape(B, length // period, period,N).permute(0, 3, 1, 2).contiguous()
-            transform_time = time.time() - transform_time
-            print("    ~ Transform 1D to 2D: {}s".format(transform_time))
+            #############################################
+            # transform_time = time.time() - transform_time
+            # print("    ~ Transform 1D to 2D: {}s".format(transform_time))
+            #############################################
             # 2D conv: from 1d Variation to 2d Variation
             inception_time = time.time()
             out = self.conv(out)
-            inception_time = time.time() - inception_time
-            print("    ~ Inception block time: {}s".format(inception_time))
+            #############################################
+            # inception_time = time.time() - inception_time
+            # print("    ~ Inception block time: {}s".format(inception_time))
+            #############################################
             # reshape back
             reshape_back_time = time.time()
             out = out.permute(0, 2, 3, 1).reshape(B, -1, N)
             res.append(out[:, :(self.seq_len + self.pred_len), :])
-            reshape_back_time = time.time() - reshape_back_time
-            print("    ~ Reshape back time: {}s".format(reshape_back_time))
-        print("----Combine----")
-        combine_time = time.time()
+            #############################################
+            # reshape_back_time = time.time() - reshape_back_time
+            # print("    ~ Reshape back time: {}s".format(reshape_back_time))
+            #############################################
+        #############################################
+        # print("----Combine----")
+        # combine_time = time.time()
+        #############################################
         res = torch.stack(res, dim=-1)
         # adaptive aggregation
         period_weight = F.softmax(period_weight, dim=1)
         period_weight = period_weight.unsqueeze(
             1).unsqueeze(1).repeat(1, T, N, 1)
         res = torch.sum(res * period_weight, -1)
-        combine_time = time.time() - combine_time
-        print("    ~ Combine time: {}s".format(combine_time))
+        #############################################
+        # combine_time = time.time() - combine_time
+        # print("    ~ Combine time: {}s".format(combine_time))
+        #############################################
         # residual connection
         res = res + x
         return res
@@ -128,42 +142,58 @@ class Model(nn.Module):
             torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
         x_enc = x_enc.div(stdev)
 
+        ##############################################
         norm_time = time.time() - norm_time
         print("- Normalization time: {}s".format(norm_time))
         print()
+        ##############################################
         # embedding
+        ##############################################
         print("="*25 + "[2]-EMBEDDING" + "="*25)
         embed_time = time.time()
+        ##############################################
         enc_out = self.enc_embedding(x_enc, x_mark_enc)  # [B,T,C]
         enc_out = self.predict_linear(enc_out.permute(0, 2, 1)).permute(
             0, 2, 1)  # align temporal dimension
+        ##############################################
         embed_time = time.time() - embed_time
         print("- Embedding time: {}s".format(embed_time))
+        ##############################################
         # TimesNet
+        ##############################################
         print()
         print("="*25 + "[3]-TIMESBLOCK LAYERS" + "="*25)
+        ##############################################
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))
         # project back
+        ##############################################
         print()
         print("="*25 + "[4]-PROJECTION BACK" +"="*25)
         project_back_time = time.time()
+        ##############################################
         dec_out = self.projection(enc_out)
+        #############################################
         project_back_time = time.time() - project_back_time
         print("- Project back time: {}s".format(project_back_time))
+        #############################################
 
         # De-Normalization from Non-stationary Transformer
+        #############################################
         print()
         print("="*25 + "[5]-DE NORMALIZATION" + "="*25)
         denorm_time = time.time()
+        #############################################
         dec_out = dec_out.mul(
                   (stdev[:, 0, :].unsqueeze(1).repeat(
                       1, self.pred_len + self.seq_len, 1)))
         dec_out = dec_out.add(
                   (means[:, 0, :].unsqueeze(1).repeat(
                       1, self.pred_len + self.seq_len, 1)))
+        #############################################
         denorm_time = time.time() - denorm_time
         print("- De normalization time: {}s".format(denorm_time))
+        #############################################
         return dec_out
 
     def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
