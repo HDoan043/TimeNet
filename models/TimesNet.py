@@ -50,8 +50,11 @@ class TimesBlock(nn.Module):
         # print("---- Loop for each period ----")
         ###############################################
         res = []
+        transform_time = 0
+        inception_time = 0
+        reshape_back_time = 0
         for i in range(self.k):
-            transform_time = time.time()
+            trans_time = time.time()
             period = period_list[i]
             # padding
             if (self.seq_len + self.pred_len) % period != 0:
@@ -64,22 +67,25 @@ class TimesBlock(nn.Module):
             # reshape
             out = out.reshape(B, length // period, period,N).permute(0, 3, 1, 2).contiguous()
             #############################################
-            transform_time = time.time() - transform_time
+            trans_time = time.time() - trans_time
+            transform_time += trans_time
             # print("    ~ Transform 1D to 2D: {}s".format(transform_time))
             #############################################
             # 2D conv: from 1d Variation to 2d Variation
-            inception_time = time.time()
+            incep_time = time.time()
             out = self.conv(out)
             #############################################
-            inception_time = time.time() - inception_time
+            incep_time = time.time() - incep_time
+            inception_time += incep_time
             # print("    ~ Inception block time: {}s".format(inception_time))
             #############################################
             # reshape back
-            reshape_back_time = time.time()
+            reshape_time = time.time()
             out = out.permute(0, 2, 3, 1).reshape(B, -1, N)
             res.append(out[:, :(self.seq_len + self.pred_len), :])
             #############################################
-            reshape_back_time = time.time() - reshape_back_time
+            reshape_time = time.time() - reshape_time
+            reshape_back_time += reshape_time
             # print("    ~ Reshape back time: {}s".format(reshape_back_time))
             #############################################
         #############################################
