@@ -105,12 +105,12 @@ class TimesBlock(nn.Module):
         # residual connection
         res = res + x
         total_time = time.time() - total_time
-        print("="*50)
-        print("_ FFT: {}%".format(round(fft_time*100/total_time)))
-        print("_ Transform: {}%".format(round(transform_time*100/total_time)))
-        print("_ Inception: {}%".format(round(inception_time*100/total_time)))
-        print("_ Reshape back: {}%".format(round(reshape_back_time*100/total_time)))
-        print("_ Combine: {}%".format(round(combine_time*100/total_time)))
+        # print("="*50)
+        # print("_ FFT: {}%".format(round(fft_time*100/total_time)))
+        # print("_ Transform: {}%".format(round(transform_time*100/total_time)))
+        # print("_ Inception: {}%".format(round(inception_time*100/total_time)))
+        # print("_ Reshape back: {}%".format(round(reshape_back_time*100/total_time)))
+        # print("_ Combine: {}%".format(round(combine_time*100/total_time)))
         return res
 
 
