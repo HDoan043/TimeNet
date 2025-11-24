@@ -84,3 +84,6 @@ class Exp_Basic(object):
 
     def test(self):
         pass
+
+    def predict(self):
+        pass
