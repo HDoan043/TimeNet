@@ -51,7 +51,10 @@ class Exp_Basic(object):
 
         self.device = self._acquire_device()
         self.model = self._build_model().to(self.device)
-
+        trainable_params = sum( p.numel() for p in self.model.parameters() if p.requires_grad)
+        print()
+        print("="*50)
+        print("_ Number of parameters: {}".format(trainable_params))
     def _build_model(self):
         raise NotImplementedError
         return None
