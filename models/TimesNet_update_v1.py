@@ -28,7 +28,6 @@ class TimesBlockUpdate(nn.Module):
       
         self.att_inner = nn.MultiheadAttention(configs.d_model, configs.n_heads, batch_first = True)
         self.att_outer = nn.MultiheadAttention(configs.d_model, configs.n_heads, batch_first = True)
-        self.att_combine = nn.MultiheadAttention(configs.d_model, configs.n_heads, batch_first = True)
 
         inner_mlp = []
         outer_mlp = []
@@ -89,19 +88,17 @@ class TimesBlockUpdate(nn.Module):
         att_in, _ = self.att_inner(out_f, out_f, out_f)        # att_in: [batch_size*f x period x d_model]
         x_in = out_f + att_in                                  # x_in: [batch_size*f x period x d_model]
         x_in = self.feedforward_inner(x_in)                    # x_in: [batch_size*f x period x d_model]
-        x_in = torch.reshape( x_in, (B, P*F, D))               # x_in: [batch_size x f*period x d_model]
+        x_in = torch.reshape( x_in, (B, P, F, D))              # x_in: [batch_size x period x f x d_model]
         
         att_out,_ = self.att_outer(out_p, out_p, out_p)        # att_out: [batch_size*period x f x d_model]
         x_out = out_p + att_out                                # x_out: [batch_size*period x f x d_model]
         x_out = self.feedforward_outer(x_out)                  # x_out: [batch_size*period x f x d_model]
-        x_out = torch.reshape(x_out, (B, F*P, D))              # x_out: [batch_size x period*f x d_model]
+        x_out = torch.reshape(x_out, (B, P, F, D))             # x_out: [batch_size x period x f x d_model]
 
         # =============================== COMBINATION ===============================
-        x = torch.cat([x_in, x_out], dim=1)                    # x: [batch_size x 2*period*f x d_model]
-        att, _ = self.att_combine(x, x, x)                     # att:[batch_size x 2*period*f x d_model]
-        x = att + x                                            # x: [batch_size x period*f x d_model]
-        x = torch.reshape(x, (B, P*F, 2*D))                    # x: [batch_size x period*f x 2*d_model]
-        x = self.feedforward(x)                                # x: [batch_size x period*f x d_model]
+        x = torch.cat([x_in, x_out], dim=1)                    # x: [batch_size x period x f x 2*d_model]
+        x = self.feedforward(x)                                # x: [batch_size x period x f x d_model]
+        x = torch.reshape(x, (B, P*F, D))                      # x: [batch_size x period * f x d_model]
 
         # ============================== RECONSTRUCT TO 1D ==========================
         x = x[:, :(self.seq_len + self.pred_len), :]           # x: [batch_size x (seq_len + pred_len) x d_model]
