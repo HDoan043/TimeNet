@@ -80,7 +80,8 @@ class TimesBlockUpdate(nn.Module):
         out_f = out_f + f_pe                                   # out_f: [Batch_size*f x period x d_model
         
         # [2] - Embedding with dimension of p_i: Embedding across the period
-        out_p = torch.reshape( out, (B*P, F, D))               # out_p: [Batch_size*period x f x d_model]
+        out_p = out.permute(0, 2, 1, 3)                        # out_p: [Batch_size x period x f x d_model]
+        out_p = torch.reshape( out_p, (B*P, F, D))             # out_p: [Batch_size*period x f x d_model]
         p_pe = self.enc_embedding(out_p)                       # p_pe: [Batch_size*period x f x d_model]
         out_p = out_p + p_pe                                   # out_p: [batch_size*period x f x d_model]
 
@@ -88,7 +89,8 @@ class TimesBlockUpdate(nn.Module):
         att_in, _ = self.att_inner(out_f, out_f, out_f)        # att_in: [batch_size*f x period x d_model]
         x_in = out_f + att_in                                  # x_in: [batch_size*f x period x d_model]
         x_in = self.feedforward_inner(x_in)                    # x_in: [batch_size*f x period x d_model]
-        x_in = torch.reshape( x_in, (B, P, F, D))              # x_in: [batch_size x period x f x d_model]
+        x_in = torch.reshape( x_in, (B, F, P, D))              # x_in: [batch_size x f x period x d_model]
+        x_in = x_in.permute(0, 2, 1, 3)                        # x_in: [batch_size x period x f x d_model]
         
         att_out,_ = self.att_outer(out_p, out_p, out_p)        # att_out: [batch_size*period x f x d_model]
         x_out = out_p + att_out                                # x_out: [batch_size*period x f x d_model]
