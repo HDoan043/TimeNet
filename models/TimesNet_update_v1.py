@@ -96,7 +96,7 @@ class TimesBlockUpdate(nn.Module):
         x_out = torch.reshape(x_out, (B, P, F, D))             # x_out: [batch_size x period x f x d_model]
 
         # =============================== COMBINATION ===============================
-        x = torch.cat([x_in, x_out], dim=1)                    # x: [batch_size x period x f x 2*d_model]
+        x = torch.cat([x_in, x_out], dim=3)                    # x: [batch_size x period x f x 2*d_model]
         x = self.feedforward(x)                                # x: [batch_size x period x f x d_model]
         x = torch.reshape(x, (B, P*F, D))                      # x: [batch_size x period * f x d_model]
 
