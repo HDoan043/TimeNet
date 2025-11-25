@@ -90,17 +90,17 @@ class TimesBlockUpdate(nn.Module):
         x_in = out_f + att_in                                  # x_in: [batch_size*f x period x d_model]
         x_in = self.feedforward_inner(x_in)                    # x_in: [batch_size*f x period x d_model]
         x_in = torch.reshape( x_in, (B, F, P, D))              # x_in: [batch_size x f x period x d_model]
-        x_in = x_in.permute(0, 2, 1, 3)                        # x_in: [batch_size x period x f x d_model]
         
         att_out,_ = self.att_outer(out_p, out_p, out_p)        # att_out: [batch_size*period x f x d_model]
         x_out = out_p + att_out                                # x_out: [batch_size*period x f x d_model]
         x_out = self.feedforward_outer(x_out)                  # x_out: [batch_size*period x f x d_model]
         x_out = torch.reshape(x_out, (B, P, F, D))             # x_out: [batch_size x period x f x d_model]
+        x_out = x_out.permute(0, 2, 1, 3)                      # x_in: [batch_size x f x period x d_model]
 
         # =============================== COMBINATION ===============================
-        x = torch.cat([x_in, x_out], dim=3)                    # x: [batch_size x period x f x 2*d_model]
-        x = self.feedforward(x)                                # x: [batch_size x period x f x d_model]
-        x = torch.reshape(x, (B, P*F, D))                      # x: [batch_size x period * f x d_model]
+        x = torch.cat([x_in, x_out], dim=3)                    # x: [batch_size x f x period x 2*d_model]
+        x = self.feedforward(x)                                # x: [batch_size x f x period x d_model]
+        x = torch.reshape(x, (B, P*F, D))                      # x: [batch_size x f * period x d_model]
 
         # ============================== RECONSTRUCT TO 1D ==========================
         x = x[:, :(self.seq_len + self.pred_len), :]           # x: [batch_size x (seq_len + pred_len) x d_model]
