@@ -205,3 +205,64 @@ class Exp_Anomaly_Detection(Exp_Basic):
         f.write('\n')
         f.close()
         return
+    def infer(self, setting, flag='test'):
+        infer_data, infer_loader = self._get_data(flag)
+        
+        print('loading model')
+        self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
+
+        attens_energy = []
+        folder_path = './pred_results/' + setting + '/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        self.model.eval()
+        self.anomaly_criterion = nn.MSELoss(reduce=False)
+
+        # (1) stastic on the train set
+        with torch.no_grad():
+            for i, (batch_x, batch_y) in enumerate(train_loader):
+                batch_x = batch_x.float().to(self.device)
+                # reconstruction
+                outputs = self.model(batch_x, None, None, None)
+                # criterion
+                score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
+                score = score.detach().cpu().numpy()
+                attens_energy.append(score)
+
+        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
+        train_energy = np.array(attens_energy)
+
+        attens_energy = []
+        gt_labels = []
+        for i, (batch_x, batch_y) in enumerate(infer_loader):
+            batch_x = batch_x.float().to(self.device)
+            # reconstruction
+            outputs = self.model(batch_x, None, None, None)
+            # criterion
+            score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
+            score = score.detach().cpu().numpy()
+            attens_energy.append(score)
+            gt_labels.append(batch_y)
+
+        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
+        infer_energy = np.array(attens_energy)
+        combined_energy = np.concatenate([train_energy, infer_energy], axis=0)
+        threshold = np.percentile(combined_energy, 100 - self.args.anomaly_ratio)
+
+        gt_labels = np.concatenate(gt_labels, axis=0).reshape(-1)
+        gt_labels = np.array(gt_labels)
+        
+        print("Threshold :", threshold)
+        print("Shape inference: {}".format(infer_energy.shape))
+        print("Shape ground truth: {}".format(gt_label.shape))
+
+        # Saving result
+        with open(os.path.join(folder_path, "result_inference.npy"), "w") as f:
+            np.save(infer_energy, f)
+        with open(os.path.join(folder_path, "ground_truth.npy"), "w") as f:
+            np.save(gt_labels, f)
+        with opent(os.path.join(folder_path, "threshold"), "w") as f:
+            np.save(threshold, f)
+
+        print("[DONE] Inference result is successfully saved in {}".format(folder_path))
