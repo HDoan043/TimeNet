@@ -281,6 +281,7 @@ class Dataset_Custom(Dataset):
         # Ensure the time stamps are continuous
         interupt_index = [0]
         freq_ls = []
+        print("[INFO] Number of timestamps in {} set: {}".format(self.flag, len(timestamps)))
         for i in range(len(timestamps)-1):
             freq_ls.append(timestamps[i+1] - timestamps[i])
         freq_df = pd.DataFrame(freq_ls)
@@ -291,7 +292,7 @@ class Dataset_Custom(Dataset):
                 interupt_index.append(i)
         interupt_index.append(len(timestamps)-1)
         if len(interupt_index) != 2:
-            print("[INFO] The original sequence is interupted at indexes: {}".format(interupt_index[1:-1]))
+            print("[INFO] The original sequence is interupted at {} indexes: {}".format(self.flag, interupt_index[1:-1]))
         else:
             print("[INFO] The original sequence is continous")
         possible_index = []
