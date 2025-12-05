@@ -297,7 +297,7 @@ class Dataset_Custom(Dataset):
         possible_index = []
         for i in range(len(interupt_index)-1):
             # if there are enough continous elements
-            if interupt_index[i+1] - interupt_index[i] +1 >= self.seq_len + self.seq_pred_len:
+            if interupt_index[i+1] - interupt_index[i] +1 >= self.seq_len + self.pred_len:
                 possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - self.seq_len - self.pred_len)))
         self.possible_index = possible_index
 
