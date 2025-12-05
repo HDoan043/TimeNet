@@ -287,7 +287,7 @@ class Dataset_Custom(Dataset):
         freq = freq_df.mode()
 
         print(freq)
-        print(freq_ls[0])
+        # print(freq_ls[0])
         for i in range(len(freq_ls)):
             if freq_ls[i] != freq:
                 interupt_index.append(i)
