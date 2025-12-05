@@ -285,9 +285,9 @@ class Dataset_Custom(Dataset):
             freq_ls.append(timestamps[i+1] - timestamps[i])
         freq_df = pd.DataFrame(freq_ls)
         freq = freq_df.mode()
-        print(freq_ls[0])
+
         for i in range(len(freq_ls)):
-            if freq_ls[i].value != freq:
+            if freq_ls[i] != freq:
                 interupt_index.append(i)
         interupt_index.append(len(timestamps)-1)
         if len(interupt_index) != 2:
