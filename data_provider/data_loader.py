@@ -275,10 +275,10 @@ class Dataset_Custom(Dataset):
             data = df_data.values
 
         df_stamp = df_raw[['date']][border1:border2]
-        df_stamp['date'] = pd.to_datetime(df_stamp.date)
+        timestamps = pd.to_datetime(df_stamp.date)
+        df_stamp['date'] = timestamps 
 
         # Ensure the time stamps are continuous
-        timestamps = df_stamp['date']
         interupt_index = [0]
         freq_ls = []
         for i in range(len(timestamps)-1):
