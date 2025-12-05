@@ -293,9 +293,9 @@ class Dataset_Custom(Dataset):
                 interupt_index.append(i)
         interupt_index.append(len(timestamps)-1)
         if len(interupt_index) != 2:
-            print("[INFO] The original sequence is interupted at {} indexes: {}".format(self.flag, interupt_index[1:-1]))
+            print("[INFO] The sequence for {} is interupted at {} indexes: {}".format(self.flag, self.flag, interupt_index[1:-1]))
         else:
-            print("[INFO] The original sequence is continous")
+            print("[INFO] The sequence for {} is continous".format(self.flag))
         possible_index = []
         for i in range(len(interupt_index)-1):
             # if there are enough continous elements
@@ -336,7 +336,8 @@ class Dataset_Custom(Dataset):
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
-        return len(self.data_x) - self.seq_len - self.pred_len + 1
+        # return len(self.data_x) - self.seq_len - self.pred_len + 1
+        return len(self.possible_index)
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
