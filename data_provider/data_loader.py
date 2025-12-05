@@ -207,7 +207,7 @@ class Dataset_ETT_minute(Dataset):
 class Dataset_Custom(Dataset):
     def __init__(self, args, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None):
+                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2):
         # size [seq_len, label_len, pred_len]
         self.args = args
         # info
@@ -233,6 +233,8 @@ class Dataset_Custom(Dataset):
 
         self.root_path = root_path
         self.data_path = data_path
+        self.train_ratio = train_ratio
+        self.test_ratio = test_ratio
         self.__read_data__()
 
     def __read_data__(self):
@@ -253,8 +255,8 @@ class Dataset_Custom(Dataset):
             df_raw = df_raw[['date'] + cols]
 
         # Split train, vali, test
-        num_train = int(len(df_raw) * 0.7)
-        num_test = int(len(df_raw) * 0.2)
+        num_train = int(len(df_raw) * self.train_ratio)
+        num_test = int(len(df_raw) * self.test_ratio)
         num_vali = len(df_raw) - num_train - num_test
         border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
         border2s = [num_train, num_train + num_vali, len(df_raw)]
@@ -286,7 +288,6 @@ class Dataset_Custom(Dataset):
             freq_ls.append(timestamps[i+1] - timestamps[i])
         freq_df = pd.DataFrame(freq_ls)
         freq = freq_df.mode()
-        print("{}".format(freq))
 
         for i in range(len(freq_ls)):
             if str(freq_ls[i]) not in str(freq):
