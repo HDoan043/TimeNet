@@ -27,6 +27,8 @@ def data_provider(args, flag):
     drop_last = False
     batch_size = args.batch_size
     freq = args.freq
+    train_ratio = args.train_ratio
+    test_ratio = args.test_ratio
 
     if args.task_name == 'anomaly_detection':
         drop_last = False
@@ -35,6 +37,8 @@ def data_provider(args, flag):
             root_path=args.root_path,
             win_size=args.seq_len,
             flag=flag,
+            train_ratio = train_ratio,
+            test_ratio = test_ratio
         )
         print(flag, len(data_set))
         data_loader = DataLoader(
@@ -50,6 +54,8 @@ def data_provider(args, flag):
             args = args,
             root_path=args.root_path,
             flag=flag,
+            train_ratio = train_ratio,
+            test_ratio = test_ratio
         )
 
         data_loader = DataLoader(
@@ -74,7 +80,9 @@ def data_provider(args, flag):
             target=args.target,
             timeenc=timeenc,
             freq=freq,
-            seasonal_patterns=args.seasonal_patterns
+            seasonal_patterns=args.seasonal_patterns,
+            train_ratio = train_ratio,
+            test_ratio = test_ratio
         )
         print(flag, len(data_set))
         data_loader = DataLoader(
