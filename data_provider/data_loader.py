@@ -291,7 +291,7 @@ class Dataset_Custom(Dataset):
                 interupt_index.append(i)
         interupt_index.append(len(timestamps)-1)
         if len(interupt_index) != 2:
-            print("[INFO] The original sequence is interupted at indexes: {}".format(*interupt_index))
+            print("[INFO] The original sequence is interupted at indexes: {}".format(interupt_index[1:-1]))
         else:
             print("[INFO] The original sequence is continous")
         possible_index = []
