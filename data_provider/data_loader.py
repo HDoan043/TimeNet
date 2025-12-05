@@ -282,6 +282,7 @@ class Dataset_Custom(Dataset):
         interupt_index = [0]
         freq_ls = []
         print("[INFO] Number of timestamps in {} set: {}".format(self.flag, len(timestamps)))
+        print("Debug timestamps",timestamps[1])
         for i in range(len(timestamps)-1):
             freq_ls.append(timestamps[i+1] - timestamps[i])
         freq_df = pd.DataFrame(freq_ls)
