@@ -292,10 +292,10 @@ class Dataset_Custom(Dataset):
             if str(freq_ls[i]) not in str(freq):
                 interupt_index.append(i)
         interupt_index.append(len(timestamps)-1)
-        # if len(interupt_index) != 2:
-        #     print("[INFO] The original sequence is interupted at {} indexes: {}".format(self.flag, interupt_index[1:-1]))
-        # else:
-        #     print("[INFO] The original sequence is continous")
+        if len(interupt_index) != 2:
+            print("[INFO] The original sequence is interupted at {} indexes: {}".format(self.flag, interupt_index[1:-1]))
+        else:
+            print("[INFO] The original sequence is continous")
         possible_index = []
         for i in range(len(interupt_index)-1):
             # if there are enough continous elements
