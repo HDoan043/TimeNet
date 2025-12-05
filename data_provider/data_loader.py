@@ -251,8 +251,34 @@ class Dataset_Custom(Dataset):
         else:
             df_raw = df_raw[['date'] + cols]
 
+        # Split train, vali, test
+        num_train = int(len(df_raw) * 0.7)
+        num_test = int(len(df_raw) * 0.2)
+        num_vali = len(df_raw) - num_train - num_test
+        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
+        border2s = [num_train, num_train + num_vali, len(df_raw)]
+        border1 = border1s[self.set_type]
+        border2 = border2s[self.set_type]
+
+        
+        if self.features == 'M' or self.features == 'MS':
+            cols_data = df_raw.columns[1:]
+            df_data = df_raw[cols_data]
+        elif self.features == 'S':
+            df_data = df_raw[[self.target]]
+
+        if self.scale:
+            train_data = df_data[border1s[0]:border2s[0]]
+            self.scaler.fit(train_data.values)
+            data = self.scaler.transform(df_data.values)
+        else:
+            data = df_data.values
+
+        df_stamp = df_raw[['date']][border1:border2]
+        df_stamp['date'] = pd.to_datetime(df_stamp.date)
+
         # Ensure the time stamps are continuous
-        timestamps = pd.to_datetime(df_raw["date"])
+        timestamps = df_stamp['date']
         interupt_index = [0]
         freq_ls = []
         for i in range(len(timestamps)-1):
@@ -273,30 +299,7 @@ class Dataset_Custom(Dataset):
             if interupt_index[i+1] - interupt_index[i] +1 >= self.seq_len + self.seq_pred_len:
                 possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - self.seq_len - self.pred_len)))
         self.possible_index = possible_index
-        # Split train, vali, test -----> Not Done
-        num_train = int(len(possible_index) * 0.7)
-        num_test = int(len(possible_index) * 0.2)
-        num_vali = len(possible_index) - num_train - num_test
-        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
-        border2s = [num_train, num_train + num_vali, len(df_raw)]
-        border1 = border1s[self.set_type]
-        border2 = border2s[self.set_type]
 
-        if self.features == 'M' or self.features == 'MS':
-            cols_data = df_raw.columns[1:]
-            df_data = df_raw[cols_data]
-        elif self.features == 'S':
-            df_data = df_raw[[self.target]]
-
-        if self.scale:
-            train_data = df_data[border1s[0]:border2s[0]]
-            self.scaler.fit(train_data.values)
-            data = self.scaler.transform(df_data.values)
-        else:
-            data = df_data.values
-
-        df_stamp = df_raw[['date']][border1:border2]
-        df_stamp['date'] = pd.to_datetime(df_stamp.date)
         if self.timeenc == 0:
             df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
             df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
@@ -316,6 +319,7 @@ class Dataset_Custom(Dataset):
         self.data_stamp = data_stamp
 
     def __getitem__(self, index):
+        index = self.possible_index[index]
         s_begin = index
         s_end = s_begin + self.seq_len
         r_begin = s_end - self.label_len
