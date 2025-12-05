@@ -222,6 +222,7 @@ class Dataset_Custom(Dataset):
         # init
         assert flag in ['train', 'test', 'val']
         type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.flag = flag
         self.set_type = type_map[flag]
 
         self.features = features
@@ -299,7 +300,7 @@ class Dataset_Custom(Dataset):
             if interupt_index[i+1] - interupt_index[i] +1 >= self.seq_len + self.pred_len:
                 possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - self.seq_len - self.pred_len)))
         self.possible_index = possible_index
-        print("[INFO] Number of samples: {}".format(len(possible_index)))
+        print("[INFO] Number of {} samples: {}".format(self.flag, len(possible_index)))
         if self.timeenc == 0:
             df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
             df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
