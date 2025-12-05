@@ -252,7 +252,6 @@ class Dataset_Custom(Dataset):
             df_raw = df_raw[['date'] + cols]
 
         # Split train, vali, test
-        print(len(df_raw))
         num_train = int(len(df_raw) * 0.7)
         num_test = int(len(df_raw) * 0.2)
         num_vali = len(df_raw) - num_train - num_test
@@ -261,7 +260,6 @@ class Dataset_Custom(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
-        
         if self.features == 'M' or self.features == 'MS':
             cols_data = df_raw.columns[1:]
             df_data = df_raw[cols_data]
@@ -301,7 +299,7 @@ class Dataset_Custom(Dataset):
             if interupt_index[i+1] - interupt_index[i] +1 >= self.seq_len + self.pred_len:
                 possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - self.seq_len - self.pred_len)))
         self.possible_index = possible_index
-
+        print("[INFO] Number of samples: {}".format(len(possible_index)))
         if self.timeenc == 0:
             df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
             df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
