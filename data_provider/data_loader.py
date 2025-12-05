@@ -250,9 +250,33 @@ class Dataset_Custom(Dataset):
             df_raw = df_raw[['date'] + cols + [self.target]]
         else:
             df_raw = df_raw[['date'] + cols]
-        num_train = int(len(df_raw) * 0.7)
-        num_test = int(len(df_raw) * 0.2)
-        num_vali = len(df_raw) - num_train - num_test
+
+        # Ensure the time stamps are continuous
+        timestamps = pd.to_datetime(df_raw["date"])
+        interupt_index = [0]
+        freq_ls = []
+        for i in range(len(timestamps)-1):
+            freq_ls.append(timestamps[i+1] - timestamps[i])
+        freq_df = pd.DataFrame(freq_ls)
+        freq = freq_df.mode()
+        for i in range(len(freq_ls)):
+            if freq_ls[i].values != freq:
+                interupt_index.append(i)
+        interupt_index.append(len(timestamps)-1)
+        if len(interupt_index) != 2:
+            print("[INFO] The original sequence is interupted at indexes: {}".format(*interupt_index[1:-1]))
+        else:
+            print("[INFO] The original sequence is continous")
+        possible_index = []
+        for i in range(len(interupt_index)-1):
+            # if there are enough continous elements
+            if interupt_index[i+1] - interupt_index[i] +1 >= self.seq_len + self.seq_pred_len:
+                possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - self.seq_len - self.pred_len)))
+        self.possible_index = possible_index
+        # Split train, vali, test -----> Not Done
+        num_train = int(len(possible_index) * 0.7)
+        num_test = int(len(possible_index) * 0.2)
+        num_vali = len(possible_index) - num_train - num_test
         border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
         border2s = [num_train, num_train + num_vali, len(df_raw)]
         border1 = border1s[self.set_type]
