@@ -275,16 +275,13 @@ class Dataset_Custom(Dataset):
             data = df_data.values
 
         df_stamp = df_raw[['date']][border1:border2]
-        timestamps = pd.to_datetime(df_stamp['date'])
+        timestamps = pd.to_datetime(df_stamp['date']).values
         df_stamp['date'] = timestamps 
 
         # Ensure the time stamps are continuous
         interupt_index = [0]
         freq_ls = []
         print("[INFO] Number of timestamps in {} set: {}".format(self.flag, len(timestamps)))
-        if self.flag == "val":
-            print(df_stamp)
-        print("Debug timestamps",timestamps[1])
         for i in range(len(timestamps)-1):
             freq_ls.append(timestamps[i+1] - timestamps[i])
         freq_df = pd.DataFrame(freq_ls)
