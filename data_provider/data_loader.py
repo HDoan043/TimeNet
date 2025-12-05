@@ -289,7 +289,7 @@ class Dataset_Custom(Dataset):
         print(freq)
         print(freq_ls[0])
         for i in range(len(freq_ls)):
-            if freq_ls[i] not is freq:
+            if freq_ls[i] != freq:
                 interupt_index.append(i)
         interupt_index.append(len(timestamps)-1)
         if len(interupt_index) != 2:
