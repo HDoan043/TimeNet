@@ -206,8 +206,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         f.close()
         return
     def infer(self, setting, flag='test'):
-        infer_data, infer_loader = self._get_data('test')
-        train_data, train_loader = self._get_data('train')
+        infer_data, infer_loader = self._get_data(flag='test')
+        train_data, train_loader = self._get_data(flag='train')
         
         print('loading model')
         self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
