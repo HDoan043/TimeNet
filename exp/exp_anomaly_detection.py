@@ -206,7 +206,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         f.close()
         return
     def infer(self, setting, flag='test'):
-        infer_data, infer_loader = self._get_data(flag)
+        infer_data, infer_loader = self._get_data('test')
+        train_data, train_loader = self._get_data('train')
         
         print('loading model')
         self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
@@ -262,7 +263,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
             np.save(infer_energy, f)
         with open(os.path.join(folder_path, "ground_truth.npy"), "w") as f:
             np.save(gt_labels, f)
-        with opent(os.path.join(folder_path, "threshold"), "w") as f:
+        with open(os.path.join(folder_path, "threshold"), "w") as f:
             np.save(threshold, f)
+        with open(os.path.join(folder_path, "train.npy"), "w") as f:
+            np.save(train_energy, f)
 
         print("[DONE] Inference result is successfully saved in {}".format(folder_path))
