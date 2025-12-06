@@ -32,11 +32,25 @@ def data_provider(args, flag):
 
     if args.task_name == 'anomaly_detection':
         drop_last = False
-        data_set = Data(
+        # data_set = Data(
+        #     args = args,
+        #     root_path=args.root_path,
+        #     # win_size=args.seq_len,
+        #     flag=flag,
+        #     train_ratio = train_ratio,
+        #     test_ratio = test_ratio
+        # )
+         data_set = Data(
             args = args,
             root_path=args.root_path,
-            # win_size=args.seq_len,
+            data_path=args.data_path,
             flag=flag,
+            size=[args.seq_len, args.label_len, args.pred_len],
+            features=args.features,
+            target=args.target,
+            timeenc=timeenc,
+            freq=freq,
+            seasonal_patterns=args.seasonal_patterns,
             train_ratio = train_ratio,
             test_ratio = test_ratio
         )
