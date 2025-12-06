@@ -40,7 +40,7 @@ def data_provider(args, flag):
         #     train_ratio = train_ratio,
         #     test_ratio = test_ratio
         # )
-         data_set = Data(
+        data_set = Data(
             args = args,
             root_path=args.root_path,
             data_path=args.data_path,
