@@ -35,7 +35,7 @@ def data_provider(args, flag):
         data_set = Data(
             args = args,
             root_path=args.root_path,
-            win_size=args.seq_len,
+            # win_size=args.seq_len,
             flag=flag,
             train_ratio = train_ratio,
             test_ratio = test_ratio
