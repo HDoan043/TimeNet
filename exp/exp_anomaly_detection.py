@@ -1,6 +1,6 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from utils.tools import EarlyStopping, adjust_learning_rate, adjustment
+from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, ProgressBar
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
@@ -83,10 +83,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
-            for i, (batch_x, batch_y, _, _) in enumerate(train_loader):
+            pbar = ProgressBar(train_loader, bin=60)
+            i = 0
+            for batch_x, batch_y, _, _ in pbar:
                 iter_count += 1
                 model_optim.zero_grad()
-
                 batch_x = batch_x.float().to(self.device)
 
                 outputs = self.model(batch_x, None, None, None)
@@ -96,17 +97,36 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 loss = criterion(outputs, batch_x)
                 train_loss.append(loss.item())
 
-                if (i + 1) % 100 == 0:
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                    speed = (time.time() - time_now) / iter_count
-                    left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                    iter_count = 0
-                    time_now = time.time()
+                speed = (time.time() - time_begin) / aggregate_steps
+                left_time_s = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                if left_time_s <60: 
+                    left_time = f"{round(left_time_s,4)}s"
+                elif left_time_s<3600:
+                    left_time = f"{round(left_time_s/60,4)}mins"
+                else: left_time = f"{round(left_time_s/3600,4)}hs"
+    
+                pbar.set_postfix(
+                    {
+                        "Epoch": epoch + 1,
+                        "Iteration": f"{i+1}/{train_steps}",
+                        "Loss": loss.item(),
+                        "Speed": f"{round(speed, 4)}s/iter",
+                        "Left time": left_time
+                    }
+                )
+                # if (i + 1) % 100 == 0:
+                #     print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                #     speed = (time.time() - time_now) / iter_count
+                #     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                #     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                #     iter_count = 0
+                #     time_now = time.time()
 
                 loss.backward()
                 model_optim.step()
 
+                
+                
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
             vali_loss = self.vali(vali_data, vali_loader, criterion)
