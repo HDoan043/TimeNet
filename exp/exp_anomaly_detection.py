@@ -80,6 +80,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
         criterion = self._select_criterion()
 
         for epoch in range(self.args.train_epochs):
+            print()
+            print("="*25 + " Epoch [{}]: ".format(epoch+1)+"="*25)
+            print()
+            
             iter_count = 0
             train_loss = []
 
@@ -88,9 +92,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
             pbar = ProgressBar(train_loader, bin=60)
             i = 0
             for batch_x, batch_y in pbar:
-                print()
-                print("="*25 + " Epoch [{}]: ".format(epoch+1)+"="*25)
-                print()
                 aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
