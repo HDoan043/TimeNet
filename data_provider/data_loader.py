@@ -205,23 +205,32 @@ class Dataset_ETT_minute(Dataset):
 
 
 class Dataset_Custom(Dataset):
-    def __init__(self, args, root_path, flag='train', size=None,
-                 features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2):
+    def __init__(self, args, root_path, flag='train', task_name="long_term_forecasting",
+                 size=None, features='S', data_path='ETTh1.csv',
+                 target='OT', scale=True, timeenc=0, freq='h', 
+                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2):
         # size [seq_len, label_len, pred_len]
         self.args = args
         # info
         if size == None:
-            self.seq_len = 24 * 4 * 4
-            self.label_len = 24 * 4
-            self.pred_len = 24 * 4
+            if task_name.lower() == "long_term_forecasting":
+                self.seq_len = 24 * 4 * 4
+                self.label_len = 24 * 4
+                self.pred_len = 24 * 4
+            else:
+                self.win_size = 500
         else:
-            self.seq_len = size[0]
-            self.label_len = size[1]
-            self.pred_len = size[2]
+            if task_name.lower() == "long_term_forecasting":
+                self.seq_len = size[0]
+                self.label_len = size[1]
+                self.pred_len = size[2]
+            else:
+                self.win_size = size
+                
         # init
-        assert flag in ['train', 'test', 'val']
-        type_map = {'train': 0, 'val': 1, 'test': 2}
+        assert flag in ['train', 'test', 'val', 'full']
+        type_map = {'train': 0, 'val': 1, 'test': 2, 'full': 3}
+        self.task_name = task_name.lower()
         self.flag = flag
         self.set_type = type_map[flag]
 
@@ -258,8 +267,8 @@ class Dataset_Custom(Dataset):
         num_train = int(len(df_raw) * self.train_ratio)
         num_test = int(len(df_raw) * self.test_ratio)
         num_vali = len(df_raw) - num_train - num_test
-        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
-        border2s = [num_train, num_train + num_vali, len(df_raw)]
+        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len, 0]
+        border2s = [num_train, num_train + num_vali, len(df_raw), len(df_raw)]
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
@@ -323,19 +332,30 @@ class Dataset_Custom(Dataset):
         self.data_stamp = data_stamp
 
     def __getitem__(self, index):
-        index = self.possible_index[index]
-        s_begin = index
-        s_end = s_begin + self.seq_len
-        r_begin = s_end - self.label_len
-        r_end = r_begin + self.label_len + self.pred_len
+        x_index = self.possible_index[index]
+        s_begin = x_index
+        if self.task_name == "long_term_forecasting":
+            s_end = s_begin + self.seq_len
+            r_begin = s_end - self.label_len
+            r_end = r_begin + self.label_len + self.pred_len
+    
+            seq_x = self.data_x[s_begin:s_end]
+            seq_y = self.data_y[r_begin:r_end]
+            seq_x_mark = self.data_stamp[s_begin:s_end]
+            seq_y_mark = self.data_stamp[r_begin:r_end]
+    
+            return seq_x, seq_y, seq_x_mark, seq_y_mark
+        else:
+            x_index_start = x_index
+            x_index_end = x_index + self.win_size
+            y_index_start = index 
+            y_index_end = index + self.win_size
 
-        seq_x = self.data_x[s_begin:s_end]
-        seq_y = self.data_y[r_begin:r_end]
-        seq_x_mark = self.data_stamp[s_begin:s_end]
-        seq_y_mark = self.data_stamp[r_begin:r_end]
+            seq_x = self.data_x[x_index_start: x_index_end]
+            seq_y = self.data_y[y_index_start: y_index_end]
 
-        return seq_x, seq_y, seq_x_mark, seq_y_mark
-
+            return seq_x, seq_y
+    
     def __len__(self):
         # return len(self.data_x) - self.seq_len - self.pred_len + 1
         return len(self.possible_index)
