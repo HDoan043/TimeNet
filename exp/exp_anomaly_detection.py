@@ -222,7 +222,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         # (1) stastic on the train set
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y,_,_) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
                 # reconstruction
                 outputs = self.model(batch_x, None, None, None)
@@ -236,7 +236,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         attens_energy = []
         gt_labels = []
-        for i, (batch_x, batch_y) in enumerate(infer_loader):
+        for i, (batch_x, batch_y, _, _) in enumerate(infer_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
             outputs = self.model(batch_x, None, None, None)
