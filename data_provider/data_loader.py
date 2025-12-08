@@ -313,7 +313,7 @@ class Dataset_Custom(Dataset):
         possible_index = []
         for i in range(len(interupt_index)-1):
             # if there are enough continous elements
-            sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win-size
+            sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_ssize
             if interupt_index[i+1] - interupt_index[i] +1 >= sample_length:
                 possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length)))
         self.possible_index = possible_index
