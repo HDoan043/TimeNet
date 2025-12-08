@@ -270,12 +270,13 @@ class Model(nn.Module):
         dec_out = self.projection(enc_out)
 
         # De-Normalization from Non-stationary Transformer
+        sample_length = self.pred_len + self.seq_len if self.task_name == "long_term_forecasting" else self.win_size
         dec_out = dec_out.mul(
                   (stdev[:, 0, :].unsqueeze(1).repeat(
-                      1, self.pred_len + self.seq_len, 1)))
+                      1, sample_length, 1)))
         dec_out = dec_out.add(
                   (means[:, 0, :].unsqueeze(1).repeat(
-                      1, self.pred_len + self.seq_len, 1)))
+                      1, sample_length, 1)))
         return dec_out
 
     def classification(self, x_enc, x_mark_enc):
