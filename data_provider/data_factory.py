@@ -43,6 +43,7 @@ def data_provider(args, flag):
         data_set = Data(
             args = args,
             root_path=args.root_path,
+            task_name=args.task_name,
             data_path=args.data_path,
             flag=flag,
             size=[args.seq_len, args.label_len, args.pred_len],
@@ -88,6 +89,7 @@ def data_provider(args, flag):
             args = args,
             root_path=args.root_path,
             data_path=args.data_path,
+            task_name=args.task_name,
             flag=flag,
             size=[args.seq_len, args.label_len, args.pred_len],
             features=args.features,
