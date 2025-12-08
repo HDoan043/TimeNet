@@ -71,6 +71,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         time_now = time.time()
         time_begin= time.time()
+        aggregate_steps = 0
 
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
@@ -90,6 +91,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 print()
                 print("="*25 + " Epoch [{}]: ".format(epoch+1)+"="*25)
                 print()
+                aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
