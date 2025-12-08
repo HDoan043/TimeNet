@@ -46,7 +46,7 @@ def data_provider(args, flag):
             task_name=args.task_name,
             data_path=args.data_path,
             flag=flag,
-            size=[args.seq_len, args.label_len, args.pred_len],
+            size=args.win_size,
             features=args.features,
             target=args.target,
             timeenc=timeenc,
