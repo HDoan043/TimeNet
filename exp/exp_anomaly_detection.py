@@ -70,6 +70,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             os.makedirs(path)
 
         time_now = time.time()
+        time_begin= time.time()
 
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
@@ -86,6 +87,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
             pbar = ProgressBar(train_loader, bin=60)
             i = 0
             for batch_x, batch_y in pbar:
+                print()
+                print("="*25 + " Epoch [{}]: ".format(epoch+1)+"="*25)
+                print()
                 iter_count += 1
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
@@ -124,6 +128,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
                 loss.backward()
                 model_optim.step()
+
+                i+=1
 
                 
                 
