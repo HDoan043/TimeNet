@@ -44,7 +44,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         total_loss = []
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, _) in enumerate(vali_loader):
+            for i, (batch_x, _, _ ,_) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
 
                 outputs = self.model(batch_x, None, None, None)
@@ -83,7 +83,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y, _, _) in enumerate(train_loader):
                 iter_count += 1
                 model_optim.zero_grad()
 
@@ -142,7 +142,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         # (1) stastic on the train set
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y, _, _) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
                 # reconstruction
                 outputs = self.model(batch_x, None, None, None)
