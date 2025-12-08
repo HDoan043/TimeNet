@@ -267,8 +267,12 @@ class Dataset_Custom(Dataset):
         num_train = int(len(df_raw) * self.train_ratio)
         num_test = int(len(df_raw) * self.test_ratio)
         num_vali = len(df_raw) - num_train - num_test
-        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len, 0]
-        border2s = [num_train, num_train + num_vali, len(df_raw), len(df_raw)]
+        if self.task_name == "long_term_forecasting":
+            border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len, 0]
+            border2s = [num_train, num_train + num_vali, len(df_raw), len(df_raw)]
+        else:
+            border1s = [0, num_train, len(df_raw) - num_test , 0]
+            border2s = [num_train, num_train + num_vali, len(df_raw), len(df_raw)]
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
