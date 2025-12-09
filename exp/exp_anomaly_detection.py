@@ -304,7 +304,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
             score = score.detach().cpu().numpy()
             attens_energy.append(score)
 
-        print("attens_energy: {}".format([i.shape for i in attens_energy]))
         full_energy = np.array(attens_energy)
         
         print("Threshold :", threshold)
