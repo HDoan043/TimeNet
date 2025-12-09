@@ -26,6 +26,7 @@ class TimesBlock(nn.Module):
         self.pred_len = configs.pred_len
         self.win_size = configs.win_size
         self.task_name = configs.task_name.lower()
+        self.sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_size
         self.k = configs.top_k
         # parameter-efficient design
         self.conv = nn.Sequential(
@@ -59,13 +60,12 @@ class TimesBlock(nn.Module):
             trans_time = time.time()
             period = period_list[i]
             # padding
-            sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_size
-            if sample_length % period != 0:
-                length = ((sample_length // period) + 1) * period
-                padding = torch.zeros([x.shape[0], (length - sample_length), x.shape[2]]).to(x.device)
+            if self.sample_length % period != 0:
+                length = ((self.sample_length // period) + 1) * period
+                padding = torch.zeros([x.shape[0], (length - self.sample_length), x.shape[2]]).to(x.device)
                 out = torch.cat([x, padding], dim=1)
             else:
-                length = sample_length
+                length = self.sample_length
                 out = x
             # reshape
             out = out.reshape(B, length // period, period,N).permute(0, 3, 1, 2).contiguous()
@@ -85,7 +85,7 @@ class TimesBlock(nn.Module):
             # reshape back
             reshape_time = time.time()
             out = out.permute(0, 2, 3, 1).reshape(B, -1, N)
-            res.append(out[:, :(self.seq_len + self.pred_len), :])
+            res.append(out[:, :self.sample_length, :])
             #############################################
             reshape_time = time.time() - reshape_time
             reshape_back_time += reshape_time
