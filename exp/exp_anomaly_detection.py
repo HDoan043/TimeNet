@@ -255,8 +255,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        with open(os.path.join(folder_path, "timestamps.json"), "w") as f:
-            json.dump(timestamps, f)
+        timestamps.to_csv(os.path.join(folder_path, "timestamps.csv"))
         self.model.eval()
         self.anomaly_criterion = nn.MSELoss(reduce=False)
 
