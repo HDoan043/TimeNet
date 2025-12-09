@@ -318,7 +318,7 @@ class Dataset_Custom(Dataset):
             sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_size
             
             if interupt_index[i+1] - interupt_index[i] +1 >= sample_length:
-                if self.task_name == "long_term_forecasting"
+                if self.task_name == "long_term_forecasting":
                     possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length)))
                 else:
                     possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length, self.step)))
