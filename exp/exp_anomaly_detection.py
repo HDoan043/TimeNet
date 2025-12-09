@@ -304,7 +304,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             score = score.detach().cpu().numpy()
             attens_energy.append(score)
 
-        full_energy = np.array(attens_energy)
+        full_energy = np.array(np.concatenate(attens_energy, axis = 0))
         
         print("Threshold :", threshold)
         print("Shape inference full data: {}".format(full_energy.shape))
@@ -312,7 +312,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         # Saving result
         # with open(os.path.join(folder_path, "result_inference.npy"), "w") as f:
-        # np.save(os.path.join(folder_path, "inference.npy"), infer_energy_save)
+        # np.save(os.path.join(folder_path, "inference.npy"), infer_energy)
         # with open(os.path.join(folder_path, "ground_truth.npy"), "w") as f:
         np.save(os.path.join(folder_path, "true.npy"), gt_labels)
         # with open(os.path.join(folder_path, "threshold"), "w") as f:
