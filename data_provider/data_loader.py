@@ -208,7 +208,7 @@ class Dataset_Custom(Dataset):
     def __init__(self, args, root_path, flag='train', task_name="long_term_forecasting",
                  size=None, features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='h', 
-                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2):
+                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1):
         # size [seq_len, label_len, pred_len]
         self.args = args
         # info
@@ -219,6 +219,7 @@ class Dataset_Custom(Dataset):
                 self.pred_len = 24 * 4
             else:
                 self.win_size = 500
+                self.step = step
         else:
             if task_name.lower() == "long_term_forecasting":
                 self.seq_len = size[0]
@@ -226,6 +227,7 @@ class Dataset_Custom(Dataset):
                 self.pred_len = size[2]
             else:
                 self.win_size = size
+                self.step = step
                 
         # init
         assert flag in ['train', 'test', 'val', 'full']
@@ -314,8 +316,12 @@ class Dataset_Custom(Dataset):
         for i in range(len(interupt_index)-1):
             # if there are enough continous elements
             sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_size
+            
             if interupt_index[i+1] - interupt_index[i] +1 >= sample_length:
-                possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length)))
+                if self.task_name == "long_term_forecasting"
+                    possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length)))
+                else:
+                    possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length, self.step)))
         self.possible_index = possible_index
         print("[INFO] Number of {} samples: {}".format(self.flag, len(possible_index)))
         if self.timeenc == 0:
@@ -357,7 +363,7 @@ class Dataset_Custom(Dataset):
             y_index_end = index + self.win_size
 
             seq_x = self.data_x[x_index_start: x_index_end]
-            seq_y = self.data_y[y_index_start: y_index_end]
+            seq_y = (self.data_y[y_index_start: y_index_end].values.sum() > 1)*1
 
             return seq_x, seq_y
     
