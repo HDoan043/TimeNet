@@ -364,7 +364,7 @@ class Dataset_Custom(Dataset):
             y_index_end = index + self.win_size
 
             seq_x = self.data_x[x_index_start: x_index_end]
-            seq_y = (self.data_y[y_index_start: y_index_end].sum() > 0)*1
+            seq_y = self.data_y[y_index_start: y_index_end]
 
             return seq_x, seq_y
     
