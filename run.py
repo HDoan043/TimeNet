@@ -46,6 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--label_len', type=int, default=48, help='start token length')
     parser.add_argument('--pred_len', type=int, default=96, help='prediction sequence length')
     parser.add_argument('--win_size', type=int, default=100, help='length of a sample in anomaly detection')
+    parser.add_argument('--step', type=int, default=100, help='stride of window sampling in anomaly detection')
     parser.add_argument('--seasonal_patterns', type=str, default='Monthly', help='subset for M4')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=False)
 
