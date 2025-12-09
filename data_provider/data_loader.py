@@ -338,7 +338,7 @@ class Dataset_Custom(Dataset):
 
     def __getitem__(self, index):
         index = self.possible_index[index]
-        s_begin = x_index
+        s_begin = index
         if self.task_name == "long_term_forecasting":
             s_end = s_begin + self.seq_len
             r_begin = s_end - self.label_len
