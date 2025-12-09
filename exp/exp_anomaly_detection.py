@@ -237,6 +237,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
     def infer(self, setting, flag='test'):
         infer_data, infer_loader = self._get_data(flag='test')
         train_data, train_loader = self._get_data(flag='train')
+        full_data,  full_loader = self._get_data(flag='full')
         
         print('loading model')
         self.model.load_state_dict(torch.load(os.path.join(self.args.checkpoints, setting, 'checkpoint.pth')))
@@ -282,19 +283,32 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         gt_labels = np.concatenate(gt_labels, axis=0).reshape(-1)
         gt_labels = np.array(gt_labels)
+
+        attens_energy = []
+        for i, (batch_x, _) in enumerate(full_loader):
+            batch_x = batch_x.float().to(self.device)
+            # reconstruction
+            outputs = self.model(batch_x, None, None, None)
+            # criterion
+            score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
+            score = score.detach().cpu().numpy()
+            attens_energy.append(score)
+
+        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
+        full_energy = np.array(attens_energy)
         
         print("Threshold :", threshold)
         print("Shape inference: {}".format(infer_energy.shape))
-        print("Shape ground truth: {}".format(gt_labels.shape))
+        # print("Shape ground truth: {}".format(gt_labels.shape))
 
         # Saving result
-        with open(os.path.join(folder_path, "result_inference.npy"), "w") as f:
-            np.save(infer_energy, f)
-        with open(os.path.join(folder_path, "ground_truth.npy"), "w") as f:
-            np.save(gt_labels, f)
-        with open(os.path.join(folder_path, "threshold"), "w") as f:
-            np.save(threshold, f)
-        with open(os.path.join(folder_path, "train.npy"), "w") as f:
-            np.save(train_energy, f)
+        # with open(os.path.join(folder_path, "result_inference.npy"), "w") as f:
+        np.save(infer_energy, os.path.join(folder_path, "inference.npy"))
+        # with open(os.path.join(folder_path, "ground_truth.npy"), "w") as f:
+        np.save(gt_labels, os.path.join(folder_path, "true.npy"))
+        # with open(os.path.join(folder_path, "threshold"), "w") as f:
+        np.save(threshold, os.path.join(folder_path, "threshold.npy"))
+        # with open(os.path.join(folder_path, "train.npy"), "w") as f:
+        np.save(full_energy, os.path.join(folder_path, "full.npy"))
 
         print("[DONE] Inference result is successfully saved in {}".format(folder_path))
