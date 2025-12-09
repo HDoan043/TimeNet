@@ -285,7 +285,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         
         print("Threshold :", threshold)
         print("Shape inference: {}".format(infer_energy.shape))
-        print("Shape ground truth: {}".format(gt_label.shape))
+        print("Shape ground truth: {}".format(gt_labels.shape))
 
         # Saving result
         with open(os.path.join(folder_path, "result_inference.npy"), "w") as f:
