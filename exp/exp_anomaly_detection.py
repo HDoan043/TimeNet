@@ -286,6 +286,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             attens_energy.append(score)
             gt_labels.append(batch_y)
 
+        infer_energy_save = np.array(attens_energy)
         attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
         infer_energy = np.array(attens_energy)
         combined_energy = np.concatenate([train_energy, infer_energy], axis=0)
@@ -304,21 +305,20 @@ class Exp_Anomaly_Detection(Exp_Basic):
             score = score.detach().cpu().numpy()
             attens_energy.append(score)
 
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
         full_energy = np.array(attens_energy)
         
         print("Threshold :", threshold)
-        print("Shape inference: {}".format(infer_energy.shape))
-        # print("Shape ground truth: {}".format(gt_labels.shape))
+        print("Shape inference: {}".format(infer_energy_save.shape))
+        print("Shape ground truth: {}".format(gt_labels.shape))
 
         # Saving result
         # with open(os.path.join(folder_path, "result_inference.npy"), "w") as f:
-        np.save(infer_energy, os.path.join(folder_path, "inference.npy"))
+        np.save(os.path.join(folder_path, "inference.npy"), infer_energy_save)
         # with open(os.path.join(folder_path, "ground_truth.npy"), "w") as f:
-        np.save(gt_labels, os.path.join(folder_path, "true.npy"))
+        np.save(os.path.join(folder_path, "true.npy"), gt_labels)
         # with open(os.path.join(folder_path, "threshold"), "w") as f:
-        np.save(threshold, os.path.join(folder_path, "threshold.npy"))
+        np.save(os.path.join(folder_path, "threshold.npy"), threshold)
         # with open(os.path.join(folder_path, "train.npy"), "w") as f:
-        np.save(full_energy, os.path.join(folder_path, "full.npy"))
+        np.save(os.path.join(folder_path, "full.npy"), full_energy)
 
         print("[DONE] Inference result is successfully saved in {}".format(folder_path))
