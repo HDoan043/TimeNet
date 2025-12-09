@@ -337,7 +337,7 @@ class Dataset_Custom(Dataset):
         self.data_stamp = data_stamp
 
     def __getitem__(self, index):
-        x_index = self.possible_index[index]
+        index = self.possible_index[index]
         s_begin = x_index
         if self.task_name == "long_term_forecasting":
             s_end = s_begin + self.seq_len
@@ -351,8 +351,8 @@ class Dataset_Custom(Dataset):
     
             return seq_x, seq_y, seq_x_mark, seq_y_mark
         else:
-            x_index_start = x_index
-            x_index_end = x_index + self.win_size
+            x_index_start = index
+            x_index_end = index + self.win_size
             y_index_start = index 
             y_index_end = index + self.win_size
 
