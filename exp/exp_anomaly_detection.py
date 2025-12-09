@@ -102,7 +102,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, :, f_dim:]
-                print("output :",outputs.shape)
                 loss = criterion(outputs, batch_x)
                 train_loss.append(loss.item())
 
