@@ -31,7 +31,7 @@ def data_provider(args, flag):
     test_ratio = args.test_ratio
 
     if args.task_name == 'anomaly_detection':
-        drop_last = False
+        drop_last = True
         # data_set = Data(
         #     args = args,
         #     root_path=args.root_path,
