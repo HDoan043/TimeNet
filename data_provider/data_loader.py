@@ -293,7 +293,6 @@ class Dataset_Custom(Dataset):
 
         df_stamp = df_raw[['date']][border1:border2]
         timestamps = list(pd.to_datetime(df_stamp['date']))
-        string_timestamps = list(df_stamp['date'].to_string())
         df_stamp['date'] = timestamps 
 
         # Ensure the time stamps are continuous
@@ -324,7 +323,7 @@ class Dataset_Custom(Dataset):
                 else:
                     possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length, self.step)))
         self.possible_index = possible_index
-        self.possible_timestamps = [string_timestamps[index:index+sample_length] for index in possible_index]
+        self.possible_timestamps = pd.DataFrame([timestamps[index:index+sample_length] for index in possible_index])
         print("[INFO] Number of {} samples: {}".format(self.flag, len(possible_index)))
         if self.timeenc == 0:
             df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
