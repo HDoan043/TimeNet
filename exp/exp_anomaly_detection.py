@@ -13,6 +13,7 @@ import os
 import time
 import warnings
 import numpy as np
+import json
 
 warnings.filterwarnings('ignore')
 
@@ -157,6 +158,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')
         train_data, train_loader = self._get_data(flag='train')
+        timestamps = test_data.get_timestamps()
+        
         if test:
             print('loading model')
             self.model.load_state_dict(torch.load(os.path.join(self.args.checkpoint, settings, 'checkpoint.pth')))
@@ -166,6 +169,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
+        with open(os.path.join(folder_path, "timestamps.json"), "w") as f:
+            json.dump(timestamps, f)
+            
         self.model.eval()
         self.anomaly_criterion = nn.MSELoss(reduce=False)
 
@@ -238,6 +244,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         infer_data, infer_loader = self._get_data(flag='test')
         train_data, train_loader = self._get_data(flag='train')
         full_data,  full_loader = self._get_data(flag='full')
+
+        timestamps = full_data.get_timestamps()
         
         print('loading model')
         self.model.load_state_dict(torch.load(os.path.join(self.args.checkpoints, setting, 'checkpoint.pth')))
@@ -247,6 +255,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
+        with open(os.path.join(folder_path, "timestamps.json"), "w") as f:
+            json.dump(timestamps, f)
         self.model.eval()
         self.anomaly_criterion = nn.MSELoss(reduce=False)
 
