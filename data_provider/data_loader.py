@@ -312,17 +312,19 @@ class Dataset_Custom(Dataset):
             print("[INFO] The sequence for {} is interupted at {} indexes: {}".format(self.flag, self.flag, interupt_index[1:-1]))
         else:
             print("[INFO] The sequence for {} is continous".format(self.flag))
+            
         possible_index = []
+        possible_timestamps=[]
+        sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_size
         for i in range(len(interupt_index)-1):
             # if there are enough continous elements
-            sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_size
-            
             if interupt_index[i+1] - interupt_index[i] +1 >= sample_length:
                 if self.task_name == "long_term_forecasting":
                     possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length)))
                 else:
                     possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length, self.step)))
         self.possible_index = possible_index
+        possible_timestamps = [timestamps[index:index+sampe_length] for index in possible_index]
         print("[INFO] Number of {} samples: {}".format(self.flag, len(possible_index)))
         if self.timeenc == 0:
             df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
@@ -370,6 +372,9 @@ class Dataset_Custom(Dataset):
     def __len__(self):
         # return len(self.data_x) - self.seq_len - self.pred_len + 1
         return len(self.possible_index)
+
+    def get_timestamps(self):
+        return self.possible_timestamps
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
