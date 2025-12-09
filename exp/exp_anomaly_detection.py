@@ -102,6 +102,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, :, f_dim:]
+                print("output :",outputs.shape)
                 loss = criterion(outputs, batch_x)
                 train_loss.append(loss.item())
 
@@ -169,8 +170,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        with open(os.path.join(folder_path, "timestamps.json"), "w") as f:
-            json.dump(timestamps, f)
+        timestamps.to_csv(os.path.join(folder_path, "timestamps.csv"))
             
         self.model.eval()
         self.anomaly_criterion = nn.MSELoss(reduce=False)
@@ -186,7 +186,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 score = score.detach().cpu().numpy()
                 attens_energy.append(score)
 
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
+        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)            # attens_energy: [num_batch * batch_size * num_channels]
         train_energy = np.array(attens_energy)
 
         # (2) find the threshold
@@ -195,14 +195,14 @@ class Exp_Anomaly_Detection(Exp_Basic):
         for i, (batch_x, batch_y) in enumerate(test_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
-            outputs = self.model(batch_x, None, None, None)
+            outputs = self.model(batch_x, None, None, None)                           # output: [batch_size x win_size x nvars]
             # criterion
-            score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
+            score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)      # score:  [batch_size x win_size x 1]
             score = score.detach().cpu().numpy()
             attens_energy.append(score)
             test_labels.append(batch_y)
 
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
+        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)             # attens_energy: [batch_size * win_size]
         test_energy = np.array(attens_energy)
         combined_energy = np.concatenate([train_energy, test_energy], axis=0)
         threshold = np.percentile(combined_energy, 100 - self.args.anomaly_ratio)
