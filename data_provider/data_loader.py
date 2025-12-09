@@ -324,7 +324,7 @@ class Dataset_Custom(Dataset):
                 else:
                     possible_index.extend(list(range(interupt_index[i], interupt_index[i+1] + 1 - sample_length, self.step)))
         self.possible_index = possible_index
-        possible_timestamps = [timestamps[index:index+sampe_length] for index in possible_index]
+        possible_timestamps = [timestamps[index:index+sample_length] for index in possible_index]
         print("[INFO] Number of {} samples: {}".format(self.flag, len(possible_index)))
         if self.timeenc == 0:
             df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
