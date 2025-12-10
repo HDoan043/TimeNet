@@ -257,15 +257,12 @@ class Dataset_Custom(Dataset):
         df_raw.columns: ['date', ...(other features), target feature]
         '''
         cols = list(df_raw.columns)
+        cols.remove('date')
         if self.target in cols:
             cols.remove(self.target)
-        cols.remove('date')
-        print(list(df_raw.columns))
-        if self.target in cols:
             df_raw = df_raw[['date'] + cols + [self.target]]
         else:
             df_raw = df_raw[['date'] + cols]
-        print(list(df_raw.columns))
 
         # Split train, vali, test
         num_train = int(len(df_raw) * self.train_ratio)
