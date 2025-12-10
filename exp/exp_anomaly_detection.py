@@ -199,6 +199,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
             score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)      # score:  [batch_size x win_size x 1]
             score = score.detach().cpu().numpy()
             attens_energy.append(score)
+            if i > len(test_loader) -2:
+                print("score: {}".format(score.shape))
+                print("batch_y: {}".format(batch_y.shape))
             test_labels.append(batch_y)
 
         attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)             # attens_energy: [batch_size * win_size]
