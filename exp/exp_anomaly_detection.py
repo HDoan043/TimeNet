@@ -315,6 +315,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # np.save(os.path.join(folder_path, "inference.npy"), infer_energy)
         # with open(os.path.join(folder_path, "ground_truth.npy"), "w") as f:
         np.save(os.path.join(folder_path, "true.npy"), gt_labels)
+
+        np.save(os.path.join(folder_path, "debug.npy"), combine_energy)
         # with open(os.path.join(folder_path, "threshold"), "w") as f:
         np.save(os.path.join(folder_path, "threshold.npy"), threshold)
         # with open(os.path.join(folder_path, "train.npy"), "w") as f:
