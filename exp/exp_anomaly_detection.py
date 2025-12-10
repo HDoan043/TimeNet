@@ -204,16 +204,29 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 print("batch_y: {}".format(batch_y.shape))
             test_labels.append(batch_y)
 
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)             # attens_energy: [batch_size * win_size]
-        test_energy = np.array(attens_energy)
+        
+        attens_energy = np.concatenate(attens_energy, axis=0)                        # attens_energy: [batch_size*num_batch x win_size]
+        ######################################
+        # Save predict result
+        np.save(folder_path + "pred.npy", attens_energy)
+        ######################################
+        test_energy = np.array(attens_energy.reshape(-1))
         combined_energy = np.concatenate([train_energy, test_energy], axis=0)
         threshold = np.percentile(combined_energy, 100 - self.args.anomaly_ratio)
+        ######################################
+        # Save threshold
+        np.save(folder_path + "threshold.npy", threshold)
+        ######################################
         print("Threshold :", threshold)
 
         # (3) evaluation on the test set
         pred = (test_energy > threshold).astype(int)
-        test_labels = np.concatenate(test_labels, axis=0).reshape(-1)
-        test_labels = np.array(test_labels)
+        test_labels = np.concatenate(test_labels, axis=0)
+        ######################################
+        # Save ground truth
+        np.save(folder_path + "true.npy", test_labels)
+        ######################################
+        test_labels = np.array(test_labels.reshape(-1))
         gt = test_labels.astype(int)
 
         print("pred:   ", pred.shape)
