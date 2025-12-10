@@ -264,7 +264,7 @@ class Dataset_Custom(Dataset):
             df_raw = df_raw[['date'] + cols + [self.target]]
         else:
             df_raw = df_raw[['date'] + cols]
-        print(cols)
+        print(list(df_raw.columns))
 
         # Split train, vali, test
         num_train = int(len(df_raw) * self.train_ratio)
