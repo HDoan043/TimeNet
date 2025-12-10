@@ -290,7 +290,7 @@ class Dataset_Custom(Dataset):
         if self.features == 'M':
             y = df_data.copy()
         else:
-            y = df_raw[[self.target]]
+            y = df_raw[self.target]
             
         if self.scale:
             train_data = df_data[border1s[0]:border2s[0]]
