@@ -305,6 +305,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         full_energy = np.array(np.concatenate(attens_energy, axis = 0))
         
         print("Threshold :", threshold)
+        print("Max: ", combined_energy.max())
+        print("Min: ", combined_energy.min())
         print("Shape inference full data: {}".format(full_energy.shape))
         print("Shape ground truth: {}".format(gt_labels.shape))
 
