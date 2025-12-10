@@ -279,18 +279,28 @@ class Dataset_Custom(Dataset):
         border2 = border2s[self.set_type]
 
         if self.features == 'M' or self.features == 'MS':
-            cols_data = df_raw.columns[1:]
-            df_data = df_raw[cols_data]
+            col = list(df_raw.columns)
+            col.remove('date')
+            if self.target in col:
+                col.remove(self.target)
+            df_data = df_raw[col]
         elif self.features == 'S':
-            df_data = df_raw[[self.target]]
+            df_data = df_raw[[self.target]] 
 
+        if self.features == 'M':
+            y = df_data.copy()
+        else:
+            y = df_raw[[self.target]]
+            
         if self.scale:
             train_data = df_data[border1s[0]:border2s[0]]
             self.scaler.fit(train_data.values)
             data = self.scaler.transform(df_data.values)
+            y = y.values
         else:
             data = df_data.values
-
+            y = y.values
+            
         df_stamp = df_raw[['date']][border1:border2]
         timestamps = list(pd.to_datetime(df_stamp['date']))
         df_stamp['date'] = timestamps 
@@ -336,7 +346,7 @@ class Dataset_Custom(Dataset):
             data_stamp = data_stamp.transpose(1, 0)
 
         self.data_x = data[border1:border2]
-        self.data_y = data[border1:border2]
+        self.data_y = y[border1:border2]
 
         if self.set_type == 0 and self.args.augmentation_ratio > 0:
             self.data_x, self.data_y, augmentation_tags = run_augmentation_single(self.data_x, self.data_y, self.args)
