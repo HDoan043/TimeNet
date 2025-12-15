@@ -175,8 +175,8 @@ class PrioriDataEmbedding(nn.Module):
         for sample in x:                                                                    # sample: [seq_len x d_model]
             global_channel_embed.append(self.global_channel_embedding(sample, corr_matrix)) # global_channel_embed: [ batch_size * [seq_len x d_model] ]
         global_channel_embed = torch.stack(global_channel_embed, dim=0)                     # global_channel_embed: [batch_size x seq_len x d_model]
-        if isinstance(global_channel_embed, None):
-            print("Global channel embed is None")
+        print("Global channel embed")
+        print(global_channel_embed)
         ######## Local  channel embedding ########
         local_channel_embed = []
         for i in range(x.shape[0]):
@@ -184,13 +184,14 @@ class PrioriDataEmbedding(nn.Module):
             local_corr_matrix = local_corr_matrix_ls[i]                                         # local_corr_matrix: [c_in x c_in]
             local_channel_embed.append(self.local_channel_embedding(sample, local_corr_matrix)) # local_channel_embed: [batch_size * [seq_len x d_model] } 
         local_channel_embed = torch.stack(local_channel_embed, dim = 0)                         # local_channel_embed: [batch_size x seq_len x d_model]
-        if isinstance(local_channel_embed, None):
-            print("Local channel embed is None")
+        
+        print("Local channel embed")
+        print(local_channel_embed)
             
         ######## Combind embedding ############
         x = x + global_channel_embed + local_channel_embed
-        if isinstance(x, None):
-            print("PrioriDataEmbedding is None")
+        print("PrioriDataEmbedding")
+        print(x)
         x = self.dropout(x)
     
 class DataEmbedding_inverted(nn.Module):
