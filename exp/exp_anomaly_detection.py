@@ -69,7 +69,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         test_data, test_loader = self._get_data(flag='test')
 
         corr_matrix = train_data.get_corr_matrix()
-        corr_matrix = torch.tensor(corr_matrix, device = self.device)
+        corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
         corr_matrix.require_grad = False
 
         path = os.path.join(self.args.checkpoints, setting)
@@ -170,7 +170,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         timestamps = test_data.get_timestamps()
 
         corr_matrix = train_data.get_corr_matrix()
-        corr_matrix = torch.tensor(corr_matrix, device = self.device)
+        corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
         corr_matrix.require_grad = False
         
         if test:
@@ -278,7 +278,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         full_data,  full_loader = self._get_data(flag='full')
 
         corr_matrix = train_data.get_corr_matrix()
-        corr_matrix = torch.tensor(corr_matrix, device = self.device)
+        corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
         corr_matrix.require_grad = False
 
         timestamps = full_data.get_timestamps()
