@@ -146,7 +146,7 @@ class DataEmbedding(nn.Module):
 
 class PrioriDataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
-        super(DataEmbedding, self).__init__()
+        super(PrioriDataEmbedding, self).__init__()
 
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
