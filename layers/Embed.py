@@ -117,6 +117,7 @@ class ChannelEmbedding(nn.Module):
     def forward(self, x, corr_matrix):                                                   # x: [seq_len x d_model], corr_matrix: [c_in x c_in]
         channel_presentation = corr_matrix.matmul(self.channel_projector)                # channel_presentation : [c_in x d_model]
         channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
+        channel_presentation = self.activate(channel_presentation)                       # channel_presentatin  : [c_in x d_model]    
         channel_presentation = channel_presentation.permute(1,0)                         # channel_presentation : [d_model x c_in]
         
         priori_embedding = self.channel_embedding(channel_presentation)                  # priori_embedding     : [d_model x 1]
