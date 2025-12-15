@@ -159,8 +159,8 @@ class PrioriDataEmbedding(nn.Module):
 
     def forward(self, x, x_mark, corr_matrix):                                    # x: [batch_size x seq_len x c_in], corr_matrix: [c_in x c_in]
         local_corr_matrix_ls = []
-        for matrix in x:
-            local_corr_matrix = torch.corrcoef(matrix)                            # local_corr_matrix : [ c_in x c_in ]
+        for matrix in x:                                                           # matrix: [seq_len x c_in]
+            local_corr_matrix = torch.corrcoef(matrix.permute(1,0))                # local_corr_matrix : [ c_in x c_in ]
             local_corr_matrix_ls.append(local_corr_matrix)                         # local_corr_matrix_ls: [ batch_size * [c_in x c_in] ]
         if x_mark is None:
             x = self.value_embedding(x) + self.position_embedding(x)                # x: [batch_size x seq_len x d_model]
@@ -177,9 +177,8 @@ class PrioriDataEmbedding(nn.Module):
         ######## Local  channel embedding ########
         local_channel_embed = []
         for i in range(x.shape[0]):
-            sample = x[i]                                 
-            print(sample.shape)
-            local_corr_matrix = local_corr_matrix_ls[i]                                         # sample: [seq_len x d_model]
+            sample = x[i]                                                                       # sample: [seq_len x d_model]
+            local_corr_matrix = local_corr_matrix_ls[i]                                         # local_corr_matrix: [c_in x c_in]
             local_channel_embed.append(self.local_channel_embedding(sample, local_corr_matrix)) # local_channel_embed: [batch_size * [seq_len x d_model] } 
         local_channel_embed = torch.stack(local_channel_embed, dim = 0)                         # local_channel_embed: [batch_size x seq_len x d_model]
 
