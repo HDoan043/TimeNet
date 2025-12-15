@@ -55,7 +55,10 @@ class Exp_Classification(Exp_Basic):
                 padding_mask = padding_mask.float().to(self.device)
                 label = label.to(self.device)
 
-                outputs = self.model(batch_x, padding_mask, None, None)
+                if self.args.model.lower() == "timesnetv2":
+                    outputs = self.model(batch_x, padding_mask, None, None, corr_matrix)
+                else:
+                    outputs = self.model(batch_x, padding_mask, None, None)
 
                 pred = outputs.detach()
                 loss = criterion(pred, label.long().squeeze())
@@ -85,6 +88,10 @@ class Exp_Classification(Exp_Basic):
         if not os.path.exists(path):
             os.makedirs(path)
 
+        corr_matrix = train_data.get_corr_matrix()
+        corr_matrix = torch.Tensor(corr_matrix)
+        corr_matrix.require_grad = False
+
         time_now = time.time()
 
         train_steps = len(train_loader)
@@ -108,7 +115,10 @@ class Exp_Classification(Exp_Basic):
                 padding_mask = padding_mask.float().to(self.device)
                 label = label.to(self.device)
 
-                outputs = self.model(batch_x, padding_mask, None, None)
+                if self.args.model.lower() == "timesnetv2":
+                    output = self.model(batch_x, padding_mask, None, None, corr_matrix)
+                else:
+                    outputs = self.model(batch_x, padding_mask, None, None)
                 loss = criterion(outputs, label.long().squeeze(-1))
                 train_loss.append(loss.item())
 
@@ -161,7 +171,10 @@ class Exp_Classification(Exp_Basic):
                 padding_mask = padding_mask.float().to(self.device)
                 label = label.to(self.device)
 
-                outputs = self.model(batch_x, padding_mask, None, None)
+                if self.args.model.lower() == "timesnetv2":
+                    outputs = self.model(batch_x, padding_mask, None, None, corr_matrix)
+                else:
+                    outputs = self.model(batch_x, padding_mask, None, None)
 
                 preds.append(outputs.detach())
                 trues.append(label)
