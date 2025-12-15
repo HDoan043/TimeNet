@@ -267,6 +267,7 @@ class Model(nn.Module):
 
         # embedding
         enc_out = self.enc_embedding(x_enc, None, corr_matrix)  # [B,T,C]
+        print(enc_out)
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))
