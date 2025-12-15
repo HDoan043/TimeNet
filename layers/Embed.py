@@ -113,11 +113,11 @@ class ChannelEmbedding(nn.Module):
         self.channel_bias = nn.Parameter(torch.randn(d_model))
         # self.channel_embedding = nn.Linear(in_features = c_in, out_features = 1, bias = True)
         self.mlp = nn.Sequential(
-            nn.Linear(in_features = d_model, out_features = 1024),
+            nn.Linear(in_features = d_model, out_features = 512),
             nn.ReLU(),
-            nn.Linear(in_features = 1024, out_features = 2048),
+            nn.Linear(in_features = 512, out_features = 1024),
             nn.ReLU(),
-            nn.Linear(in_features = 2048, out_features = d_model),
+            nn.Linear(in_features = 1024, out_features = d_model),
             nn.Sigmoid(),
             nn.Softmax(-1)
         )
