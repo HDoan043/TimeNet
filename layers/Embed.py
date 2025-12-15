@@ -115,11 +115,16 @@ class ChannelEmbedding(nn.Module):
         self.activate = nn.Sigmoid()
         self.softmax  = nn.Softmax(dim = 0)
     def forward(self, x, corr_matrix):                                                   # x: [seq_len x d_model], corr_matrix: [c_in x c_in]
-        channel_presentation = corr_matrix.matmul(self.channel_projector)                # channel_presentation : [c_in x d_model]
-        channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
-        channel_presentation = channel_presentation.permute(1,0)                         # channel_presentation : [d_model x c_in]
         print("sample shape:", x.shape)
         print("corr_matrix shape:", corr_matrix.shape)
+        channel_presentation = corr_matrix.matmul(self.channel_projector)                # channel_presentation : [c_in x d_model]
+        print("projection")
+        print(channel_presentation)
+        channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
+        print("bias")
+        print(channel_presentation)
+        channel_presentation = channel_presentation.permute(1,0)                         # channel_presentation : [d_model x c_in]
+        
         print("channel_presentation shape:", channel_presentation.shape)
         print("channel_presentation: ")
         print(channel_presentation)
