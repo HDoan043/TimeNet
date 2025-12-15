@@ -392,7 +392,10 @@ class Dataset_Custom(Dataset):
         col = list(df_raw.columns)
         col.remove("date")
         col.remove(self.target)
+        num_train = int(len(df_raw) * self.train_ratio)
+        df_raw = df_raw[0: num_train]
         df = df_raw[col]
+        
         corr_matrix = df.corr().values
 
         return corr_matrix
