@@ -3,7 +3,7 @@ import torch
 from models import Autoformer, Transformer, TimesNet, Nonstationary_Transformer, DLinear, FEDformer, \
     Informer, LightTS, Reformer, ETSformer, Pyraformer, PatchTST, MICN, Crossformer, FiLM, iTransformer, \
     Koopa, TiDE, FreTS, TimeMixer, TSMixer, SegRNN, MambaSimple, TemporalFusionTransformer, SCINet, PAttn, TimeXer, \
-    WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1
+    WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_updata_v2
 
 
 class Exp_Basic(object):
@@ -42,7 +42,8 @@ class Exp_Basic(object):
             'KANAD': KANAD,
             'MSGNet': MSGNet,
             'TimeFilter': TimeFilter,
-            'TimesNetUpdate': TimesNet_update_v1
+            'TimesNetv1': TimesNet_update_v1,
+            'TimesNetv2': TimesNet_update_v2
         }
         if args.model == 'Mamba':
             print('Please make sure you have successfully installed mamba_ssm')
