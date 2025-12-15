@@ -115,15 +115,22 @@ class ChannelEmbedding(nn.Module):
         self.activate = nn.Sigmoid()
         self.softmax  = nn.Softmax(dim = 0)
     def forward(self, x, corr_matrix):                                                   # x: [seq_len x d_model], corr_matrix: [c_in x c_in]
-        print("sample shape:", x.shape)
-        print("corr_matrix shape:", corr_matrix.shape)
         channel_presentation = corr_matrix.matmul(self.channel_projector)                # channel_presentation : [c_in x d_model]
-        print("corr_matrix shape:", corr_matrix.shape)
-        print("channel_projector_matrix:", self.channel_projector.shape)
         print("corr_matrix")
-        print(corr_matrix)
+        # Kiểm tra corr_matrix
+        if torch.isnan(corr_matrix).any():
+            print("PHÁT HIỆN: corr_matrix có chứa NaN!")
+        if torch.isinf(corr_matrix).any():
+            print("PHÁT HIỆN: corr_matrix có chứa Inf (Vô cực)!")
+        
         print("channel_projector")
-        print(self.channel_projector)
+        if torch.isnan(channel_projector).any():
+            print("PHÁT HIỆN: channel_projector có chứa NaN!")
+        if torch.isinf(channel_projector).any():
+            print("PHÁT HIỆN: channel_projector có chứa Inf!")
+            
+        print("Max corr:", torch.max(corr_matrix))
+        print("Max proj:", torch.max(channel_projector))
         print("projection")
         print(channel_presentation)
         channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
