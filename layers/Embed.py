@@ -193,10 +193,14 @@ class PrioriDataEmbedding(nn.Module):
         ######## Combind embedding ############
         if torch.isnan(x).any(): print("x contains nan")
         x = x  + 0.5*local_channel_embed + 0.5*global_channel_embed
+        print("local embed:\n", local_channel_embed)
         if torch.isnan(local_channel_embed).any(): print("local contains nan")
+        print("global embed:\n", global_channel_embed)
         if torch.isnan(global_channel_embed).any(): print("global contains nan")
         
         if torch.isnan(x).any(): print("PrioriDataEmbedding contains nan")
+        print("priori data embedding: ")
+        print(x)
         # print(x)
         x = self.dropout(x)
     
