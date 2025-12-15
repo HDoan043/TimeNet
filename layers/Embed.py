@@ -123,7 +123,7 @@ class ChannelEmbedding(nn.Module):
         print("corr_matrix")
         print(corr_matrix)
         print("channel_projector")
-        print(self.channl_projector)
+        print(self.channel_projector)
         print("projection")
         print(channel_presentation)
         channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
