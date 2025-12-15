@@ -159,10 +159,13 @@ class PrioriDataEmbedding(nn.Module):
         self.global_channel_embedding= ChannelEmbedding(d_model, c_in)
 
     def forward(self, x, x_mark, corr_matrix):                                    # x: [batch_size x seq_len x c_in], corr_matrix: [c_in x c_in]
+        if torch.isnan(corr_matrix).any(): print("corr_matrix global contains nan")
         local_corr_matrix_ls = []
         for matrix in x:                                                           # matrix: [seq_len x c_in]
             local_corr_matrix = torch.corrcoef(matrix.permute(1,0))                # local_corr_matrix : [ c_in x c_in ]
             local_corr_matrix = torch.nan_to_num(local_corr_matrix, nan=0.0)       # local_corr_matrix : [ c_in x c_in ]
+            if torch.isnan(local_corr_matrix).any():
+                print("corr matrix is still containing nan")
             local_corr_matrix_ls.append(local_corr_matrix)                         # local_corr_matrix_ls: [ batch_size * [c_in x c_in] ]
         if x_mark is None:
             x = self.value_embedding(x) + self.position_embedding(x)                # x: [batch_size x seq_len x d_model]
@@ -188,9 +191,13 @@ class PrioriDataEmbedding(nn.Module):
         # print(local_channel_embed)
             
         ######## Combind embedding ############
+        if torch.isnan(x).any(): print("x contains nan")
         x = x  + 0.5*local_channel_embed + 0.5*global_channel_embed
-        print("PrioriDataEmbedding")
-        print(x)
+        if torch.isnan(local_channel_embed).any(): print("local contains nan")
+        if torch.isnan(global_channel_embed).any(): print("global contains nan")
+        
+        if torch.isnan(x).any(): print("PrioriDataEmbedding contains nan")
+        # print(x)
         x = self.dropout(x)
     
 class DataEmbedding_inverted(nn.Module):
