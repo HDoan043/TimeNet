@@ -257,7 +257,7 @@ class Model(nn.Module):
                       1, self.pred_len + self.seq_len, 1)))
         return dec_out
 
-    def anomaly_detection(self, x_enc):
+    def anomaly_detection(self, x_enc, corr_matrix):
         # Normalization from Non-stationary Transformer
         means = x_enc.mean(1, keepdim=True).detach()
         x_enc = x_enc.sub(means)
@@ -266,7 +266,7 @@ class Model(nn.Module):
         x_enc = x_enc.div(stdev)
 
         # embedding
-        enc_out = self.enc_embedding(x_enc, None)  # [B,T,C]
+        enc_out = self.enc_embedding(x_enc, None, corr_matrix)  # [B,T,C]
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))
@@ -301,7 +301,7 @@ class Model(nn.Module):
         output = self.projection(output)  # (batch_size, num_classes)
         return output
 
-    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, corr_matrix, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len:, :]  # [B, L, D]
@@ -310,7 +310,7 @@ class Model(nn.Module):
                 x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == 'anomaly_detection':
-            dec_out = self.anomaly_detection(x_enc)
+            dec_out = self.anomaly_detection(x_enc, corr_matrix)
             return dec_out  # [B, L, D]
         if self.task_name == 'classification':
             dec_out = self.classification(x_enc, x_mark_enc)
