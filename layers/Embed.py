@@ -118,6 +118,12 @@ class ChannelEmbedding(nn.Module):
         print("sample shape:", x.shape)
         print("corr_matrix shape:", corr_matrix.shape)
         channel_presentation = corr_matrix.matmul(self.channel_projector)                # channel_presentation : [c_in x d_model]
+        print("corr_matrix shape:", corr_matrix.shape)
+        print("channel_projector_matrix:", self.channel_projector.shape)
+        print("corr_matrix")
+        print(corr_matrix)
+        print("channel_projector")
+        print(self.channl_projector)
         print("projection")
         print(channel_presentation)
         channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
