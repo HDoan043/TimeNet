@@ -161,7 +161,7 @@ class PrioriDataEmbedding(nn.Module):
         local_corr_matrix_ls = []
         for matrix in x:
             local_corr_matrix = torch.corrcoef(matrix)                            # local_corr_matrix : [ c_in x c_in ]
-            local_corr_matrix_ls.append(self.local_channel_embedding(local_corr_matrix)) # local_corr_matrix_ls: [ batch_size * [c_in x c_in] ]
+            local_corr_matrix_ls.append(local_corr_matrix)                         # local_corr_matrix_ls: [ batch_size * [c_in x c_in] ]
         if x_mark is None:
             x = self.value_embedding(x) + self.position_embedding(x)                # x: [batch_size x seq_len x d_model]
         else:
