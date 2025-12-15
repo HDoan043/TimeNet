@@ -159,14 +159,14 @@ class PrioriDataEmbedding(nn.Module):
         self.global_channel_embedding= ChannelEmbedding(d_model, c_in)
 
     def forward(self, x, x_mark, corr_matrix):                                    # x: [batch_size x seq_len x c_in], corr_matrix: [c_in x c_in]
-        if torch.isnan(corr_matrix).any(): print("corr_matrix global contains nan")
+        ######## Calculate correlation matrix of a sample ########
         local_corr_matrix_ls = []
         for matrix in x:                                                           # matrix: [seq_len x c_in]
             local_corr_matrix = torch.corrcoef(matrix.permute(1,0))                # local_corr_matrix : [ c_in x c_in ]
             local_corr_matrix = torch.nan_to_num(local_corr_matrix, nan=0.0)       # local_corr_matrix : [ c_in x c_in ]
-            if torch.isnan(local_corr_matrix).any():
-                print("corr matrix is still containing nan")
             local_corr_matrix_ls.append(local_corr_matrix)                         # local_corr_matrix_ls: [ batch_size * [c_in x c_in] ]
+
+        ######## Token Embedding and Positional Embedding ########
         if x_mark is None:
             x = self.value_embedding(x) + self.position_embedding(x)                # x: [batch_size x seq_len x d_model]
         else:
@@ -174,10 +174,13 @@ class PrioriDataEmbedding(nn.Module):
                 x) + self.temporal_embedding(x_mark) + self.position_embedding(x)   # x: [batch_size x seq_len x d_model]
 
         ######## Global channel embeding ########
+        # Process nan
+        corr_matrix = torch.nan_to_num(corr_matrix, nan=0.0)
         global_channel_embed = []
         for sample in x:                                                                    # sample: [seq_len x d_model]
             global_channel_embed.append(self.global_channel_embedding(sample, corr_matrix)) # global_channel_embed: [ batch_size * [seq_len x d_model] ]
         global_channel_embed = torch.stack(global_channel_embed, dim=0)                     # global_channel_embed: [batch_size x seq_len x d_model]
+        
         ######## Local  channel embedding ########
         local_channel_embed = []
         for i in range(x.shape[0]):
@@ -186,23 +189,11 @@ class PrioriDataEmbedding(nn.Module):
             local_channel_embeded = self.local_channel_embedding(sample, local_corr_matrix)
             local_channel_embed.append(local_channel_embeded)                                   # local_channel_embed: [batch_size * [seq_len x d_model] } 
         local_channel_embed = torch.stack(local_channel_embed, dim = 0)                         # local_channel_embed: [batch_size x seq_len x d_model]
-        
-        # print("Local channel embed")
-        # print(local_channel_embed)
             
         ######## Combind embedding ############
-        if torch.isnan(x).any(): print("x contains nan")
         x = x  + 0.5*local_channel_embed + 0.5*global_channel_embed
-        print("local embed:\n", local_channel_embed)
-        if torch.isnan(local_channel_embed).any(): print("local contains nan")
-        print("global embed:\n", global_channel_embed)
-        if torch.isnan(global_channel_embed).any(): print("global contains nan")
-        
-        if torch.isnan(x).any(): print("PrioriDataEmbedding contains nan")
-        print("priori data embedding: ")
-        print(x)
-        # print(x)
         x = self.dropout(x)
+        return x
     
 class DataEmbedding_inverted(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
