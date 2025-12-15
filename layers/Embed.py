@@ -112,24 +112,24 @@ class ChannelEmbedding(nn.Module):
         self.channel_projector = nn.Parameter(torch.randn(c_in, d_model))
         self.channel_bias = nn.Parameter(torch.randn(d_model))
         # self.channel_embedding = nn.Linear(in_features = c_in, out_features = 1, bias = True)
-        self.mlp = nn.Sequential(
-            nn.Linear(in_features = d_model, out_features = 256),
-            nn.ReLU(),
-            nn.Linear(in_features = 256, out_features = 512),
-            nn.ReLU(),
-            nn.Linear(in_features = 512, out_features = d_model),
-            nn.Sigmoid(),
-            nn.Softmax(-1)
-        )
+        # self.mlp = nn.Sequential(
+        #     nn.Linear(in_features = d_model, out_features = 256),
+        #     nn.ReLU(),
+        #     nn.Linear(in_features = 256, out_features = 512),
+        #     nn.ReLU(),
+        #     nn.Linear(in_features = 512, out_features = d_model),
+        #     nn.Sigmoid(),
+        #     nn.Softmax(-1)
+        # )
         self.activate = nn.Sigmoid()
-        self.softmax  = nn.Softmax(dim = 0)
+        self.softmax  = nn.Softmax(dim = -1)
     def forward(self, x, corr_matrix):                                                   # x: [seq_len x c_in], corr_matrix: [c_in x c_in]
         channel_presentation = corr_matrix.matmul(self.channel_projector)                # channel_presentation : [c_in x d_model]
         channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
         channel_presentation = self.activate(channel_presentation)                       # channel_presentatin  : [c_in x d_model] 
-        channel_presentation = self.mlp(channel_presentation)                            # channel_presentation ; [c_in x d_model]
+        # channel_presentation = self.mlp(channel_presentation)                            # channel_presentation ; [c_in x d_model]
         # channel_presentation = channel_presentation.permute(1,0)                         # channel_presentation : [d_model x c_in]
-        # channel_presentation = self.softmax(channel_presentation)                        # channel_presentation : [d_model x c_in]
+        channel_presentation = self.softmax(channel_presentation)                        # channel_presentation : [d_model x c_in]
         
         # priori_embedding = self.channel_embedding(channel_presentation)                  # priori_embedding     : [d_model x 1]
         # priori_embedding = self.activate(priori_embedding)                               # priori_embedding     : [d_model x 1]
