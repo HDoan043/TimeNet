@@ -107,25 +107,24 @@ class TimeFeatureEmbedding(nn.Module):
 
 ########## New embedding ##############
 class ChannelEmbedding(nn.Module):
-    def __init__(self, d_model, corr_matrix, c_in):
+    def __init__(self, d_model, c_in):
         super(ChannelEmbedding, self).__init__()
-        self.corr_matrix = corr_matrix
         self.channel_projector = nn.Parameter(torch.randn(corr_matrix, d_model))
         self.channel_bias = nn.Parameter(torch.randn(d_model))
         self.channel_embedding = nn.Linear(in_features = c_in, out_features = 1, bias = True)
         self.activate = nn.Sigmoid()
         self.softmax  = nn.Softmax(dim = 0)
-        self.priori_embedding = self.activate(self.channel_embedding(self.channel_presentation
-    def forward(self, x):                                                                # x: [seq_len x d_model]
+    def forward(self, x, corr_matrix):                                                   # x: [seq_len x d_model], corr_matrix: [c_in x c_in]
         channel_presentation = corr_matrix.matmul(self.channel_projector)                # channel_presentation : [c_in x d_model]
-        channel_presentation = self.channel_presentation + self.channel_bias             # channel_presentation : [c_in x d_model]
-        channel_presentation = self.channel_presentation.permute(1,0)                    # channel_presentation : [d_model x c_in]
+        channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
+        channel_presentation = channel_presentation.permute(1,0)                         # channel_presentation : [d_model x c_in]
         priori_embedding = self.channel_embedding(channel_presentation)                  # priori_embedding     : [d_model x 1]
         priori_embedding = self.activate(priori_embedding)                               # priori_embedding     : [d_model x 1]
-        priori_embedding = self.softmax(priori_embedding)                                # priori_embeddin      : [d_model x 1]
+        priori_embedding = self.softmax(priori_embedding)                                # priori_embedding     : [d_model x 1]
 
         return x + priori_embedding.permure(1,0)                                         # [seq_len x d_model]
-        
+
+#######################################################
 class DataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
@@ -146,7 +145,7 @@ class DataEmbedding(nn.Module):
         return self.dropout(x)
 
 class PrioriDataEmbedding(nn.Module):
-    def __init__(self, corr_matrix, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
+    def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
 
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
@@ -155,15 +154,36 @@ class PrioriDataEmbedding(nn.Module):
                                                     freq=freq) if embed_type != 'timeF' else TimeFeatureEmbedding(
             d_model=d_model, embed_type=embed_type, freq=freq)
         self.dropout = nn.Dropout(p=dropout)
-        self.channel_embedding = ChannelEmbedding(d_model, corr_matrix, c_in)
+        self.local_channel_embedding = ChannelEmbedding(d_model, c_in)
+        self.global_channel_embedding= ChannelEmbedding(d_model, c_in)
 
-    def forward(self, x, x_mark):
+    def forward(self, x, x_mark, corr_matrix):                                    # x: [batch_size x seq_len x c_in], corr_matrix: [c_in x c_in]
+        local_corr_matrix_ls = []
+        for matrix in x:
+            local_corr_matrix = torch.corrcoef(matrix)                            # local_corr_matrix : [ c_in x c_in ]
+            local_corr_matrix_ls.append(self.local_channel_embedding(local_corr_matrix)) # local_corr_matrix_ls: [ batch_size * [c_in x c_in] ]
         if x_mark is None:
-            x = self.value_embedding(x) + self.position_embedding(x)
+            x = self.value_embedding(x) + self.position_embedding(x)                # x: [batch_size x seq_len x d_model]
         else:
             x = self.value_embedding(
-                x) + self.temporal_embedding(x_mark) + self.position_embedding(x)
-        x = x + self.channel_embedding(x)
+                x) + self.temporal_embedding(x_mark) + self.position_embedding(x)   # x: [batch_size x seq_len x d_model]
+
+        ######## Global channel embeding ########
+        global_channel_embed = []
+        for sample in x:                                                                    # sample: [seq_len x d_model]
+            global_channel_embed.append(self.global_channel_embedding(sample, corr_matrix)) # global_channel_embed: [ batch_size * [seq_len x d_model] ]
+        global_channel_embed = torch.stack(global_channel_embed, dim=0)                     # global_channel_embed: [batch_size x seq_len x d_model]
+
+        ######## Local  channel embedding ########
+        local_channel_embed = []
+        for i in range(x.shape[0]):
+            sample = x[i]                                    
+            local_corr_matrix = local_corr_matrix_ls[i]                                         # sample: [seq_len x d_model]
+            local_channel_embed.append(self.local_channel_embedding(sample, local_corr_matrix)) # local_channel_embed: [batch_size * [seq_len x d_model] } 
+        local_channel_embed = torch.stack(local_channel_embed, dim = 0)                         # local_channel_embed: [batch_size x seq_len x d_model]
+
+        ######## Combind embedding ############
+        x = x + global_channel_embed + local_channel_embed
         x = self.dropout(x)
     
 class DataEmbedding_inverted(nn.Module):
