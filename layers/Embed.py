@@ -109,7 +109,7 @@ class TimeFeatureEmbedding(nn.Module):
 class ChannelEmbedding(nn.Module):
     def __init__(self, d_model, c_in):
         super(ChannelEmbedding, self).__init__()
-        self.channel_projector = nn.Parameter(torch.randn(corr_matrix, d_model))
+        self.channel_projector = nn.Parameter(torch.randn(c_in, d_model))
         self.channel_bias = nn.Parameter(torch.randn(d_model))
         self.channel_embedding = nn.Linear(in_features = c_in, out_features = 1, bias = True)
         self.activate = nn.Sigmoid()
