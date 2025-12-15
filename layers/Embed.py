@@ -177,7 +177,8 @@ class PrioriDataEmbedding(nn.Module):
         ######## Local  channel embedding ########
         local_channel_embed = []
         for i in range(x.shape[0]):
-            sample = x[i]                                    
+            sample = x[i]                                 
+            print(sample.shape)
             local_corr_matrix = local_corr_matrix_ls[i]                                         # sample: [seq_len x d_model]
             local_channel_embed.append(self.local_channel_embedding(sample, local_corr_matrix)) # local_channel_embed: [batch_size * [seq_len x d_model] } 
         local_channel_embed = torch.stack(local_channel_embed, dim = 0)                         # local_channel_embed: [batch_size x seq_len x d_model]
