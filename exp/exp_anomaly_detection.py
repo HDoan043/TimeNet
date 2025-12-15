@@ -41,14 +41,16 @@ class Exp_Anomaly_Detection(Exp_Basic):
         criterion = nn.MSELoss()
         return criterion
 
-    def vali(self, vali_data, vali_loader, criterion):
+    def vali(self, vali_data, vali_loader, corr_matrix, criterion):
         total_loss = []
         self.model.eval()
         with torch.no_grad():
             for i, (batch_x, _) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
 
-                outputs = self.model(batch_x, None, None, None)
+                if self.args.model.lower() == "timesnetv2":
+                    outputs = self.model(batch_x, None, None, None, corr_matrix)
+                else: outputs = self.model(batch_x, None, None, None)
 
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, :, f_dim:]
@@ -65,6 +67,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
+
+        corr_matrix = train_data.get_corr_matrix()
+        corr_matrix = torch.Tensor(corr_matrix)
+        corr_matrix.require_grad = False
 
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
@@ -98,7 +104,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
 
-                outputs = self.model(batch_x, None, None, None)
+                if self.args.model.lower() == "timesnetv2":
+                    outputs = self.model(batch_x, None, None, None, corr_matrix)
+                else:
+                    outputs = self.model(batch_x, None, None, None)
 
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, :, f_dim:]
@@ -139,8 +148,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
-            vali_loss = self.vali(vali_data, vali_loader, criterion)
-            test_loss = self.vali(test_data, test_loader, criterion)
+            vali_loss = self.vali(vali_data, vali_loader, corr_matrix, criterion)
+            test_loss = self.vali(test_data, test_loader, corr_matrix, criterion)
 
             print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
                 epoch + 1, train_steps, train_loss, vali_loss, test_loss))
@@ -159,6 +168,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
         test_data, test_loader = self._get_data(flag='test')
         train_data, train_loader = self._get_data(flag='train')
         timestamps = test_data.get_timestamps()
+
+        corr_matrix = train_data.get_corr_matrix()
+        corr_matrix = torch.Tensor(corr_matrix)
+        corr_matrix.require_grad = False
         
         if test:
             print('loading model')
@@ -179,7 +192,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
             for i, (batch_x, batch_y) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
                 # reconstruction
-                outputs = self.model(batch_x, None, None, None)
+                if self.args.model.lower() == "timesnetv2":
+                    outputs = self.model(batch_x, None, None, None, corr_matrix)
+                else: outputs = self.model(batch_x, None, None, None)
                 # criterion
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
@@ -194,7 +209,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
         for i, (batch_x, batch_y) in enumerate(test_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
-            outputs = self.model(batch_x, None, None, None)                           # output: [batch_size x win_size x nvars]
+            if self.args.model.lower() == "timesnetv2":
+                outputs = self.model(batch_x, None, None, None, corr_matrix)
+            else: outputs = self.model(batch_x, None, None, None)
             # criterion
             score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)      # score:  [batch_size x win_size x 1]
             score = score.detach().cpu().numpy()
@@ -279,8 +296,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
             for i, (batch_x, batch_y) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
                 # reconstruction
-                outputs = self.model(batch_x, None, None, None)
-                # criterion
+                if self.args.model.lower() == "timesnetv2":
+                    outputs = self.model(batch_x, None, None, None, corr_matrix)
+                else: outputs = self.model(batch_x, None, None, None)                # criterion
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
                 attens_energy.append(score)
@@ -293,8 +311,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
         for i, (batch_x, batch_y) in enumerate(infer_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
-            outputs = self.model(batch_x, None, None, None)
-            # criterion
+            if self.args.model.lower() == "timesnetv2":
+                outputs = self.model(batch_x, None, None, None, corr_matrix)
+            else: outputs = self.model(batch_x, None, None, None)            # criterion
             score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
             score = score.detach().cpu().numpy()
             attens_energy.append(score)
@@ -312,8 +331,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
         for i, (batch_x, _) in enumerate(full_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
-            outputs = self.model(batch_x, None, None, None)
-            # criterion
+            if self.args.model.lower() == "timesnetv2":
+                outputs = self.model(batch_x, None, None, None, corr_matrix)
+            else: outputs = self.model(batch_x, None, None, None)            # criterion
             score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
             score = score.detach().cpu().numpy()
             attens_energy.append(score)
