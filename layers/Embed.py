@@ -135,7 +135,7 @@ class ChannelEmbedding(nn.Module):
         # priori_embedding = self.activate(priori_embedding)                               # priori_embedding     : [d_model x 1]
         # priori_embedding = self.softmax(priori_embedding)                                # priori_embedding     : [d_model x 1]
 
-        x = x.matmul(channel_presentation.permute(1,0))                                    # x: [seq_len x d_model]
+        x = x.matmul(channel_presentation)                                                 # x: [seq_len x d_model]
 
         # return x + priori_embedding.permute(1,0)                                         # [seq_len x d_model]
         return x
