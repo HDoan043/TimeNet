@@ -122,7 +122,7 @@ class ChannelEmbedding(nn.Module):
         priori_embedding = self.activate(priori_embedding)                               # priori_embedding     : [d_model x 1]
         priori_embedding = self.softmax(priori_embedding)                                # priori_embedding     : [d_model x 1]
 
-        return x + priori_embedding.permure(1,0)                                         # [seq_len x d_model]
+        return x + priori_embedding.permute(1,0)                                         # [seq_len x d_model]
 
 #######################################################
 class DataEmbedding(nn.Module):
