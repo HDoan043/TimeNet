@@ -124,13 +124,13 @@ class ChannelEmbedding(nn.Module):
             print("PHÁT HIỆN: corr_matrix có chứa Inf (Vô cực)!")
         
         print("channel_projector")
-        if torch.isnan(channel_projector).any():
+        if torch.isnan(self.channel_projector).any():
             print("PHÁT HIỆN: channel_projector có chứa NaN!")
-        if torch.isinf(channel_projector).any():
+        if torch.isinf(self.channel_projector).any():
             print("PHÁT HIỆN: channel_projector có chứa Inf!")
             
         print("Max corr:", torch.max(corr_matrix))
-        print("Max proj:", torch.max(channel_projector))
+        print("Max proj:", torch.max(self.channel_projector))
         print("projection")
         print(channel_presentation)
         channel_presentation = channel_presentation + self.channel_bias                  # channel_presentation : [c_in x d_model]
