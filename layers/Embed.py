@@ -162,8 +162,6 @@ class PrioriDataEmbedding(nn.Module):
         for matrix in x:                                                           # matrix: [seq_len x c_in]
             local_corr_matrix = torch.corrcoef(matrix.permute(1,0))                # local_corr_matrix : [ c_in x c_in ]
             local_corr_matrix_ls.append(local_corr_matrix)                         # local_corr_matrix_ls: [ batch_size * [c_in x c_in] ]
-            if local_corr_matrix == None:
-                print("local_corr_matrix in a batch is None")
         if x_mark is None:
             x = self.value_embedding(x) + self.position_embedding(x)                # x: [batch_size x seq_len x d_model]
         else:
@@ -175,18 +173,20 @@ class PrioriDataEmbedding(nn.Module):
         for sample in x:                                                                    # sample: [seq_len x d_model]
             global_channel_embed.append(self.global_channel_embedding(sample, corr_matrix)) # global_channel_embed: [ batch_size * [seq_len x d_model] ]
         global_channel_embed = torch.stack(global_channel_embed, dim=0)                     # global_channel_embed: [batch_size x seq_len x d_model]
-        print("Global channel embed")
-        print(global_channel_embed)
         ######## Local  channel embedding ########
         local_channel_embed = []
         for i in range(x.shape[0]):
             sample = x[i]                                                                       # sample: [seq_len x d_model]
+            print("sample: ")
+            print(sample)
             local_corr_matrix = local_corr_matrix_ls[i]                                         # local_corr_matrix: [c_in x c_in]
+            print("local_corr_matrix")
+            print(local_corr_matrix)
             local_channel_embed.append(self.local_channel_embedding(sample, local_corr_matrix)) # local_channel_embed: [batch_size * [seq_len x d_model] } 
         local_channel_embed = torch.stack(local_channel_embed, dim = 0)                         # local_channel_embed: [batch_size x seq_len x d_model]
         
-        print("Local channel embed")
-        print(local_channel_embed)
+        # print("Local channel embed")
+        # print(local_channel_embed)
             
         ######## Combind embedding ############
         x = x + global_channel_embed + local_channel_embed
