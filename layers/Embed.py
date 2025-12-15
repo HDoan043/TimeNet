@@ -189,7 +189,7 @@ class PrioriDataEmbedding(nn.Module):
             
         ######## Combind embedding ############
         x = x + global_channel_embed + local_channel_embed
-        if isinstance(x, None);
+        if isinstance(x, None):
             print("PrioriDataEmbedding is None")
         x = self.dropout(x)
     
