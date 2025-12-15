@@ -387,7 +387,16 @@ class Dataset_Custom(Dataset):
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
 
+    def get_corr_matrix(self):
+        df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path))
+        col = list(df_raw.columns)
+        col.remove("date")
+        col.remove(self.target)
+        df = df_raw[col]
+        corr_matrix = df.corr().values
 
+        return corr_matrix
+        
 class Dataset_M4(Dataset):
     def __init__(self, args, root_path, flag='pred', size=None,
                  features='S', data_path='ETTh1.csv',
