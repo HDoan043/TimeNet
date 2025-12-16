@@ -196,7 +196,7 @@ class PrioriDataEmbedding(nn.Module):
 
         
         ######## Combind embedding ############
-        x = x  + 0.5*local_channel_embed + 0.5*global_channel_embed
+        x = 0.5*x  + 0.25*local_channel_embed + 0.25*global_channel_embed
         x = self.dropout(x)
         return x
     
