@@ -45,7 +45,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         total_loss = []
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, _) in enumerate(vali_loader):
+            for i, (batch_x, _, batch_x_mark, _) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
 
                 if self.args.model.lower() == "timesnetv2":
@@ -98,7 +98,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             epoch_time = time.time()
             pbar = ProgressBar(train_loader, bin=60)
             i = 0
-            for batch_x, batch_y in pbar:
+            for batch_x, batch_y, batch_x_mark, batch_y_mark in pbar:
                 aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
@@ -144,8 +144,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
                 i+=1
 
-                
-                
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
             vali_loss = self.vali(vali_data, vali_loader, corr_matrix, criterion)
@@ -189,7 +187,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         # (1) stastic on the train set
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
                 # reconstruction
                 if self.args.model.lower() == "timesnetv2":
@@ -206,7 +204,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # (2) find the threshold
         attens_energy = []
         test_labels = []
-        for i, (batch_x, batch_y) in enumerate(test_loader):
+        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
             if self.args.model.lower() == "timesnetv2":
@@ -297,7 +295,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         # (1) stastic on the train set
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
                 # reconstruction
                 if self.args.model.lower() == "timesnetv2":
@@ -312,7 +310,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         attens_energy = []
         gt_labels = []
-        for i, (batch_x, batch_y) in enumerate(infer_loader):
+        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(infer_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
             if self.args.model.lower() == "timesnetv2":
@@ -332,7 +330,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         gt_labels = np.array(gt_labels)
 
         attens_energy = []
-        for i, (batch_x, _) in enumerate(full_loader):
+        for i, (batch_x, _, _, _) in enumerate(full_loader):
             batch_x = batch_x.float().to(self.device)
             # reconstruction
             if self.args.model.lower() == "timesnetv2":
