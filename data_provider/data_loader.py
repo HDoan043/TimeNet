@@ -342,7 +342,7 @@ class Dataset_Custom(Dataset):
                                                                                       len(interrupted_index), 
                                                                                       [each[0] for each in interrupted_index]))
         else:
-            print("[INFO] The sequence for {} is continous".format(self.flag))
+            print("[ℹ️] The sequence for {} is continous".format(self.flag))
 
         # Get the possible indexes: 
         #     a training sample is a window of timestamps, 
@@ -414,15 +414,15 @@ class Dataset_Custom(Dataset):
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
 
-    # def get_corr_matrix(self):
-    #     df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path))
-    #     col = list(df_raw.columns)
-    #     col.remove("date")
-    #     col.remove(self.target)
-    #     num_train = int(len(df_raw) * self.train_ratio)
-    #     df_raw = df_raw[0: num_train]
-    #     df = df_raw[col]
+    def get_corr_matrix(self):
+        df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path))
+        col = list(df_raw.columns)
+        col.remove("date")
+        col.remove(self.target)
+        num_train = int(len(df_raw) * self.train_ratio)
+        df_raw = df_raw[0: num_train]
+        df = df_raw[col]
         
-    #     corr_matrix = df.corr().values
+        corr_matrix = df.corr().values
 
-    #     return corr_matrix
+        return corr_matrix
