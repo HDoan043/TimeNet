@@ -91,6 +91,8 @@ class TemporalEmbedding(nn.Module):
                 + Minute 45 - 59: block 3
                 -> the number of rows in nn.Embedding for blocks should be 4
         '''
+        if freq == "5min":
+            five_min_size = 12
         minute_size = 4
         hour_size = 24
         weekday_size = 7
@@ -100,6 +102,8 @@ class TemporalEmbedding(nn.Module):
         Embed = FixedEmbedding if embed_type == 'fixed' else nn.Embedding
         if freq == 't':
             self.minute_embed = Embed(minute_size, d_model)
+        if freq == '5min':
+            self.five_min_embed = Embed(five_min_size, d_model)
         self.hour_embed = Embed(hour_size, d_model)
         self.weekday_embed = Embed(weekday_size, d_model)
         self.day_embed = Embed(day_size, d_model)
@@ -109,12 +113,14 @@ class TemporalEmbedding(nn.Module):
         x = x.long()
         minute_x = self.minute_embed(x[:, :, 4]) if hasattr(
             self, 'minute_embed') else 0.
+        five_min_x = self.five_min_embed(x[:, :, 4] if hasattr(
+            self, 'five_min_embed') else 0.
         hour_x = self.hour_embed(x[:, :, 3])
         weekday_x = self.weekday_embed(x[:, :, 2])
         day_x = self.day_embed(x[:, :, 1])
         month_x = self.month_embed(x[:, :, 0])
 
-        return hour_x + weekday_x + day_x + month_x + minute_x
+        return hour_x + weekday_x + day_x + month_x + minute_x + five_min_x
 
 
 class TimeFeatureEmbedding(nn.Module):
