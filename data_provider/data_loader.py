@@ -358,7 +358,7 @@ class Dataset_Custom(Dataset):
                 possible_index.extend(step_index)
         self.possible_index = possible_index
         self.possible_timestamps = pd.DataFrame([timestamps[index:index+sample_length] for index in possible_index])
-        print("[INFO] Number of {} samples: {}".format(self.flag, len(possible_index)))
+        print("[ℹ️] Number of {} samples: {}".format(self.flag, len(possible_index)))
 
         # ========================= ENCODE TIMELABEL ===============================
         if self.timeenc == 0:
