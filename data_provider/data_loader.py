@@ -312,13 +312,13 @@ class Dataset_Custom(Dataset):
         print("[ℹ️] Number of timestamps in {} set: {}".format(self.flag, len(timestamps)))
         df_freq = pd.DataFrame({"timestamp": timestamps})
         df_freq["previous_timestamp"] = df_freq["timestamp"].shift(1)
-        mod_freq_series = (df["timestamp"] - df["previous_timestamp"]).mode()/np.timedelta64(1, "m")
+        mod_freq_series = (df_freq["timestamp"] - df_freq["previous_timestamp"]).mode()/np.timedelta64(1, "m")
         mod_freq = str(mod_feq_series.iloc[0]) + "min"
 
         # Inspect interupt
         full_timestamp_range = np.array(pd.date_range(start=timestamps[0], end=timestamps[-1], freq=mod_freq))
         timestamps = np.array(timestamps)
-        interrupted_timestamp = ~timestamps.isin(full_timestamp_range)
+        interrupted_timestamp = ~full_timestamp_range.isin(timestamps)
         full_timestamp_df = pd.DataFrame({"timestamps": full_timestamp_range, "missing_timestamps": interrupted_timestamp})
         timestamps_df_with_index = pd.DataFrame({"index": df_stamp.index, "timestamps": timestamps})
         full_timestamp_df_with_index = pd.merge(
@@ -403,8 +403,10 @@ class Dataset_Custom(Dataset):
 
             seq_x = self.data_x[x_index_start: x_index_end]
             seq_y = self.data_y[y_index_start: y_index_end]
-
-            return seq_x, seq_y
+            seq_x_mark = self.data_stamp[x_index_start:x_index_end]
+            seq_y_mark = self.data_stamp[y_index_start:y_index_end]
+            
+            return seq_x, seq_y, seq_x_mark, seq_y_mark
     
     def __len__(self):
         # return len(self.data_x) - self.seq_len - self.pred_len + 1
