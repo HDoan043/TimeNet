@@ -67,6 +67,30 @@ class TemporalEmbedding(nn.Module):
     def __init__(self, d_model, embed_type='fixed', freq='h'):
         super(TemporalEmbedding, self).__init__()
 
+        '''
+        nn.Embedding will create a learnable table mapping an index i to a vector in hidden space
+        So:
+            _ To embed month: there are 12 distinctive values of months: 1 - 12
+                Use the month directly as the index of the embedding table
+                -> the number of rows in nn.Embedding for month should be 13 with index from 0 to 12
+                ( index 1 - 12 corresponds to month 1 - 12, the row with index of 0 is not used)
+            _ To embed day in month: there are 31 distinctive values of days: 1 - 31
+                Use the day directly as the index of the embedding table
+                -> the number of rows in nn.Embedding for day should be 32 with index from 0 to 31
+            _ To embed hour: there are 24 distinctive values of hour: 0 - 23 
+                -> the number of rows in nn.Embedding for hour should be 24
+            _ To embed weekday: there are distinctive values of weakday: Monday - Sunday
+                Consider they are integer: 0 -> 6
+                -> the number of rows in nn.Embedding for weekday should be 7
+            _ To embed minutes: there are 60 distinctive values of minute: 0 - 59
+                But it is too noisy to embed each minute separately. 
+                Instead, minutes are represented with 4 blocks, each block is embeded with only a vector in hidden space:
+                + Minute 0  - 14: block 0
+                + Minute 15 - 30: block 1
+                + Minute 31 - 44: block 2
+                + Minute 45 - 59: block 3
+                -> the number of rows in nn.Embedding for blocks should be 4
+        '''
         minute_size = 4
         hour_size = 24
         weekday_size = 7
