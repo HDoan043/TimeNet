@@ -309,7 +309,7 @@ class Dataset_Custom(Dataset):
 
         # ==================== ENSURE CONTINUALNESS ========================
         # Inspect freq
-        print("[INFO] Number of timestamps in {} set: {}".format(self.flag, len(timestamps)))
+        print("[ℹ️] Number of timestamps in {} set: {}".format(self.flag, len(timestamps)))
         df_freq = pd.DataFrame({"timestamp": freq_ls})
         df_freq["previous_timestamp"] = df_freq["timestamp"].shift(1)
         mod_freq_series = (df["timestamp"] - df["previous_timestamp"]).mode()/np.timedelta64(1, "m")
