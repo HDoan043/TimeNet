@@ -415,6 +415,7 @@ class Dataset_Custom(Dataset):
                 print("[🔍] VALIDATE")
                 print(f"_ validate shape: {self.data_x.shape}")
                 print(f"_ Sample shape: {seq_x.shape}")
+                print(f"_ Direct sample shape: {self.data_x[x_index_start:x_index_end].shape}")
                 print(f"_ Start index: {x_index_start}")
                 print(f"_ End index: {x_index_end}")
                 
