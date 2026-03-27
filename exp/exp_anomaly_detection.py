@@ -46,6 +46,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         self.model.eval()
         with torch.no_grad():
             for i, (batch_x, _, batch_x_mark, _) in enumerate(vali_loader):
+                print(batch_x.shape)
                 batch_x = batch_x.float().to(self.device)
 
                 if self.args.model.lower() == "timesnetv2":
