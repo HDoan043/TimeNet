@@ -208,7 +208,6 @@ class Dataset_Custom(Dataset):
     def __init__(self, args, root_path, flag='train', task_name="long_term_forecasting",
                  size=None, features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='5min', 
-                 encode_timestamps = ["year", "month", "day", "weekday", "hour", "min"],
                  seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1):
         # size [seq_len, label_len, pred_len]
         self.args = args
@@ -242,7 +241,6 @@ class Dataset_Custom(Dataset):
         self.scale = scale
         self.timeenc = timeenc
         self.freq = freq
-        self.encode_timestamps = encode_timestamps
 
         self.root_path = root_path
         self.data_path = data_path
