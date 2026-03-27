@@ -46,7 +46,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
         self.model.eval()
         with torch.no_grad():
             for i, (batch_x, _, batch_x_mark, _) in enumerate(vali_loader):
-                print(batch_x.shape)
                 batch_x = batch_x.float().to(self.device)
 
                 if self.args.model.lower() == "timesnetv2":
@@ -68,15 +67,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
-        print("vali loader")
-        
-        for each in vali_loader:
-            print(each[0].shape)
-            break
-        print("train loader")
-        for each in train_loader:
-            print(each[0].shape)
-            break
 
         corr_matrix = train_data.get_corr_matrix()
         corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
