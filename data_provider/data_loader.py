@@ -328,6 +328,9 @@ class Dataset_Custom(Dataset):
             how="right"
         )
         index_col = full_timestamp_df_with_index["index"].values
+        print(interrupted_timestamp[3000:3500])
+        print(len(interrupted_timstamp))
+        print(len(index_col))
         interrupted_index = []
         stack = []
         for index, is_interrupted in list(zip(index_col, interrupted_timestamp)):
