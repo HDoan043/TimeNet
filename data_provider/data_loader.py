@@ -334,7 +334,7 @@ class Dataset_Custom(Dataset):
             if not is_interrupted:
                 stack.append(index)
             elif len(stack):
-                interrupted_index.append(stack)
+                interrupted_index.append(stack.copy())
                 stack.clear()
                 
         if len(interrupted_index):
