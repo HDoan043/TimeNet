@@ -327,19 +327,16 @@ class Dataset_Custom(Dataset):
             how="right"
         )
         interrupted_timestamp = full_timestamp_df["missing_timestamps"].values
-        print(full_timestamp_df_with_index.describe())
-        print(full_timestamp_range[3000:3002])
-        print(timestamps[3000:3002])
+        interrupted_timestamp = np.append(interrupted_timestamp, -1)
         index_col = full_timestamp_df_with_index["index"].values
-        # print(interrupted_timestamp[2000:2500])
-        # print(len(interrupted_timestamp))
-        # print(len(index_col))
+        index_col = np.append(index_col, 1)
+        
         interrupted_index = []
         stack = []
-        for index, is_interrupted in list(zip(index_col, interrupted_timestamp)):
+        for i, (index, is_interrupted) in enumerate(list(zip(index_col, interrupted_timestamp))):
             if not is_interrupted:
                 stack.append(index)
-            elif len(stack):
+            elif len(stack) :
                 interrupted_index.append(stack.copy())
                 stack.clear()
                 
