@@ -410,10 +410,11 @@ class Dataset_Custom(Dataset):
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
             if self.set_type == 1:
-                col = list(data_x.columns)
+                col = list(self.data_x.columns)
                 print("[🔍] VALIDATE")
                 print(f"_ Columns:")
                 print(col)
+                print(f"_ validate shape: {self.data_x.shape}")
                 print(f"_ Sample shape: {seq_x.shape}")
                 print(f"_ Start index: {x_index_start}")
                 print(f"_ End index: {x_index_end}")
