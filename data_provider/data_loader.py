@@ -409,7 +409,7 @@ class Dataset_Custom(Dataset):
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
-            if self.set_type == 1 and index < 10:
+            if self.set_type == 1:
                 col = list(data_x.columns)
                 print("[🔍] VALIDATE")
                 print(f"_ Columns:")
