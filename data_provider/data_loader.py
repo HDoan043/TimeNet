@@ -318,7 +318,7 @@ class Dataset_Custom(Dataset):
         # Inspect interupt
         full_timestamp_range = np.array(pd.date_range(start=timestamps[0], end=timestamps[-1], freq=mod_freq))
         timestamps = np.array(timestamps)
-        interrupted_timestamp = ~full_timestamp_range.isin(timestamps)
+        interrupted_timestamp = [each not in timestamps for each in full_timestamp_range]
         full_timestamp_df = pd.DataFrame({"timestamps": full_timestamp_range, "missing_timestamps": interrupted_timestamp})
         timestamps_df_with_index = pd.DataFrame({"index": df_stamp.index, "timestamps": timestamps})
         full_timestamp_df_with_index = pd.merge(
