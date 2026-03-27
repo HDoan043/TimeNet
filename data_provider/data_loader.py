@@ -316,8 +316,8 @@ class Dataset_Custom(Dataset):
         mod_freq = str(mod_freq_series.iloc[0]) + "min"
 
         # Inspect interupt
-        full_timestamp_range = pd.to_datetime(pd.date_range(start=timestamps[0], end=timestamps[-1], freq=mod_freq)
-        full_timestamp_df = pd.DataFrame({"timestamps": full_timestamp_range})
+        full_timestamp_range = pd.date_range(start=timestamps[0], end=timestamps[-1], freq=mod_freq)
+        full_timestamp_df = pd.DataFrame({"timestamps": full_timestamp_range.dt})
         full_timestamp_df["missing_timestamps"] = ~full_timestamp_df["timestamps"].isin(timestamps)*1
         timestamps_df_with_index = pd.DataFrame({"index": df_stamp.index, "timestamps": timestamps})
         full_timestamp_df_with_index = pd.merge(
