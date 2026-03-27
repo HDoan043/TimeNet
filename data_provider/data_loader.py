@@ -350,7 +350,7 @@ class Dataset_Custom(Dataset):
         
         possible_index = []
         sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_size
-        for continous_indexes in interrupetd_index:
+        for continous_indexes in interrupted_index:
             if len(continous_indexes) >= sample_length:
                 max_start_index = len(continuous_indexes) - sample_length + 1
                 step_index_index = range(0, max_start_index, self.step)
