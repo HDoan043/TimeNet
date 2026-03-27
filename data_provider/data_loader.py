@@ -408,6 +408,9 @@ class Dataset_Custom(Dataset):
             seq_y = self.data_y[y_index_start: y_index_end]
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
+
+            if self.set_type == 1:
+                print("[🔍] VALIDATE SAMPLES SHAPE ", seq_x.shape)
             
             return seq_x, seq_y, seq_x_mark, seq_y_mark
     
