@@ -70,7 +70,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
         test_data, test_loader = self._get_data(flag='test')
         print("vali loader")
         print(len(vali_loader))
-        print(vali_loader[0][0].shape)
+        for each in vali_loader:
+            print(each[0].shape)
+            break
 
         corr_matrix = train_data.get_corr_matrix()
         corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
