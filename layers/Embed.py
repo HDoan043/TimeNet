@@ -66,7 +66,7 @@ class FixedEmbedding(nn.Module):
 
 
 class TemporalEmbedding(nn.Module):
-    def __init__(self, d_model, embed_type='fixed', freq='h', encode_timestamps = ["month", "day", "weekday", "hour", "minute"]):
+    def __init__(self, d_model, embed_type='fixed', freq='h', encode_timestamps = ["month", "day", "weekday", "hour"]):
         super(TemporalEmbedding, self).__init__()
 
         '''
