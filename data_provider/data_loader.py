@@ -337,7 +337,7 @@ class Dataset_Custom(Dataset):
                 interrupted_index.append(stack)
                 stack.clear()
                 
-        if len(interupt_index):
+        if len(interrupted_index):
             print("[ℹ️] The sequence for {} is interupted at {} indexes: {}".format(self.flag, 
                                                                                       len(interrupted_index), 
                                                                                       [each[0] for each in interrupted_index]))
