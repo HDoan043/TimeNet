@@ -47,10 +47,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, _, batch_x_mark, _) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
+                batch_x_mark = batch_x_mark if self.args.encode_timestamps else None
 
                 if self.args.model.lower() == "timesnetv2":
                     outputs = self.model(batch_x, None, None, None, corr_matrix)
-                else: outputs = self.model(batch_x, None, None, None)
+                else: outputs = self.model(batch_x, batch_x_mark, None, None)
 
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, :, f_dim:]
@@ -103,11 +104,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 iter_count += 1
                 model_optim.zero_grad()
                 batch_x = batch_x.float().to(self.device)
+                batch_x_mark = batch_x_mark if self.args.encode_timestamps else None
 
                 if self.args.model.lower() == "timesnetv2":
                     outputs = self.model(batch_x, None, None, None, corr_matrix)
                 else:
-                    outputs = self.model(batch_x, None, None, None)
+                    outputs = self.model(batch_x, batch_x_mark, None, None)
 
                 f_dim = -1 if self.args.features == 'MS' else 0
                 outputs = outputs[:, :, f_dim:]
@@ -189,10 +191,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
+                batch_x_mark = batch_x_mark if self.args.encode_timestamps else None
                 # reconstruction
                 if self.args.model.lower() == "timesnetv2":
                     outputs = self.model(batch_x, None, None, None, corr_matrix)
-                else: outputs = self.model(batch_x, None, None, None)
+                else: outputs = self.model(batch_x, batch_x_mark, None, None)
                 # criterion
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
