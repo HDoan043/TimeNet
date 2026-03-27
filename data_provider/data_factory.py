@@ -44,6 +44,7 @@ def data_provider(args, flag):
             target=args.target,
             timeenc=timeenc,
             freq=freq,
+            encode_timestamps=args.encode_timestamps
             seasonal_patterns=args.seasonal_patterns,
             train_ratio = train_ratio,
             test_ratio = test_ratio
