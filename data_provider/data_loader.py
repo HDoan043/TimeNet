@@ -378,9 +378,13 @@ class Dataset_Custom(Dataset):
             data_stamp = time_features(pd.to_datetime(df_stamp['date'].values), freq=self.freq)
             data_stamp = data_stamp.transpose(1, 0)
 
+        # ========================== GET FINAL DATA ====================================
+        # Get feature data and label data
         self.data_x = data[border1:border2]
         self.data_y = y[border1:border2]
-
+        # Reset index
+        self.possible_index = np.array(possible_index) - border1
+        
         if self.set_type == 0 and self.args.augmentation_ratio > 0:
             self.data_x, self.data_y, augmentation_tags = run_augmentation_single(self.data_x, self.data_y, self.args)
 
