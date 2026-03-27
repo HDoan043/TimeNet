@@ -369,15 +369,11 @@ class Dataset_Custom(Dataset):
 
         # ========================= ENCODE TIMELABEL ===============================
         if self.timeenc == 0:
-            if 'month' in self.encode_timestamps:
-                df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
-            if 'day' in self.encode_timestamps:
-                df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
-            if 'weekday' in self.encode_timestamps:
-                df_stamp['weekday'] = df_stamp.date.apply(lambda row: row.weekday(), 1)
-            if 'hour' in self.encode_timestamps:
-                df_stamp['hour'] = df_stamp.date.apply(lambda row: row.hour, 1)
-            if '5min' in self.encode_timestamps or self.freq == "5min":
+            df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
+            df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
+            df_stamp['weekday'] = df_stamp.date.apply(lambda row: row.weekday(), 1)
+            df_stamp['hour'] = df_stamp.date.apply(lambda row: row.hour, 1)
+            if self.freq == "5min":
                 df_stamp['5minute'] = df_stamp.date.dt.minute.map(lambda x: x // 5)
             data_stamp = df_stamp.drop(['date'], axis=1).values
         elif self.timeenc == 1:
