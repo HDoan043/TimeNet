@@ -345,7 +345,7 @@ class Dataset_Custom(Dataset):
                                                                                       len(interrupted_index), 
                                                                                       [each[0] for each in interrupted_index]))
         else:
-            print("[ℹ️] The sequence for {} is continous".format(self.flag))
+            print("[ℹ️] The sequence for {} is contiguous".format(self.flag))
 
         # Get the possible indexes: 
         #     a training sample is a window of timestamps, 
