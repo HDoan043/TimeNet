@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
     # anomaly detection task
     parser.add_argument('--anomaly_ratio', type=float, default=0.25, help='prior anomaly ratio (%%)')
-    parser.add_argument('--encode_timestamps', nargs="+" , default=["month", "day", "weekday", "hour", "minute"], help="select units timestamps for encoding")
+    parser.add_argument('--encode_timestamps', nargs="+" , default=["month", "day", "weekday", "hour"], help="select units timestamps for encoding")
 
     # model define
     parser.add_argument('--expand', type=int, default=2, help='expansion factor for Mamba')
