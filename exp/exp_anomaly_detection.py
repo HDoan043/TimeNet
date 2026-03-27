@@ -69,8 +69,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
         print("vali loader")
-        print(len(vali_loader))
+        
         for each in vali_loader:
+            print(each[0].shape)
+            break
+        print("train loader")
+        for each in train_loader:
             print(each[0].shape)
             break
 
