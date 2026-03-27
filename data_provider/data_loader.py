@@ -264,6 +264,8 @@ class Dataset_Custom(Dataset):
         else:
             df_raw = df_raw[['date'] + cols]
 
+        if "Unnamed: 0" in cols:
+            df_raw = df_raw.drop(["Unnamed: 0"], axis=1)
         # ================ TRAIN TEST SPLIT =====================
         num_train = int(len(df_raw) * self.train_ratio)
         num_test = int(len(df_raw) * self.test_ratio)
