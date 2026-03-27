@@ -313,7 +313,7 @@ class Dataset_Custom(Dataset):
         df_freq = pd.DataFrame({"timestamp": timestamps})
         df_freq["previous_timestamp"] = df_freq["timestamp"].shift(1)
         mod_freq_series = (df_freq["timestamp"] - df_freq["previous_timestamp"]).mode()/np.timedelta64(1, "m")
-        mod_freq = str(mod_feq_series.iloc[0]) + "min"
+        mod_freq = str(mod_freq_series.iloc[0]) + "min"
 
         # Inspect interupt
         full_timestamp_range = np.array(pd.date_range(start=timestamps[0], end=timestamps[-1], freq=mod_freq))
