@@ -66,7 +66,7 @@ class FixedEmbedding(nn.Module):
 
 
 class TemporalEmbedding(nn.Module):
-    def __init__(self, d_model, embed_type='fixed', freq='h'):
+    def __init__(self, d_model, embed_type='fixed', freq='h', encode_timestamps = ["month", "day", "weekday", "hour", "minute"]):
         super(TemporalEmbedding, self).__init__()
 
         '''
@@ -102,25 +102,33 @@ class TemporalEmbedding(nn.Module):
         month_size = 13
 
         Embed = FixedEmbedding if embed_type == 'fixed' else nn.Embedding
-        if freq == 't':
+        if freq == 't' or "minute" in encode_timestamps:
             self.minute_embed = Embed(minute_size, d_model)
-        if freq == '5min':
+        if freq == '5min' or "5min" in encode_timestamps:
             self.five_min_embed = Embed(five_min_size, d_model)
-        self.hour_embed = Embed(hour_size, d_model)
-        self.weekday_embed = Embed(weekday_size, d_model)
-        self.day_embed = Embed(day_size, d_model)
-        self.month_embed = Embed(month_size, d_model)
+        if "hour" in encode_timestamps:
+            self.hour_embed = Embed(hour_size, d_model)
+        if "weekday" in encode_timestamps:
+            self.weekday_embed = Embed(weekday_size, d_model)
+        if "day" in encode_timestamps:
+            self.day_embed = Embed(day_size, d_model)
+        if "month" in encode_timestamps:
+            self.month_embed = Embed(month_size, d_model)
 
     def forward(self, x):
         x = x.long()
         minute_x = self.minute_embed(x[:, :, 4]) if hasattr(
-            self, 'minute_embed') else 0.
+            self, 'minute_embed') else 0
         five_min_x = self.five_min_embed(x[:, :, 4]) if hasattr(
-            self, 'five_min_embed') else 0.
-        hour_x = self.hour_embed(x[:, :, 3])
-        weekday_x = self.weekday_embed(x[:, :, 2])
-        day_x = self.day_embed(x[:, :, 1])
-        month_x = self.month_embed(x[:, :, 0])
+            self, 'five_min_embed') else 0
+        hour_x = self.hour_embed(x[:, :, 3]) if hasattr(
+            self, 'hour_embed') else 0
+        weekday_x = self.weekday_embed(x[:, :, 2]) if hasattr(
+            self, 'weekday_embed') else 0
+        day_x = self.day_embed(x[:, :, 1]) if hasattr(
+            self, 'day_embed') else 0
+        month_x = self.month_embed(x[:, :, 0]) if hasattr(
+            self, 'month_embed') else 0
 
         return hour_x + weekday_x + day_x + month_x + minute_x + five_min_x
 
