@@ -340,7 +340,7 @@ class Dataset_Custom(Dataset):
                 interrupted_index.append(stack.copy())
                 stack.clear()
                 
-        if len(interrupted_index):
+        if len(interrupted_index)>1:
             print("[ℹ️] The sequence for {} is interupted at {} indexes: {}".format(self.flag, 
                                                                                       len(interrupted_index), 
                                                                                       [each[0] for each in interrupted_index]))
@@ -355,9 +355,9 @@ class Dataset_Custom(Dataset):
         sample_length = self.seq_len + self.pred_len if self.task_name == "long_term_forecasting" else self.win_size
         for continous_indexes in interrupted_index:
             if len(continous_indexes) >= sample_length:
-                max_start_index = len(continuous_indexes) - sample_length + 1
+                max_start_index = len(continous_indexes) - sample_length + 1
                 step_index_index = range(0, max_start_index, self.step)
-                step_index = [continuous_indexes[index] for index in step_index_index]
+                step_index = [continous_indexes[index] for index in step_index_index]
                 possible_index.extend(step_index)
         self.possible_index = possible_index
         self.possible_timestamps = pd.DataFrame([timestamps[index:index+sample_length] for index in possible_index])
