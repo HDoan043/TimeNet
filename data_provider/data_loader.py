@@ -208,6 +208,7 @@ class Dataset_Custom(Dataset):
     def __init__(self, args, root_path, flag='train', task_name="long_term_forecasting",
                  size=None, features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='5min', 
+                 encode_timestamps = ["year", "month", "day", "weekday", "hour", "min"],
                  seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1):
         # size [seq_len, label_len, pred_len]
         self.args = args
@@ -241,6 +242,7 @@ class Dataset_Custom(Dataset):
         self.scale = scale
         self.timeenc = timeenc
         self.freq = freq
+        self.encode_timestamps = encode_timestamps
 
         self.root_path = root_path
         self.data_path = data_path
@@ -367,11 +369,15 @@ class Dataset_Custom(Dataset):
 
         # ========================= ENCODE TIMELABEL ===============================
         if self.timeenc == 0:
-            df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
-            df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
-            df_stamp['weekday'] = df_stamp.date.apply(lambda row: row.weekday(), 1)
-            df_stamp['hour'] = df_stamp.date.apply(lambda row: row.hour, 1)
-            if self.freq == "5min":
+            if 'month' in self.encode_timestamps:
+                df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
+            if 'day' in self.encode_timestamps:
+                df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
+            if 'weekday' in self.encode_timestamps:
+                df_stamp['weekday'] = df_stamp.date.apply(lambda row: row.weekday(), 1)
+            if 'hour' in self.encode_timestamps:
+                df_stamp['hour'] = df_stamp.date.apply(lambda row: row.hour, 1)
+            if '5min' in self.encode_timestamps or self.freq == "5min":
                 df_stamp['5minute'] = df_stamp.date.dt.minute.map(lambda x: x // 5)
             data_stamp = df_stamp.drop(['date'], axis=1).values
         elif self.timeenc == 1:
