@@ -116,7 +116,7 @@ class Model(nn.Module):
         dec_out = self.projection(enc_out)
         return dec_out
 
-    def anomaly_detection(self, x_enc):
+    def anomaly_detection(self, x_enc, x_enc_mark = None):
         # enc
         enc_out = self.enc_embedding(x_enc, None)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
@@ -149,7 +149,7 @@ class Model(nn.Module):
                 x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == 'anomaly_detection':
-            dec_out = self.anomaly_detection(x_enc)
+            dec_out = self.anomaly_detection(x_enc, x_mark_enc)
             return dec_out  # [B, L, D]
         if self.task_name == 'classification':
             dec_out = self.classification(x_enc, x_mark_enc)
