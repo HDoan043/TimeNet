@@ -175,7 +175,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         
         if test:
             print('loading model')
-            checkpoint_path = os.path.join(self.args.checkpoints, settings, 'checkpoint.pth')
+            checkpoint_path = os.path.join(self.args.checkpoints, setting, 'checkpoint.pth')
             if os.path.exists(checkpoint_path):
                 self.model.load_state_dict(torch.load(checkpoint_path))
             else:
