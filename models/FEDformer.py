@@ -5,7 +5,7 @@ from layers.Embed import DataEmbedding
 from layers.AutoCorrelation import AutoCorrelationLayer
 from layers.FourierCorrelation import FourierBlock, FourierCrossAttention
 from layers.MultiWaveletCorrelation import MultiWaveletCross, MultiWaveletTransform
-from layers.Autoformer_EncDec import Encoder, Decoder, EncoderLayer, DecoderLayer, my_Layernorm, series_decomp
+from layers.Autoformer_EncDec import Encoder, Decoder, EncoderLayer, DecoderLayer, my_Layernorm, series_decomp, series_decomp_multi
 
 
 class Model(nn.Module):
@@ -26,12 +26,15 @@ class Model(nn.Module):
         self.label_len = configs.label_len
         self.pred_len = configs.pred_len
 
-        self.version = configs.version
-        self.mode_select = configs.mode_select
-        self.modes = configs.modes
+        self.version = getattr(configs, 'version', "fourier")
+        self.mode_select = getattr(configs, 'mode_select', 'random')
+        self.modes = getattr(configs, 'modes', 32)
 
         # Decomp
-        self.decomp = series_decomp(configs.moving_avg)
+        if isinstance(configs.moving_avg, list):
+            self.decomp = series_decomp_multi(configs.moving_avg)
+        else:
+            self.decomp = series_decomp(configs.moving_avg)
         self.enc_embedding = DataEmbedding(configs.enc_in, configs.d_model, configs.embed, configs.freq,
                                            configs.dropout, encode_timestamps = configs.encode_timestamps)
         self.dec_embedding = DataEmbedding(configs.dec_in, configs.d_model, configs.embed, configs.freq,
