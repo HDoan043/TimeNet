@@ -104,8 +104,12 @@ class EncoderLayer(nn.Module):
         self.attention = attention
         self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1, bias=False)
         self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1, bias=False)
-        self.decomp1 = series_decomp(moving_avg)
-        self.decomp2 = series_decomp(moving_avg)
+        if isinstance(moving_avg, list):
+            self.decomp1 = series_decomp_multi(moving_avg)
+            self.decomp2 = series_decomp_multi(moving_avg)
+        else:
+            self.decomp1 = series_decomp(moving_avg)
+            self.decomp2 = series_decomp(moving_avg)
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
 
@@ -167,9 +171,14 @@ class DecoderLayer(nn.Module):
         self.cross_attention = cross_attention
         self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1, bias=False)
         self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1, bias=False)
-        self.decomp1 = series_decomp(moving_avg)
-        self.decomp2 = series_decomp(moving_avg)
-        self.decomp3 = series_decomp(moving_avg)
+        if isinstance(moving_avg, list):
+            self.decomp1 = series_decomp_multi(moving_avg)
+            self.decomp2 = series_decomp_multi(moving_avg)
+            self.decomp3 = series_decomp_multi(moving_avg)
+        else:
+            self.decomp1 = series_decomp(moving_avg)
+            self.decomp2 = series_decomp(moving_avg)
+            self.decomp3 = series_decomp(moving_avg)
         self.dropout = nn.Dropout(dropout)
         self.projection = nn.Conv1d(in_channels=d_model, out_channels=c_out, kernel_size=3, stride=1, padding=1,
                                     padding_mode='circular', bias=False)
