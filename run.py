@@ -162,6 +162,11 @@ if __name__ == '__main__':
     parser.add_argument('--top_p', type=float, default=0.5, help='Dynamic Routing in MoE')
     parser.add_argument('--pos', type=int, choices=[0, 1], default=1, help='Positional Embedding. Set pos to 0 or 1')
 
+    # FEDformer
+    parser.add_argument('--version', type=str, default="fourier", help='fourier, wavelet')
+    parser.add_argument('--mode_select', type=str, default="random", help="random, low")
+    parser.add_argument('--modes', type=int, default=32, help="number of frequencies randomly selected to keep in FEB, too low --> loss information, too high --> overfit; ideal: 32, 64, 128")
+
     args = parser.parse_args()
     if torch.cuda.is_available() and args.use_gpu:
         args.device = torch.device('cuda:{}'.format(args.gpu))
