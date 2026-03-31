@@ -70,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('--e_layers', type=int, default=2, help='num of encoder layers')
     parser.add_argument('--d_layers', type=int, default=1, help='num of decoder layers')
     parser.add_argument('--d_ff', type=int, default=2048, help='dimension of fcn')
-    parser.add_argument('--moving_avg', type=int, default=25, help='window size of moving average')
+    parser.add_argument('--moving_avg', type=int, nargs='+', default=[25], help='window size of moving average')
     parser.add_argument('--factor', type=int, default=1, help='attn factor')
     parser.add_argument('--distil', action='store_false',
                         help='whether to use distilling in encoder, using this argument means not using distilling',
@@ -168,6 +168,8 @@ if __name__ == '__main__':
     parser.add_argument('--modes', type=int, default=32, help="number of frequencies randomly selected to keep in FEB, too low --> loss information, too high --> overfit; ideal: 32, 64, 128")
 
     args = parser.parse_args()
+    if isinstance(args.moving_avg, list) and len(args.moving_avg) == 1:
+        args.moving_avg = args.moving_avg[0]
     if torch.cuda.is_available() and args.use_gpu:
         args.device = torch.device('cuda:{}'.format(args.gpu))
         print('Using GPU')
