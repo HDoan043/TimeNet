@@ -80,7 +80,7 @@ class series_decomp_multi(nn.Module):
     """
     def __init__(self, kernel_size):
         super(series_decomp_multi, self).__init__()
-        self.moving_avg = [moving_avg(kernel, stride=1) for kernel in kernel_size]
+        self.moving_avg = nn.ModuleList([moving_avg(kernel, stride=1) for kernel in kernel_size])
         self.layer = torch.nn.Linear(1, len(kernel_size))
 
     def forward(self, x):
