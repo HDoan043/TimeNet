@@ -172,6 +172,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         corr_matrix = train_data.get_corr_matrix()
         corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
         corr_matrix.require_grad = False
+
+        inference_times = []
         
         if test:
             print('loading model')
@@ -197,10 +199,21 @@ class Exp_Anomaly_Detection(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_x_mark = batch_x_mark.to(self.device) 
+
+                # sync gpu with cpu
+                if self.args.use_gpu:
+                    torch.cuda.synchronize()
+                start_time = time.time()
                 # reconstruction
                 if self.args.model.lower() == "timesnetv2":
                     outputs = self.model(batch_x, None, None, None, corr_matrix)
                 else: outputs = self.model(batch_x, batch_x_mark, None, None)
+                    
+                if self.args.use_gpu:
+                    torch.cuda.synchronize() # Đợi GPU chạy xong 100%
+                end_time = time.time()
+
+                inference_times.append((end_time - start_time) * 1000)
                 # criterion
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
@@ -216,9 +229,17 @@ class Exp_Anomaly_Detection(Exp_Basic):
             batch_x = batch_x.float().to(self.device)
             batch_x_mark = batch_x_mark.to(self.device) 
             # reconstruction
+            if self.args.use_gpu:
+                torch.cuda.synchronize()
+            start_time = time.time()
             if self.args.model.lower() == "timesnetv2":
                 outputs = self.model(batch_x, None, None, None, corr_matrix)
             else: outputs = self.model(batch_x, batch_x_mark, None, None)
+            if self.args.use_gpu:
+                torch.cuda.synchronize() # Đợi GPU chạy xong 100%
+            end_time = time.time()
+
+            inference_times.append((end_time - start_time) * 1000)            
             # criterion
             score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)      # score:  [batch_size x win_size x 1]
             score = score.detach().cpu().numpy()
@@ -269,6 +290,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
         print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
             accuracy, precision,
             recall, f_score))
+        # Calculate batch time
+        avg_time_ms = np.mean(inference_times)
+        std_time_ms = np.std(inference_times) 
+    
+        print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
 
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
