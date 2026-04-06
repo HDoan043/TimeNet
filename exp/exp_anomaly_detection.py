@@ -193,27 +193,17 @@ class Exp_Anomaly_Detection(Exp_Basic):
             
         self.model.eval()
         self.anomaly_criterion = nn.MSELoss(reduce=False)
-
+        torch.cuda.reset_peak_memory_stats(self.device)
+        torch.cuda.empty_cache()
         # (1) stastic on the train set
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_x_mark = batch_x_mark.to(self.device) 
-
-                # sync gpu with cpu
-                if self.args.use_gpu:
-                    torch.cuda.synchronize()
-                start_time = time.time()
                 # reconstruction
                 if self.args.model.lower() == "timesnetv2":
                     outputs = self.model(batch_x, None, None, None, corr_matrix)
                 else: outputs = self.model(batch_x, batch_x_mark, None, None)
-                    
-                if self.args.use_gpu:
-                    torch.cuda.synchronize() # Đợi GPU chạy xong 100%
-                end_time = time.time()
-
-                inference_times.append((end_time - start_time) * 1000)
                 # criterion
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
@@ -295,6 +285,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
         std_time_ms = np.std(inference_times) 
     
         print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
+        max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
+        max_memory_mb = max_memory_bytes / (1024 * 1024)
+        print(f"Peak Memory: {max_memory_mb:.2f} MB")
 
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
