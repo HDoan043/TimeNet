@@ -252,8 +252,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # Save threshold
         np.save(folder_path + "threshold.npy", threshold)
         ######################################
-        print("Threshold :", threshold)
-
+        if self.args.threshold > -1:
+            threshold = self.args.threshold
+            print("Use provided threshold :", threshold)
+        else:
+            print("Use calculated threshold :", threshold)
+            
         # (3) evaluation on the test set
         pred = (test_energy > threshold).astype(int)
         test_labels = np.concatenate(test_labels, axis=0)
