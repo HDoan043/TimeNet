@@ -102,6 +102,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss', type=str, default='MSE', help='loss function')
     parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
     parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=False)
+    parser.add_argument('--threshold', type=int, default=-1, help='-1 if recalculate threshold (use to find threshold), other if use provide threshold instead of recalculating')
 
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
