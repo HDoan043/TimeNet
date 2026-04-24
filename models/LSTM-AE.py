@@ -1,13 +1,13 @@
 import torch.nn as nn
 
 class LSTMAE(nn.Module):
-    def __init__(self, enc_in, d_model, n_layers):
+    def __init__(self, enc_in, d_model, e_layers):
         super().__init__()
 
         self.encoder = nn.LSTM(
             input_size=enc_in,
             hidden_size=d_model,
-            num_layers=n_layers,
+            num_layers=e_layers,
             batch_first=True
         )
 
