@@ -13,7 +13,7 @@ class Model(nn.Module):
 
         self.decoder = nn.Linear(configs.d_model, configs.enc_in)
 
-    def forward(self, x):
+    def forward(self, x, x_mark_enc, x_dec, x_mark_dec, mask=None):
         # x: [B, T, D]
 
         out, _ = self.encoder(x)   # [B, T, d_model]
