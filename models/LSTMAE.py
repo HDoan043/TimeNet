@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-class LSTMAE(nn.Module):
+class Model(nn.Module):
     def __init__(self, configs):
         super().__init__()
 
