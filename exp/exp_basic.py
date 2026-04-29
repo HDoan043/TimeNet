@@ -93,46 +93,79 @@ class Exp_Basic(object):
 
     def tune(self):
         if self.args.model != "TimesNet": 
-                print("[⚠️] Cannot tune model not being TimesNet!!")
-                return
-        # Define objective
+            print("[⚠️] Cannot tune model not being TimesNet!!")
+            return
+
+        import gc # Cần import thêm thư viện giải phóng bộ nhớ
+
         def objective(trial):
+            # 1. Gợi ý tham số
             config = {
                 'top_k': trial.suggest_int('top_k', 1, 5),
-                'num_kernels': trial.suggest_int('num_kernels', 2, 7),
+                'num_kernels': trial.suggest_int('num_kernels', 2, 6),
                 'd_model': trial.suggest_categorical('d_model', [64, 128, 256, 512]),
-                'd_ff': trial.suggest_categorical('d_ff', [256, 512, 1024, 2048]),
+                'd_ff': trial.suggest_categorical('d_ff', [256, 512, 1024]),
                 'e_layers': trial.suggest_int('e_layers', 2, 3),
                 'learning_rate': trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True),
                 'anomaly_ratio': trial.suggest_float('anomaly_ratio', 6.0, 13.0),
                 'dropout': trial.suggest_float('dropout', 0.1, 0.4)
             }
-            setting = ""
-            for i, (key, value) in enumerate(config.items()):
-                if i != 0:
-                    setting = setting + ","
+
+            # Cập nhật tham số vào args
+            setting_list = []
+            for key, value in config.items():
                 setattr(self.args, key, value)
-                setting = setting + f"{key}={value}"
-            self._build_model()
-            self.train(setting = setting, trial = trial)
-            acc, pre, re, f1, threshold = self.test(setting = setting)
-            print("-"*80)
-            setting = setting.split(",")
-            setting = "\n".join(["\t- "+each for each in setting])
-            print(setting)
-            print(f"> Accuracy: {acc}, Precision: {pre}, Recall: {re}, F-score: {f1}| threshold: {threshold}")
-            print ()
-            return f1
-        
+                setting_list.append(f"{key}={value}")
+            setting = ",".join(setting_list)
+
+            # --- SỬA LỖI 1: Khởi tạo lại model mới và gán vào self.model ---
+            # Trước khi build, xóa model cũ nếu có để giải phóng VRAM
+            if hasattr(self, 'model'):
+                del self.model
+                torch.cuda.empty_cache()
+                gc.collect()
+
+            try:
+                # Xây dựng model mới dựa trên tham số vừa suggest
+                self.model = self._build_model().to(self.device)
+                
+                # In số lượng tham số để kiểm soát độ nặng
+                trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+                print(f"\n[Trial {trial.number}] Build model: {trainable_params} params")
+
+                # 2. Huấn luyện (nhớ truyền trial để hỗ trợ pruning trong hàm train)
+                self.train(setting=setting, trial=trial)
+                
+                # 3. Đánh giá (hàm test của bạn trả về 5 giá trị)
+                acc, pre, re, f1, threshold = self.test(setting=setting)
+                
+                print("-" * 80)
+                formatted_setting = "\n".join(["\t- " + s for s in setting.split(",")])
+                print(f"Results for Trial {trial.number}:\n{formatted_setting}")
+                print(f"> Accuracy: {acc:.4f}, Precision: {pre:.4f}, Recall: {re:.4f}, F-score: {f1:.4f} | threshold: {threshold}")
+                
+                return f1
+
+            except RuntimeError as e:
+                if "out of memory" in str(e).lower():
+                    print(f"⚠️ [Trial {trial.number}] OUT OF MEMORY - Pruning this configuration.")
+                    # --- SỬA LỖI 2: Dọn dẹp sạch sẽ trước khi thoát trial ---
+                    if hasattr(self, 'model'):
+                        del self.model
+                    torch.cuda.empty_cache()
+                    gc.collect()
+                    raise optuna.exceptions.TrialPruned()
+                else:
+                    raise e
+
         # Create and run study
         study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler())
         study.optimize(objective, n_trials=self.args.num_trials)
         
-        # Print best result
-        print("Best trial:")
-        trial = study.best_trial
-        print(f"  Value (F1): {trial.value}")
+        # In kết quả tốt nhất
+        print("\n" + "="*50)
+        print("🏆 BEST CONFIGURATION FOUND:")
+        print(f"  Best F1: {study.best_trial.value:.4f}")
         print("  Params: ")
-        for key, value in trial.params.items():
+        for key, value in study.best_trial.params.items():
             print(f"    {key}: {value}")
-            
