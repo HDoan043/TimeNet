@@ -64,7 +64,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         self.model.train()
         return total_loss
 
-    def train(self, setting):
+    def train(self, setting, trial=None):
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
@@ -154,6 +154,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
             print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
                 epoch + 1, train_steps, train_loss, vali_loss, test_loss))
             early_stopping(vali_loss, self.model, path)
+            if trial:
+                trial.report(vali_loss, epoch)
+                if trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
+                    
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
@@ -301,7 +306,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         f.write('\n')
         f.write('\n')
         f.close()
-        return
+        return accuracy, precision, recall, f_score, threshold
     def infer(self, setting, flag='test'):
         infer_data, infer_loader = self._get_data(flag='test')
         train_data, train_loader = self._get_data(flag='train')
