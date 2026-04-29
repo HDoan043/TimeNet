@@ -92,19 +92,20 @@ class Exp_Basic(object):
         pass
 
     def tune(self):
-        # Define objective
-        def objective(trial):
-            if self.args.model != "TimesNet": 
+        if self.args.model != "TimesNet": 
                 print("[⚠️] Cannot tune model not being TimesNet!!")
                 return
+        # Define objective
+        def objective(trial):
             config = {
                 'top_k': trial.suggest_int('top_k', 1, 5),
                 'num_kernels': trial.suggest_int('num_kernels', 2, 7),
                 'd_model': trial.suggest_categorical('d_model', [64, 128, 256, 512]),
-                'd_ff': trial.suggest_int('d_ff', [256, 512, 1024, 2048]),
+                'd_ff': trial.suggest_categorical('d_ff', [256, 512, 1024, 2048]),
                 'e_layers': trial.suggest_int('e_layers', 2, 3),
                 'learning_rate': trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True),
-                'anomaly_ratio': trial.suggest_float('anomaly_ratio', 6.0, 13.0)
+                'anomaly_ratio': trial.suggest_float('anomaly_ratio', 6.0, 13.0),
+                'dropout': trial.suggest_float('dropout', 0.1, 0.4)
             }
             setting = ""
             for i, (key, value) in enumerate(config.items()):
