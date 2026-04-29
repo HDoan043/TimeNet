@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # basic config
     parser.add_argument('--task_name', type=str, required=True, default='long_term_forecast',
                         help='task name, options:[long_term_forecast, short_term_forecast, imputation, classification, anomaly_detection]')
-    parser.add_argument('--is_training', type=int, required=True, default=1, help='status')
+    parser.add_argument('--is_training', type=int, required=True, default=1, help='status: 1-train, 0-test, 2-tune by optuna')
     parser.add_argument('--infer', type=int, default=0) 
     parser.add_argument('--model_id', type=str, required=False, default='test', help='model id')
     parser.add_argument('--model', type=str, required=True, default='Autoformer',
@@ -103,6 +103,7 @@ if __name__ == '__main__':
     parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
     parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=False)
     parser.add_argument('--threshold', type=float, default=-1, help='-1 if recalculate threshold (use to find threshold), other if use provide threshold instead of recalculating')
+    parser.add_argument('--num_trials', type=int, default=50, help='number of trials when tunning by optuna')
 
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
@@ -203,7 +204,7 @@ if __name__ == '__main__':
     else:
         Exp = Exp_Long_Term_Forecast
 
-    if args.is_training:
+    if args.is_training == 1:
         for ii in range(args.itr):
             # setting record of experiments
             exp = Exp(args)  # set experiments
@@ -241,7 +242,7 @@ if __name__ == '__main__':
                 torch.backends.mps.empty_cache()
             elif args.gpu_type == 'cuda':
                 torch.cuda.empty_cache()
-    else:
+    elif args.is_training == 0:
         exp = Exp(args)  # set experiments
         ii = 0
         setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_expand{}_dc{}_fc{}_eb{}_dt{}_{}_{}'.format(
@@ -271,3 +272,9 @@ if __name__ == '__main__':
             torch.backends.mps.empty_cache()
         elif args.gpu_type == 'cuda':
             torch.cuda.empty_cache()
+    else: 
+        exp = Exp(args)
+        print("="*80)
+        print("\t 🔍 Tunning hyperparmeters by Optuna ")
+        print("="*80)
+        exp.tune()
