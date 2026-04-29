@@ -125,7 +125,7 @@ class Exp_Basic(object):
         
         # Create and run study
         study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler())
-        study.optimize(objective, n_trials=self.args.n_trials)
+        study.optimize(objective, n_trials=self.args.num_trials)
         
         # Print best result
         print("Best trial:")
