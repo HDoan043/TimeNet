@@ -111,7 +111,7 @@ class Exp_Basic(object):
             for i, (key, value) in enumerate(config.items()):
                 if i != 0:
                     setting = setting + ","
-                self.args[key] = value
+                setattr(self.args, key, value)
                 setting = setting + f"{key}={value}"
             self._build_model()
             self.train(setting = setting, trial = trial)
