@@ -107,7 +107,7 @@ class Exp_Basic(object):
                 'd_ff': trial.suggest_categorical('d_ff', [256, 512, 1024]),
                 'e_layers': trial.suggest_int('e_layers', 2, 3),
                 'learning_rate': trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True),
-                'anomaly_ratio': trial.suggest_float('anomaly_ratio', 6.0, 13.0),
+                'anomaly_ratio': trial.suggest_float('anomaly_ratio', 7.0, 11.0),
                 'dropout': trial.suggest_float('dropout', 0.1, 0.4)
             }
 
@@ -159,8 +159,19 @@ class Exp_Basic(object):
                     raise e
 
         # Create and run study
-        study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler())
-        study.optimize(objective, n_trials=self.args.num_trials)
+        study_name = "timesnet_max_tuning"
+        db_path = os.path.join(self.args.tune_path, "timesnet_optuna.db")
+        if not os.path.exists(db_path):
+            print("⚠️⚠️⚠️[NEW STUDY] Starting a new study of optuna. If you want to run a saved study, please pass the right path") 
+        storage_url = f"sqlite:///{db_path}"
+        study = optuna.create_study(
+            study_name=study_name,
+            storage=storage_url,
+            direction="maximize",
+            load_if_exists=True,
+            sampler=optuna.samplers.TPESampler()
+        )
+        study.optimize(objective, n_trials=self.args.num_trials, timeout=11*3600)
         
         # In kết quả tốt nhất
         print("\n" + "="*50)
