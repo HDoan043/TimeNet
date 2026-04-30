@@ -104,6 +104,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=False)
     parser.add_argument('--threshold', type=float, default=-1, help='-1 if recalculate threshold (use to find threshold), other if use provide threshold instead of recalculating')
     parser.add_argument('--num_trials', type=int, default=50, help='number of trials when tunning by optuna')
+    parser.add_argument('--tune_path', type=str, default='/kaggle/working/tunning_progress/', help='folder to store the progress of tunning')
 
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
