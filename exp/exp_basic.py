@@ -162,7 +162,8 @@ class Exp_Basic(object):
         study_name = "timesnet_max_tuning"
         db_path = os.path.join(self.args.tune_path, "timesnet_optuna.db")
         if not os.path.exists(db_path):
-            print("⚠️⚠️⚠️[NEW STUDY] Starting a new study of optuna. If you want to run a saved study, please pass the right path") 
+            print("⚠️⚠️⚠️[NEW STUDY] Starting a new study of optuna. If you want to run a saved study, please pass the right path")
+        os.makedirs(self.args.tune_path, exist_ok = True)
         storage_url = f"sqlite:///{db_path}"
         study = optuna.create_study(
             study_name=study_name,
