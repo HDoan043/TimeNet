@@ -25,7 +25,7 @@ def print_args(args):
 
     if args.task_name == 'anomaly_detection':
         print("\033[1m" + "Anomaly Detection Task" + "\033[0m")
-        print(f'  {"Anomaly Ratio:":<20}{args.anomaly_ratio:<20}')
+        print(f'  {"Anomaly Ratio:":<20}{str(args.anomaly_ratio):<20}')
         print()
 
     print("\033[1m" + "Model Parameters" + "\033[0m")
