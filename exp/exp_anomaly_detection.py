@@ -308,6 +308,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         best_pre = 0
         best_re = 0
         best_f1 = 0
+        old_test_label = test_labels.copy()
         for each in self.args.anomaly_ratio:
             print(f"***anomaly_ratio == {each}")
             threshold = np.percentile(combined_energy, 100 - each)
@@ -319,6 +320,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 
             # (3) evaluation on the test set
             pred = (test_energy > threshold).astype(int)
+            test_labels = old_test_label.copy()
             test_labels = np.concatenate(test_labels, axis=0)
             ######################################
             # Save ground truth
