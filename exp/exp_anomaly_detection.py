@@ -353,12 +353,16 @@ class Exp_Anomaly_Detection(Exp_Basic):
             # Calculate batch time
             avg_time_ms = np.mean(inference_times)
             std_time_ms = np.std(inference_times) 
-        
+
             print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
             max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
             max_memory_mb = max_memory_bytes / (1024 * 1024)
             print(f"Peak Memory: {max_memory_mb:.2f} MB")
-    
+
+        print("--- Finish ---")
+        print(f"Best anomaly_ratio: {best_ratio}")
+        print("Best Accuracy : {:0.4f}, Best Precision : {:0.4f}, Best Recall : {:0.4f}, Best F-score : {:0.4f} ".format(
+            best_acc, best_pre, best_re, best_f1))
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
         f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
@@ -366,7 +370,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         f.write('\n')
         f.write('\n')
         f.close()
-        return accuracy, precision, recall, f_score, threshold
+        return best_acc, best_pre, best_re, best_f1, best_threshold
     def infer(self, setting, flag='test'):
         infer_data, infer_loader = self._get_data(flag='test')
         train_data, train_loader = self._get_data(flag='train')
