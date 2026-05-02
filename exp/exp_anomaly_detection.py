@@ -322,17 +322,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
             test_labels = np.array(test_labels.reshape(-1))
             gt = test_labels.astype(int)
     
-            print("pred:   ", pred.shape)
-            print("gt:     ", gt.shape)
-    
             # (4) detection adjustment
             gt, pred = adjustment(gt, pred)
     
             pred = np.array(pred)
             gt = np.array(gt)
-            print("pred: ", pred.shape)
-            print("gt:   ", gt.shape)
-    
+        
             accuracy = accuracy_score(gt, pred)
             precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
             print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
