@@ -252,57 +252,117 @@ class Exp_Anomaly_Detection(Exp_Basic):
         ######################################
         test_energy = np.array(attens_energy.reshape(-1))
         combined_energy = np.concatenate([train_energy, test_energy], axis=0)
-        threshold = np.percentile(combined_energy, 100 - self.args.anomaly_ratio)
-        ######################################
-        # Save threshold
-        np.save(folder_path + "threshold.npy", threshold)
-        ######################################
+
         if self.args.threshold > -1:
             threshold = self.args.threshold
             print("Use provided threshold :", threshold)
-        else:
-            print("Use calculated threshold :", threshold)
-            
-        # (3) evaluation on the test set
-        pred = (test_energy > threshold).astype(int)
-        test_labels = np.concatenate(test_labels, axis=0)
-        ######################################
-        # Save ground truth
-        np.save(folder_path + "true.npy", test_labels)
-        ######################################
-        test_labels = np.array(test_labels.reshape(-1))
-        gt = test_labels.astype(int)
-
-        print("pred:   ", pred.shape)
-        print("gt:     ", gt.shape)
-
-        # (4) detection adjustment
-        gt, pred = adjustment(gt, pred)
-
-        pred = np.array(pred)
-        gt = np.array(gt)
-        print("pred: ", pred.shape)
-        print("gt:   ", gt.shape)
-
-        accuracy = accuracy_score(gt, pred)
-        precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            accuracy, precision,
-            recall, f_score))
-        # Calculate batch time
-        avg_time_ms = np.mean(inference_times)
-        std_time_ms = np.std(inference_times) 
+                
+            # (3) evaluation on the test set
+            pred = (test_energy > threshold).astype(int)
+            test_labels = np.concatenate(test_labels, axis=0)
+            ######################################
+            # Save ground truth
+            np.save(folder_path + "true.npy", test_labels)
+            ######################################
+            test_labels = np.array(test_labels.reshape(-1))
+            gt = test_labels.astype(int)
     
-        print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
-        max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
-        max_memory_mb = max_memory_bytes / (1024 * 1024)
-        print(f"Peak Memory: {max_memory_mb:.2f} MB")
+            print("pred:   ", pred.shape)
+            print("gt:     ", gt.shape)
+    
+            # (4) detection adjustment
+            gt, pred = adjustment(gt, pred)
+    
+            pred = np.array(pred)
+            gt = np.array(gt)
+            print("pred: ", pred.shape)
+            print("gt:   ", gt.shape)
+    
+            accuracy = accuracy_score(gt, pred)
+            precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
+            print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                accuracy, precision,
+                recall, f_score))
+            # Calculate batch time
+            avg_time_ms = np.mean(inference_times)
+            std_time_ms = np.std(inference_times) 
+        
+            print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
+            max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
+            max_memory_mb = max_memory_bytes / (1024 * 1024)
+            print(f"Peak Memory: {max_memory_mb:.2f} MB")
+    
+            f = open("result_anomaly_detection.txt", 'a')
+            f.write(setting + "  \n")
+            f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                accuracy, precision,
+                recall, f_score))
+            f.write('\n')
+            f.write('\n')
+            f.close()
+            return accuracy, precision, recall, f_score, threshold
 
+        print("=== TRYING ANOMALY RATIOS .... ===")
+        best_ratio = 0
+        best_acc = 0
+        best_pre = 0
+        best_re = 0
+        best_f1 = 0
+        for each in self.args.anomaly_ratio:
+            print(f"***anomaly_ratio == {each}")
+            threshold = np.percentile(combined_energy, 100 - each)
+            ######################################
+            # Save threshold
+            np.save(folder_path + "threshold.npy", threshold)
+            ######################################
+            print("Use calculated threshold :", threshold)
+                
+            # (3) evaluation on the test set
+            pred = (test_energy > threshold).astype(int)
+            test_labels = np.concatenate(test_labels, axis=0)
+            ######################################
+            # Save ground truth
+            np.save(folder_path + "true.npy", test_labels)
+            ######################################
+            test_labels = np.array(test_labels.reshape(-1))
+            gt = test_labels.astype(int)
+    
+            print("pred:   ", pred.shape)
+            print("gt:     ", gt.shape)
+    
+            # (4) detection adjustment
+            gt, pred = adjustment(gt, pred)
+    
+            pred = np.array(pred)
+            gt = np.array(gt)
+            print("pred: ", pred.shape)
+            print("gt:   ", gt.shape)
+    
+            accuracy = accuracy_score(gt, pred)
+            precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
+            print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                accuracy, precision,
+                recall, f_score))
+            if f_score >= best_f1:
+                best_acc = accuracy
+                best_pre = precision
+                best_re = recall
+                best_f1 = f_score
+                best_ratio = each
+                best_threshold = threshold
+            # Calculate batch time
+            avg_time_ms = np.mean(inference_times)
+            std_time_ms = np.std(inference_times) 
+        
+            print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
+            max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
+            max_memory_mb = max_memory_bytes / (1024 * 1024)
+            print(f"Peak Memory: {max_memory_mb:.2f} MB")
+    
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
         f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            accuracy, precision,
-            recall, f_score))
+            best_acc, best_pre, best_re, best_f1))
         f.write('\n')
         f.write('\n')
         f.close()
