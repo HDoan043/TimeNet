@@ -107,8 +107,7 @@ class Exp_Basic(object):
                 'd_ff': trial.suggest_categorical('d_ff', [256, 512, 1024]),
                 'e_layers': trial.suggest_int('e_layers', 2, 3),
                 'learning_rate': trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True),
-                'anomaly_ratio': trial.suggest_float('anomaly_ratio', 7.0, 11.0),
-                'dropout': trial.suggest_float('dropout', 0.1, 0.4)
+                'dropout': trial.suggest_float('dropout', 0.3)
             }
 
             # Cập nhật tham số vào args
