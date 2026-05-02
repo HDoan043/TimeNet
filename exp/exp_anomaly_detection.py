@@ -149,7 +149,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
             # vali_loss = self.vali(vali_data, vali_loader, corr_matrix, criterion)
-            _, _, _, vali_best_f1, _ = self.test(test_data, test_loader, corr_matrix, criterion)
+            _, _, _, vali_best_f1, _ = self.test(test_data, setting)
 
             print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali best f1: {3:.7f}".format(
                 epoch + 1, train_steps, train_loss, vali_best_f1))
