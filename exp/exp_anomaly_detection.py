@@ -309,7 +309,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             # Save threshold
             np.save(folder_path + "threshold.npy", threshold)
             ######################################
-            print("Use calculated threshold :", threshold)
+            print("\tUse calculated threshold :", threshold)
                 
             # (3) evaluation on the test set
             pred = (test_energy > threshold).astype(int)
@@ -330,7 +330,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         
             accuracy = accuracy_score(gt, pred)
             precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-            print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+            print("\tAccuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
                 accuracy, precision,
                 recall, f_score))
             if f_score >= best_f1:
@@ -344,10 +344,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
             avg_time_ms = np.mean(inference_times)
             std_time_ms = np.std(inference_times) 
 
-            print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
+            print(f"\tMean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
             max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
             max_memory_mb = max_memory_bytes / (1024 * 1024)
-            print(f"Peak Memory: {max_memory_mb:.2f} MB")
+            print(f"\tPeak Memory: {max_memory_mb:.2f} MB")
 
         print("--- Finish ---")
         print(f"Best anomaly_ratio: {best_ratio}")
