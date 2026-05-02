@@ -104,7 +104,7 @@ class Exp_Basic(object):
                 'top_k': trial.suggest_int('top_k', 1, 5),
                 'num_kernels': trial.suggest_int('num_kernels', 2, 6),
                 'd_model': trial.suggest_categorical('d_model', [64, 128, 256, 512]),
-                'd_ff': trial.suggest_categorical('d_ff', [256, 512, 1024]),
+                'd_ff': trial.suggest_categorical('d_ff', [256, 512]),
                 'e_layers': trial.suggest_int('e_layers', 2, 3),
                 'learning_rate': trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True),
                 'dropout': trial.suggest_float('dropout', 0.1, 0.4)
