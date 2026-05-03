@@ -38,7 +38,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss() if self.args.contrastive != 1 else 
         return criterion
 
     def vali(self, vali_data, vali_loader, corr_matrix, criterion):
