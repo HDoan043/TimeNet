@@ -1,5 +1,6 @@
 import os
 import torch
+import shutil
 import optuna
 from models import Autoformer, Transformer, TimesNet, Nonstationary_Transformer, DLinear, FEDformer, \
     Informer, LightTS, Reformer, ETSformer, Pyraformer, PatchTST, MICN, Crossformer, FiLM, iTransformer, \
@@ -134,16 +135,16 @@ class Exp_Basic(object):
                 print(f"\n[Trial {trial.number}] Build model: {trainable_params} params")
 
                 # 2. Huấn luyện (nhớ truyền trial để hỗ trợ pruning trong hàm train)
-                self.train(setting=setting, trial=trial)
-                
-                # 3. Đánh giá (hàm test của bạn trả về 5 giá trị)
-                acc, pre, re, f1, threshold = self.test(setting=setting)
+                acc, pre, re, f1, threshold = self.train(setting=setting, trial=trial)
                 
                 print("-" * 80)
                 formatted_setting = "\n".join(["\t- " + s for s in setting.split(",")])
                 print(f"Results for Trial {trial.number}:\n{formatted_setting}")
                 print(f"> Accuracy: {acc:.4f}, Precision: {pre:.4f}, Recall: {re:.4f}, F-score: {f1:.4f} | threshold: {threshold}")
-                
+
+                checkpoint_path = os.path.join(self.args.checkpoints, setting)
+                if os.path.exists(checkpoint_path):
+                    shutil.rmtree(checkpoint_path)
                 return f1
 
             except RuntimeError as e:
