@@ -108,7 +108,7 @@ if __name__ == '__main__':
     parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
     parser.add_argument('--position_map', type=str, help='path to position map')
     parser.add_argument('--name_id_map', type=str, help='path to map which mapping counters name and their coresspond id')
-    parser.add_argument('--anomaly_ls', type=str, help='path to anomaly file')
+    parser.add_argument('--anomaly_list', type=str, help='path to anomaly file')
 
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
