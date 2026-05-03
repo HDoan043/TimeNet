@@ -105,6 +105,10 @@ if __name__ == '__main__':
     parser.add_argument('--threshold', type=float, default=-1, help='-1 if recalculate threshold (use to find threshold), other if use provide threshold instead of recalculating')
     parser.add_argument('--num_trials', type=int, default=50, help='number of trials when tunning by optuna')
     parser.add_argument('--tune_path', type=str, default='/kaggle/working/tunning_progress/', help='folder to store the progress of tunning')
+    parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
+    parser.add_argument('--position_map', type=str, help='path to position map')
+    parser.add_argument('--name_id_map', type=str, help='path to map which mapping counters name and their coresspond id')
+    parser.add_argument('--anomaly_ls', type=str, help='path to anomaly file')
 
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
