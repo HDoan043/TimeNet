@@ -308,4 +308,6 @@ def inject_full(df, anomaly_ls, position_map, name_id_map):
         else:
             df = inject_one(df_clean, df, anomaly, position_map, name_id_map, is_fake=False)
 
-    return df.values
+    label = df['label'].values
+    feature = df[cols].values
+    return feature, label
