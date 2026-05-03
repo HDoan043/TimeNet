@@ -83,6 +83,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
+        best_epoch = 0
+        best_f1 = 0
+        best_acc = 0
+        best_pre = 0
+        best_rec = 0
+        best_threshold = 0
 
         model_optim = self._select_optimizer()
         criterion = self._select_criterion()
@@ -149,8 +155,14 @@ class Exp_Anomaly_Detection(Exp_Basic):
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
             # vali_loss = self.vali(vali_data, vali_loader, corr_matrix, criterion)
-            _, _, _, vali_best_f1, _ = self.test(setting)
-
+            vali_best_acc, vali_best_pre, vali_best_rec, vali_best_f1, vali_best_threshold = self.test(setting)
+            if vali_best_f1 >= best_f1:
+                best_acc = vali_best_acc
+                best_pre = vali_best_pre 
+                best_rec = vali_best_rec
+                best_f1 = vali_best_f1
+                best_epoch = epoch
+                best_threshold = vali_best_threshold
             print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali best f1: {3:.7f}".format(
                 epoch + 1, train_steps, train_loss, vali_best_f1))
             early_stopping(vali_best_f1, self.model, path)
@@ -167,7 +179,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
-        return self.model
+        return best_acc, best_pre, best_rec, best_f1, best_threshold
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')
