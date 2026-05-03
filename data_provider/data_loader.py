@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 import pandas as pd
 import glob
@@ -11,7 +12,8 @@ from data_provider.m4 import M4Dataset, M4Meta
 from data_provider.uea import subsample, interpolate_missing, Normalizer
 from sktime.datasets import load_from_tsfile_to_dataframe
 import warnings
-from utils.augmentation import run_augmentation_single
+from utils.augmentation import *
+from utils.inject_anomalies import *
 
 warnings.filterwarnings('ignore')
 
@@ -266,6 +268,7 @@ class Dataset_Custom(Dataset):
 
         if "Unnamed: 0" in cols:
             df_raw = df_raw.drop(["Unnamed: 0"], axis=1)
+            cols.remove("Unnamed: 0")
         # ================ TRAIN TEST SPLIT =====================
         num_train = int(len(df_raw) * self.train_ratio)
         num_test = int(len(df_raw) * self.test_ratio)
@@ -300,9 +303,11 @@ class Dataset_Custom(Dataset):
             self.scaler.fit(train_data.values)            # fit in train set
             data = self.scaler.transform(df_data.values)  # transform in both train and test set
             y = y.values
+            contrastive_df = pd.DataFrame(data, columns = cols)
         else:
             data = df_data.values
             y = y.values
+            contrastive_df = pd.DataFrame(data, columns = cols)
 
         
         df_stamp = df_raw[['date']][border1:border2]
@@ -382,6 +387,7 @@ class Dataset_Custom(Dataset):
         # Get feature data and label data
         self.data_x = data[border1:border2]
         self.data_y = y[border1:border2]
+        
         # Reset index
         self.possible_index = np.array(possible_index) - border1
         
@@ -389,6 +395,16 @@ class Dataset_Custom(Dataset):
             self.data_x, self.data_y, augmentation_tags = run_augmentation_single(self.data_x, self.data_y, self.args)
 
         self.data_stamp = data_stamp
+
+        # =========================== CONTRASTIVE LEARNING ==============================
+        if self.args.contrastive == 1:
+            self.df_for_contrastive = contrastive_df.loc[border1:border2, :].copy()
+            with open(self.args.anomaly_list, "r", encoding="utf-8") as f:
+                self.anomaly_ls = json.load(f)
+            with open(self.args.name_id_map, "r") as f:
+                self.name_id_map = json.load(f)
+            with open(self.args.position_map, "r") as f:
+                self.position_map = json.load(f)
 
     def __getitem__(self, index):
         index = self.possible_index[index]
@@ -404,7 +420,7 @@ class Dataset_Custom(Dataset):
             seq_y_mark = self.data_stamp[r_begin:r_end]
     
             return seq_x, seq_y, seq_x_mark, seq_y_mark
-        else:
+        else:    
             x_index_start = index
             x_index_end = index + self.win_size
             y_index_start = index 
@@ -414,7 +430,24 @@ class Dataset_Custom(Dataset):
             seq_y = self.data_y[y_index_start: y_index_end]
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
-                
+
+            raw_window = self.df_for_contrastive.loc[x_index_start: x_index_end, :].copy()
+            if self.args.contrastive == 1:
+                r = np.random.rand()
+                if r < 0.1: num_anomaly = 0
+                elif r < 0.5: num_anomaly = 1
+                else: num_anomaly = 2
+                anomaly_ls = np.random.choice(self.full_anomaly_ls, num_anomaly, replace = False)
+                negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
+
+                r = np.random.rand()
+                if r < 0.7: num_aug = 1
+                else: num_aug = 2
+                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False)
+                positive = seq_x.copy()
+                for augs in augs:
+                    positive = augs(positive)
+                seq_x = (seq_x, positive, nagative)
             return seq_x, seq_y, seq_x_mark, seq_y_mark
     
     def __len__(self):
