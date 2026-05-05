@@ -49,12 +49,23 @@ def data_provider(args, flag):
             test_ratio = test_ratio
         )
         print(flag, len(data_set))
-        data_loader = DataLoader(
-            data_set,
-            batch_size=batch_size,
-            shuffle=shuffle_flag,
-            num_workers=args.num_workers,
-            drop_last=drop_last)
+        if args.contrastive:
+            data_loader = DataLoader(
+                data_set,
+                batch_size=batch_size,
+                shuffle=shuffle_flag,
+                num_workers=args.num_workers,
+                drop_last=drop_last,
+                collate_fn = contrastive_collate_fn
+            )    
+        else:
+            data_loader = DataLoader(
+                data_set,
+                batch_size=batch_size,
+                shuffle=shuffle_flag,
+                num_workers=args.num_workers,
+                drop_last=drop_last
+            )
         return data_set, data_loader
     elif args.task_name == 'classification':
         drop_last = False
@@ -105,12 +116,14 @@ def contrastive_collate_fn(batch):
     anchors = []
     positives = []
     negatives = []
+    labels = []
 
     for (x_tuple, _, _, _) in batch:
-        anchor, pos, neg = x_tuple
+        anchor, pos, neg, label = x_tuple
         anchors.append(anchor)
         positives.append(pos)
         negatives.append(neg)
+        labels.append(label)
 
     anchors = torch.stack(anchors)
     positives = torch.stack(positives)
@@ -118,6 +131,7 @@ def contrastive_collate_fn(batch):
 
     # concat thành 1 batch lớn
     all_samples = torch.cat([anchors, positives, negatives], dim=0)
+    labels = torch.stack(labels)
 
     # index mapping
     batch_size = anchors.shape[0]
@@ -126,4 +140,4 @@ def contrastive_collate_fn(batch):
     pos_idx = idx + batch_size
     neg_idx = idx + 2 * batch_size
 
-    return all_samples, idx, pos_idx, neg_idx
+    return all_samples, idx, pos_idx, neg_idx, labels
