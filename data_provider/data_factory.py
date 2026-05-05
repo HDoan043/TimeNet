@@ -101,3 +101,29 @@ def data_provider(args, flag):
             num_workers=args.num_workers,
             drop_last=drop_last)
         return data_set, data_loader
+def contrastive_collate_fn(batch):
+    anchors = []
+    positives = []
+    negatives = []
+
+    for (x_tuple, _, _, _) in batch:
+        anchor, pos, neg = x_tuple
+        anchors.append(anchor)
+        positives.append(pos)
+        negatives.append(neg)
+
+    anchors = torch.stack(anchors)
+    positives = torch.stack(positives)
+    negatives = torch.stack(negatives)
+
+    # concat thành 1 batch lớn
+    all_samples = torch.cat([anchors, positives, negatives], dim=0)
+
+    # index mapping
+    batch_size = anchors.shape[0]
+    
+    idx = torch.arange(batch_size)
+    pos_idx = idx + batch_size
+    neg_idx = idx + 2 * batch_size
+
+    return all_samples, idx, pos_idx, neg_idx
