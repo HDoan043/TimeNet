@@ -269,6 +269,7 @@ class Dataset_Custom(Dataset):
         if "Unnamed: 0" in cols:
             df_raw = df_raw.drop(["Unnamed: 0"], axis=1)
             cols.remove("Unnamed: 0")
+
         # ================ TRAIN TEST SPLIT =====================
         num_train = int(len(df_raw) * self.train_ratio)
         num_test = int(len(df_raw) * self.test_ratio)
@@ -297,6 +298,7 @@ class Dataset_Custom(Dataset):
         else:
             y = df_raw[self.target]
 
+        self.df_for_contrastive = df_data.loc[border1s[0]:border2s[0]].copy()
         # ===================== NORMALIZATION ==========================
         if self.scale:
             train_data = df_data[border1s[0]:border2s[0]]
@@ -397,8 +399,7 @@ class Dataset_Custom(Dataset):
         self.data_stamp = data_stamp
 
         # =========================== CONTRASTIVE LEARNING ==============================
-        if self.args.contrastive == 1:
-            self.df_for_contrastive = contrastive_df.loc[border1:border2, :].copy()
+        if self.args.contrastive == 1 and self.args.is_training:
             with open(self.args.anomaly_list, "r", encoding="utf-8") as f:
                 self.anomaly_ls = json.load(f)
             with open(self.args.name_id_map, "r") as f:
@@ -431,23 +432,35 @@ class Dataset_Custom(Dataset):
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
-            raw_window = self.df_for_contrastive.loc[x_index_start: x_index_end, :].copy()
-            if self.args.contrastive == 1:
-                r = np.random.rand()
-                if r < 0.1: num_anomaly = 0
-                elif r < 0.5: num_anomaly = 1
-                else: num_anomaly = 2
-                anomaly_ls = np.random.choice(self.full_anomaly_ls, num_anomaly, replace = False)
-                negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
+            if self.args.contrastive == 1 and self.args.is_training:
+                raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
 
+                # Gen Negative sample
+                num_anomaly = np.random.choice([1,2], p=[0.7,0.3])
+                anomaly_ls = np.random.choice(self.anomaly_ls, num_anomaly, replace = False)
+                negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
+                negative = self.scaler.transform(negative)
+                if np.random.rand() < 0.3:
+                    negative = jitter(seq_x, sigma=0.05)
+
+                # Gen Posivie sample
+                raw_window = raw_window.values
                 r = np.random.rand()
                 if r < 0.7: num_aug = 1
                 else: num_aug = 2
-                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False)
+                
+                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False, p=[0.6,0.35,0.05])
                 positive = seq_x.copy()
-                for augs in augs:
-                    positive = augs(positive)
-                seq_x = (seq_x, positive, nagative)
+                positive = self.inverse_transform(positive)
+                for aug in augs:
+                    if aug == jitter: 
+                        positive = aug(positive, sigma=0.01)
+                    elif aug == scaling:
+                        positive = aug(positive, sigma=0.02)
+                    else:
+                        positive = aug(positive, sigma=0.02)
+                positive = self.scaler.transform(positive)
+                seq_x = (seq_x, positive, negative, label)
             return seq_x, seq_y, seq_x_mark, seq_y_mark
     
     def __len__(self):
