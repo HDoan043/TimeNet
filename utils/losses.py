@@ -87,3 +87,42 @@ class mase_loss(nn.Module):
         masep = t.mean(t.abs(insample[:, freq:] - insample[:, :-freq]), dim=1)
         masked_masep_inv = divide_no_nan(mask, masep[:, None])
         return t.mean(t.abs(target - forecast) * masked_masep_inv)
+
+class NTXentLoss(nn.Module):
+    def __init__(self, temperature=0.1):
+        super().__init__()
+        self.temperature = temperature
+        self.mse = nn.MSELoss()
+
+    def forward(self, x, x_hat, z, idx, pos_idx, labels):
+        # reconstruct loss (anchor only)
+        B = idx.shape[0]
+        recon_loss = self.mse(x[idx], x_hat[idx])
+
+        # normalize
+        z = F.normalize(z, dim=1)                                            # z: [3*batch_size, win_size, d_model]
+
+        # similarity matrix (3B x 3B)
+        sim = torch.matmul(z, z.T) / self.temperature                        # sim: [3*batch_size, 3*batch_size, 1]
+
+        # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
+        mask = torch.eye(sim.shape[0], device=sim.device).bool()
+        sim.masked_fill_(mask, -1e9)
+
+        # positive similarity
+        pos_sim = sim[idx, pos_idx]
+
+        # denominator
+        exp_sim = torch.exp(sim)                                               # exp_sim: [3*batch_size, 3*batch_size]
+        # weight mask
+        labels = torch.sum(labels, dim=0).T                                    # labels: [batch_size, win_size] -> [1, batch_size]
+        weights = nn.functional.pad(labels, (2*B,0,0,0), mode="constant", value = 1) # weights: [1, 3*batch_size]
+        weights = nn.functional.pad(labels, (0,0,0,3*B -1), mode="replicate")  # weights: [3*batch_size, 3*batch_size]
+        exp_sim = exp_sim*weights
+        denom = exp_sim[idx].sum(dim=1)
+
+        
+        
+        loss = -torch.log(torch.exp(pos_sim) / denom)
+
+        return recon_loss + loss.mean()
