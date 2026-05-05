@@ -103,7 +103,8 @@ class NTXentLoss(nn.Module):
         z = F.normalize(z, dim=1)                                            # z: [3*batch_size, win_size, d_model]
 
         # similarity matrix (3B x 3B)
-        sim = torch.matmul(z, z.T) / self.temperature                        # sim: [3*batch_size, 3*batch_size, 1]
+        collapse = z.mean(dim=1)                                             # collapse: [3*batch_size, d_model]
+        sim = torch.matmul(collapse, collapse.T) / self.temperature          # sim: [3*batch_size, 3*batch_size, 1]
 
         # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
         mask = torch.eye(sim.shape[0], device=sim.device).bool()
@@ -114,15 +115,8 @@ class NTXentLoss(nn.Module):
 
         # denominator
         exp_sim = torch.exp(sim)                                               # exp_sim: [3*batch_size, 3*batch_size]
-        # weight mask
-        labels = torch.sum(labels, dim=0).T                                    # labels: [batch_size, win_size] -> [1, batch_size]
-        weights = nn.functional.pad(labels, (2*B,0,0,0), mode="constant", value = 1) # weights: [1, 3*batch_size]
-        weights = nn.functional.pad(labels, (0,0,0,3*B -1), mode="replicate")  # weights: [3*batch_size, 3*batch_size]
-        exp_sim = exp_sim*weights
         denom = exp_sim[idx].sum(dim=1)
 
-        
-        
         loss = -torch.log(torch.exp(pos_sim) / denom)
 
         return recon_loss + loss.mean()
