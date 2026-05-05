@@ -100,22 +100,39 @@ class NTXentLoss(nn.Module):
         recon_loss = self.mse(x[idx], x_hat[idx])
 
         # normalize
-        z = F.normalize(z, dim=1)                                            # z: [3*batch_size, win_size, d_model]
+        z = z.mean(dim=1)                                                    # z: [3*batch_size, 1, d_model]
+        z = F.normalize(z, dim=1)                                            # z: [3*batch_size, 1, d_model]
 
         # similarity matrix (3B x 3B)
-        collapse = z.mean(dim=1)                                             # collapse: [3*batch_size, d_model]
-        sim = torch.matmul(collapse, collapse.T) / self.temperature          # sim: [3*batch_size, 3*batch_size, 1]
+        sim = torch.matmul(z, z.T) / self.temperature                        # sim: [3*batch_size, 3*batch_size]
 
         # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
         mask = torch.eye(sim.shape[0], device=sim.device).bool()
         sim.masked_fill_(mask, -1e9)
 
         # positive similarity
-        pos_sim = sim[idx, pos_idx]
+        # positive samples of an anchor are the windows near the anchor (distance from the anchor is small enough) and their augmentations
+        pos_anchor_mask = torch.zeros(B,B).to(sim.device)                            # pos_anchor_mask: [B, B]
+        neighbor_sim_anchor = 1 
+        for i in range(1, neighbor_sim_anchor+1):
+            pos_anchor_mask.diagonal(offset=i).fill_(1)
+            pos_anchor_mask.diagonal(offset=-i).fill_(1)
+        pos_mask = torch.eye((B,B), device=sim.device)                               # pos_mask: [B, B]
+        neighbor_sim_pos = 0
+        for i in range(1, neighbor_sim_pos+1):
+            pos_mask.diagonal(offset=i).fill_(1)
+            pos_mask.diagonal(offset=-1).fill_(1)
+        neg_mask = torch.zeros(B,B).to(sim.device)                                   # neg_mask: [B, B]
+        full_pos_mask = torch.stack([pos_anchor_mask, pos_mask, neg_mask], dim=1)    # full_pos_mask: [B, 3B]
+        pos_sim = sim[idx]*full_pos_mask                                             # pos_sim: [B, 3B]
 
         # denominator
         exp_sim = torch.exp(sim)                                               # exp_sim: [3*batch_size, 3*batch_size]
         denom = exp_sim[idx].sum(dim=1)
+        neg_sim = sim[idx]                                                      # [B, 3B]
+        weights = torch.softmax(neg_sim, dim=1)                                 # càng giống → weight càng lớn
+        
+        denom = (exp_sim[idx] * weights).sum(dim=1)
 
         loss = -torch.log(torch.exp(pos_sim) / denom)
 
