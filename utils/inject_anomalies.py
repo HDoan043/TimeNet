@@ -268,7 +268,7 @@ def inject_one(df_clean, df, anomaly, position_map, name_id_map, is_fake=False):
     anomaly_index_start = indexes_start + start
     anomaly_index_end = indexes_start + end
     
-    indexes = np.linspace(anomaly_index_start, anomaly_index_end)
+    indexes = list(range(int(anomaly_index_start), int(anomaly_index_end)+1))
 
     if len(indexes) == 0:
         return df
