@@ -142,12 +142,15 @@ class NTXentLoss(nn.Module):
             pos_mask.diagonal(offset=-i).fill_(1)
         neg_mask = t.zeros((B,B), device=sim.device)                             # neg_mask: [B, B]
         full_pos_mask = t.cat([pos_anchor_mask, pos_mask, neg_mask], dim=1)      # full_pos_mask: [B, 3B], full_pos_mask[i,j] = 1 if sample[j] is a positive sample of anchor[i], = 0 else
+        print(full_pos_mask)
+        full_pos_mask = full_pos_mask.bool()
         logits = sim - sim.max(dim=1, keepdim=True)[0]
         exp_sim = t.exp(logits)
         pos_exp = exp_sim[idx] * full_pos_mask
         pos_sum = pos_exp.sum(dim=1)    
         
         # denominator
+        print(full_pos_mask)
         full_neg_mask = ~full_pos_mask
         full_neg_mask.diagonal(offset=0).fill_(0)
         weights = t.ones_like(exp_sim[idx], device=exp_sim.device)               # weights: [B, 3B]
