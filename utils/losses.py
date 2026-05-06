@@ -89,53 +89,67 @@ class mase_loss(nn.Module):
         return t.mean(t.abs(target - forecast) * masked_masep_inv)
 
 class NTXentLoss(nn.Module):
-    def __init__(self, temperature=0.1):
+    def __init__(self, args):
         super().__init__()
-        self.temperature = temperature
+        self.temperature = args.temperature
+        self.attn = nn.Linear(args.d_model, 1)
         self.mse = nn.MSELoss()
+        self.neighbor_sim_anchor = args.neighbor_sim_anchor
+        self.neighbor_sim_pos = args.neighbor_sim_pos
+        self.emphasize_negative = args.emphasize_negative
 
-    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, neighbor_sim_anchor=1, neighbor_sim_pos=0, alpha=1.5):
+    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels):
         # reconstruct loss (anchor only)
         B = idx.shape[0]
         recon_loss = self.mse(x[idx], x_hat[idx])
 
         # normalize
-        z = z.mean(dim=1)                                                    # z: [3*batch_size, 1, d_model]
-        z = F.normalize(z, dim=1)                                            # z: [3*batch_size, 1, d_model]
+        # collapse
+        # -------------- MEAN ---------------------
+        # z = z.mean(dim=1)                                                    # z: [3*batch_size, 1, d_model]
+        # -------------- MAX POOLING ----------------
+        # z = z.max(dim=1).values                                             # z: [3B, 1, d_model]
+        # -------------- LAST TIMESTAMP ------------------
+        # z = z[:, -1, :]
+        # -------------- ATTENTION POOLING -------------------
+        attn = self.attn(z)                                                # attn: [3B, win_size, 1]
+        attn_score = torch.softmax(attn, dim=1)                            # attn_score: [3B, win_size, 1]
+        z = (z*attn_score).sum(dim=1)                                      # z: [3B, 1, d_model]
+        z = nn.functional.normalize(z, dim=1)                                # z: [3*batch_size, 1, d_model]
 
         # similarity matrix (3B x 3B)
         sim = torch.matmul(z, z.T) / self.temperature                        # sim: [3*batch_size, 3*batch_size]
-
+        
         # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
         mask = torch.eye(sim.shape[0], device=sim.device).bool()
         sim.masked_fill_(mask, -torch.inf)
 
         # positive similarity
         # positive samples of an anchor are the windows near the anchor (distance from the anchor is small enough) and their augmentations
+        r = np.random.rand()
+        if r < 0.4: neighbor_sim_anchor = self.neighbor_sim_anchor
+        else: neighbor_sim_anchor = 0
         pos_anchor_mask = torch.zeros((B,B), device=sim.device)                      # pos_anchor_mask: [B, B]
         for i in range(1, neighbor_sim_anchor+1):
             pos_anchor_mask.diagonal(offset=i).fill_(1)
             pos_anchor_mask.diagonal(offset=-i).fill_(1)
         pos_mask = torch.eye(B, device=sim.device)                                   # pos_mask: [B, B]
-        for i in range(1, neighbor_sim_pos+1):
+        for i in range(1, self.neighbor_sim_pos+1):
             pos_mask.diagonal(offset=i).fill_(1)
             pos_mask.diagonal(offset=-i).fill_(1)
         neg_mask = torch.zeros((B,B), device=sim.device)                             # neg_mask: [B, B]
         full_pos_mask = torch.cat([pos_anchor_mask, pos_mask, neg_mask], dim=1)      # full_pos_mask: [B, 3B], full_pos_mask[i,j] = 1 if sample[j] is a positive sample of anchor[i], = 0 else
-        exp_sim = torch.exp(sim)
+        logits = sim - sim.max(dim=1, keepdim=True)[0]
+        exp_sim = torch.exp(logits)
         pos_exp = exp_sim[idx] * full_pos_mask
-        pos_count = full_pos_mask.sum(dim=1).clamp(min=1)                            # pos_count: [B]
-        pos_sum = pos_exp.sum(dim=1)/pos_count                                       # pos_sum: [B]    
+        pos_sum = pos_exp.sum(dim=1)    
         
         # denominator
         full_neg_mask = ~full_pos_mask
         full_neg_mask.diagonal(offset=0).fill_(0)
-        neg_sim = sim[idx].clone()                                                    # neg_sim: [B, 3B]
-        neg_sim[~full_neg_mask] = -torch.inf
-        exp_neg = torch.exp(neg_sim)
-        weights = torch.ones_like(exp_neg, device=exp_neg.device)
-        weights[idx][:,neg_idx] += alpha
-        weights = (weights*full_neg_mask)
+        weights = torch.ones_like(exp_sim[idx], device=exp_sim.device)               # weights: [B, 3B]
+        weights[idx, neg_idx] += self.emphasize_negative
+        
         # chọn top-k hardest negatives
         # k = int(0.1 * weights.shape[1])
         # hard_neg_mask = torch.zeros_like(weights)
@@ -146,7 +160,7 @@ class NTXentLoss(nn.Module):
         # weights = weights * (1 + alpha * hard_neg_mask)
         # weights = weights / weights.sum(dim=1, keepdim=True)
         
-        denom = (exp_neg*weights).sum(dim=1)                        
+        denom = (exp_sim[idx]*weights).sum(dim=1)                                    # denom: [B]
 
         loss = -torch.log(pos_sum / denom)
 
