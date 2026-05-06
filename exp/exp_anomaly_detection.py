@@ -251,9 +251,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
             if self.args.use_gpu:
                 torch.cuda.synchronize()
             start_time = time.time()
-            if self.args.model.lower() == "timesnetv2":
-                outputs = self.model(batch_x, None, None, None, corr_matrix)
-            else: outputs = self.model(batch_x, batch_x_mark, None, None)
+            if self.args.contrastive == 0:
+                if self.args.model.lower() == "timesnetv2":
+                    outputs = self.model(batch_x, None, None, None, corr_matrix)
+                else: outputs = self.model(batch_x, batch_x_mark, None, None)
+            else:
+                hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
             if self.args.use_gpu:
                 torch.cuda.synchronize() # Đợi GPU chạy xong 100%
             end_time = time.time()
