@@ -8,8 +8,12 @@ def jitter(x, sigma=0.03):
 
 def scaling(x, sigma=0.1):
     # https://arxiv.org/pdf/1706.00527.pdf
-    factor = np.random.normal(loc=1., scale=sigma, size=(x.shape[0],x.shape[2]))
-    return np.multiply(x, factor[:,np.newaxis,:])
+    if len(x.shape) == 3:
+        factor = np.random.normal(loc=1., scale=sigma, size=(x.shape[0],x.shape[2]))
+        return np.multiply(x, factor[:,np.newaxis,:])
+    else:
+        factor = np.random.normal(1., sigma, size=(x.shape[1],))  # [channel]
+        return x * factor[np.newaxis, :]
 
 def rotation(x):
     x = np.array(x)
@@ -45,16 +49,27 @@ def permutation(x, max_segments=5, seg_mode="equal"):
 
 def magnitude_warp(x, sigma=0.2, knot=4):
     from scipy.interpolate import CubicSpline
-    orig_steps = np.arange(x.shape[1])
+    if len(x.shape) == 3:
+        orig_steps = np.arange(x.shape[1])
+        
+        random_warps = np.random.normal(loc=1.0, scale=sigma, size=(x.shape[0], knot+2, x.shape[2]))
+        warp_steps = (np.ones((x.shape[2],1))*(np.linspace(0, x.shape[1]-1., num=knot+2))).T
+        ret = np.zeros_like(x)
+        for i, pat in enumerate(x):
+            warper = np.array([CubicSpline(warp_steps[:,dim], random_warps[i,:,dim])(orig_steps) for dim in range(x.shape[2])]).T
+            ret[i] = pat * warper
     
-    random_warps = np.random.normal(loc=1.0, scale=sigma, size=(x.shape[0], knot+2, x.shape[2]))
-    warp_steps = (np.ones((x.shape[2],1))*(np.linspace(0, x.shape[1]-1., num=knot+2))).T
-    ret = np.zeros_like(x)
-    for i, pat in enumerate(x):
-        warper = np.array([CubicSpline(warp_steps[:,dim], random_warps[i,:,dim])(orig_steps) for dim in range(x.shape[2])]).T
-        ret[i] = pat * warper
-
-    return ret
+        return ret
+    else:
+        orig_steps = np.arange(x.shape[0])
+        warp_steps = np.linspace(0, x.shape[0]-1., num=knot+2)
+        random_warps = np.random.normal(1.0, sigma, size=(knot+2, x.shape[1]))
+        warper = np.array([
+            CubicSpline(warp_steps, random_warps[:, dim])(orig_steps)
+            for dim in range(x.shape[1])
+        ]).T
+    
+        return x * warper
 
 def time_warp(x, sigma=0.2, knot=4):
     from scipy.interpolate import CubicSpline
