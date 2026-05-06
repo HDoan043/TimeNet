@@ -134,8 +134,8 @@ class NTXentLoss(nn.Module):
         neg_sim[~full_neg_mask] = -torch.inf
         exp_neg = torch.exp(neg_sim)
         weights = torch.ones_like(exp_neg, device=exp_neg.device)
-        weights[idx,neg_idx] += alpha
-        weights = (weights*full_neg_mask)/(weights*full_neg_mask).sum(dim=1, keepdim=1)
+        weights[idx][:,neg_idx] += alpha
+        weights = (weights*full_neg_mask)
         # chọn top-k hardest negatives
         # k = int(0.1 * weights.shape[1])
         # hard_neg_mask = torch.zeros_like(weights)
