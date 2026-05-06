@@ -50,7 +50,7 @@ def data_provider(args, flag):
             test_ratio = test_ratio
         )
         print(flag, len(data_set))
-        if args.contrastive:
+        if args.contrastive and flag == "train":
             data_loader = DataLoader(
                 data_set,
                 batch_size=batch_size,
