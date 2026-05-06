@@ -168,5 +168,5 @@ class NTXentLoss(nn.Module):
 
         loss = -t.log(pos_sum / denom)
         print(recon_loss.item())
-        print(loss.mean.item())
+        print(loss.mean().item())
         return recon_loss + loss.mean()
