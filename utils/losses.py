@@ -112,6 +112,7 @@ class NTXentLoss(nn.Module):
         # -------------- LAST TIMESTAMP ------------------
         # z = z[:, -1, :]
         # -------------- ATTENTION POOLING -------------------
+        self.attn = self.attn.to(z.device)
         attn = self.attn(z)                                                # attn: [3B, win_size, 1]
         attn_score = torch.softmax(attn, dim=1)                            # attn_score: [3B, win_size, 1]
         z = (z*attn_score).sum(dim=1)                                      # z: [3B, 1, d_model]
