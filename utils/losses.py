@@ -98,7 +98,7 @@ class NTXentLoss(nn.Module):
         self.neighbor_sim_pos = args.neighbor_sim_pos
         self.emphasize_negative = args.emphasize_negative
 
-    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels):
+    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
         # reconstruct loss (anchor only)
         B = idx.shape[0]
         recon_loss = self.mse(x[idx], x_hat[idx])
@@ -112,10 +112,7 @@ class NTXentLoss(nn.Module):
         # -------------- LAST TIMESTAMP ------------------
         # z = z[:, -1, :]
         # -------------- ATTENTION POOLING -------------------
-        self.attn = self.attn.to(z.device)
-        attn = self.attn(z)                                                # attn: [3B, win_size, 1]
-        attn_score = torch.softmax(attn, dim=1)                            # attn_score: [3B, win_size, 1]
-        z = (z*attn_score).sum(dim=1)                                      # z: [3B, 1, d_model]
+        z = (z*attn_pooling).sum(dim=1)                                      # z: [3B, 1, d_model]
         z = nn.functional.normalize(z, dim=1)                                # z: [3*batch_size, 1, d_model]
 
         # similarity matrix (3B x 3B)
