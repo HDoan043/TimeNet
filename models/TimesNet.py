@@ -127,7 +127,7 @@ class Model(nn.Module):
             self.projection = nn.Linear(
                 configs.d_model * configs.seq_len, configs.num_class)
         if configs.contrastive == 1:
-            self.attn = Linear(configs.d_model, 1)
+            self.attn = nn.Linear(configs.d_model, 1)
             
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         total_time = time.time()
