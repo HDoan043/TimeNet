@@ -91,11 +91,13 @@ class mase_loss(nn.Module):
 class NTXentLoss(nn.Module):
     def __init__(self, args):
         super().__init__()
+        self.args = args
         self.temperature = args.temperature
         self.mse = nn.MSELoss()
         self.neighbor_sim_anchor = args.neighbor_sim_anchor
         self.neighbor_sim_pos = args.neighbor_sim_pos
         self.emphasize_negative = args.emphasize_negative
+        self.contrastive_weight = args.contrastive_weight
 
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
         # same device
@@ -174,5 +176,5 @@ class NTXentLoss(nn.Module):
         # contrastive_weight = recon_loss.detach()/( loss.mean().detach() + 1e-6)
         # contrastive_weight = contrastive_weight.clamp(0.1,10)
         # ------------------- FIXED WEIGHT -------------------
-        contrastive_weight = self.args.contrastive_weight
+        contrastive_weight = self.contrastive_weight
         return recon_loss + contrastive_weight*loss.mean()
