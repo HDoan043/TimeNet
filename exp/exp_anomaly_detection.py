@@ -69,8 +69,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         train_data, train_loader = self._get_data(flag='train')
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
-        print(f"train: {len(train_loader)}")
-        print(f"test: {len(test_loader)}")
+        print(f"train: {len(train_loader[0])}")
+        print(f"test: {len(test_loader[0])}")
 
         corr_matrix = train_data.get_corr_matrix()
         corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
