@@ -176,7 +176,7 @@ if __name__ == '__main__':
     parser.add_argument('--name_id_map', type=str, help='path to map which mapping counters name and their coresspond id')
     parser.add_argument('--anomaly_list', type=str, help='path to anomaly file')
     parser.add_argument('--neighbor_sim_anchor', type=int, default=1, help='number of neighbors that are considered as positive samples of an anchor in contrastive learning')
-    parser.add_argument('--neighbor_sim_apos', type=int, default=0, help='number of augmentations of neighbors that are considered as positive samples of an anchor in contrastive learning')
+    parser.add_argument('--neighbor_sim_pos', type=int, default=0, help='number of augmentations of neighbors that are considered as positive samples of an anchor in contrastive learning')
     parser.add_argument('--temperature', type=float, default=1, help='temperature of smoothing the softmax')
     parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones')
     
