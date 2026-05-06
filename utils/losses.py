@@ -100,6 +100,7 @@ class NTXentLoss(nn.Module):
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
         # reconstruct loss (anchor only)
         B = idx.shape[0]
+        self.mse = self.mse.to(x.device)
         recon_loss = self.mse(x[idx], x_hat[idx])
 
         # normalize
