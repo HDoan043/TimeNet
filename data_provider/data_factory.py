@@ -53,7 +53,7 @@ def data_provider(args, flag):
             data_loader = DataLoader(
                 data_set,
                 batch_size=batch_size,
-                shuffle=shuffle_flag,
+                shuffle=False,
                 num_workers=args.num_workers,
                 drop_last=drop_last,
                 collate_fn = contrastive_collate_fn
