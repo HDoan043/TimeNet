@@ -108,7 +108,7 @@ class NTXentLoss(nn.Module):
 
         # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
         mask = torch.eye(sim.shape[0], device=sim.device).bool()
-        sim.masked_fill_(mask, -1e9)
+        sim.masked_fill_(mask, -torch.inf)
 
         # positive similarity
         # positive samples of an anchor are the windows near the anchor (distance from the anchor is small enough) and their augmentations
@@ -124,8 +124,10 @@ class NTXentLoss(nn.Module):
             pos_mask.diagonal(offset=-1).fill_(1)
         neg_mask = torch.zeros(B,B).to(sim.device)                                   # neg_mask: [B, B]
         full_pos_mask = torch.stack([pos_anchor_mask, pos_mask, neg_mask], dim=1)    # full_pos_mask: [B, 3B]
-        pos_sim = sim[idx]*full_pos_mask                                             # pos_sim: [B, 3B]
-
+        pos_sim = sim[idx]*full_pos_mask                                             # pos_sim: [B, 3B] 
+        full_neg_mask = ~full_pos_mask
+        pos_sim.masked_fill_(full_neg_mask, -torch.inf)                              # pos_sim[i,j] = 1 if sample[j] is a positive sample of anchor[i], = -inf else
+        
         # denominator
         exp_sim = torch.exp(sim)                                               # exp_sim: [3*batch_size, 3*batch_size]
         denom = exp_sim[idx].sum(dim=1)
