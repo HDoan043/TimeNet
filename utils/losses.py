@@ -118,8 +118,8 @@ class NTXentLoss(nn.Module):
         sim = torch.matmul(z, z.T) / self.temperature                        # sim: [3*batch_size, 3*batch_size]
         
         # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
-        mask = torch.eye(sim.shape[0], device=sim.device).bool()
-        sim.masked_fill_(mask, -torch.inf)
+        mask = t.eye(sim.shape[0], device=sim.device).bool()
+        sim.masked_fill_(mask, -t.inf)
 
         # positive similarity
         # positive samples of an anchor are the windows near the anchor (distance from the anchor is small enough) and their augmentations
@@ -134,17 +134,17 @@ class NTXentLoss(nn.Module):
         for i in range(1, self.neighbor_sim_pos+1):
             pos_mask.diagonal(offset=i).fill_(1)
             pos_mask.diagonal(offset=-i).fill_(1)
-        neg_mask = torch.zeros((B,B), device=sim.device)                             # neg_mask: [B, B]
-        full_pos_mask = torch.cat([pos_anchor_mask, pos_mask, neg_mask], dim=1)      # full_pos_mask: [B, 3B], full_pos_mask[i,j] = 1 if sample[j] is a positive sample of anchor[i], = 0 else
+        neg_mask = t.zeros((B,B), device=sim.device)                             # neg_mask: [B, B]
+        full_pos_mask = t.cat([pos_anchor_mask, pos_mask, neg_mask], dim=1)      # full_pos_mask: [B, 3B], full_pos_mask[i,j] = 1 if sample[j] is a positive sample of anchor[i], = 0 else
         logits = sim - sim.max(dim=1, keepdim=True)[0]
-        exp_sim = torch.exp(logits)
+        exp_sim = t.exp(logits)
         pos_exp = exp_sim[idx] * full_pos_mask
         pos_sum = pos_exp.sum(dim=1)    
         
         # denominator
         full_neg_mask = ~full_pos_mask
         full_neg_mask.diagonal(offset=0).fill_(0)
-        weights = torch.ones_like(exp_sim[idx], device=exp_sim.device)               # weights: [B, 3B]
+        weights = t.ones_like(exp_sim[idx], device=exp_sim.device)               # weights: [B, 3B]
         weights[idx, neg_idx] += self.emphasize_negative
         
         # chọn top-k hardest negatives
@@ -159,6 +159,6 @@ class NTXentLoss(nn.Module):
         
         denom = (exp_sim[idx]*weights).sum(dim=1)                                    # denom: [B]
 
-        loss = -torch.log(pos_sum / denom)
+        loss = -t.log(pos_sum / denom)
 
         return recon_loss + loss.mean()
