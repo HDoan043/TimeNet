@@ -207,6 +207,7 @@ class Model(nn.Module):
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))
+
         # project back
         dec_out = self.projection(enc_out)
 
@@ -218,6 +219,8 @@ class Model(nn.Module):
         dec_out = dec_out.add(
                   (means[:, 0, :].unsqueeze(1).repeat(
                       1, sample_length, 1)))
+        if self.configs.contrastive:
+            return enc_out, dec_out
         return dec_out
 
     def classification(self, x_enc, x_mark_enc):
@@ -247,8 +250,12 @@ class Model(nn.Module):
                 x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == 'anomaly_detection':
-            dec_out = self.anomaly_detection(x_enc, x_mark_enc)
-            return dec_out  # [B, L, D]
+            if self.configs.contrastive:
+                enc_out, dec_out = self.anomaly_detection(x_enc, x_mark_enc)
+                return enc_out, dec_out
+            else:
+                dec_out = self.anomaly_detection(x_enc, x_mark_enc)
+                return dec_out  # [B, L, D]
         if self.task_name == 'classification':
             dec_out = self.classification(x_enc, x_mark_enc)
             return dec_out  # [B, N]
