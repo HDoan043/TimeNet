@@ -105,10 +105,6 @@ if __name__ == '__main__':
     parser.add_argument('--threshold', type=float, default=-1, help='-1 if recalculate threshold (use to find threshold), other if use provide threshold instead of recalculating')
     parser.add_argument('--num_trials', type=int, default=50, help='number of trials when tunning by optuna')
     parser.add_argument('--tune_path', type=str, default='/kaggle/working/tunning_progress/', help='folder to store the progress of tunning')
-    parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
-    parser.add_argument('--position_map', type=str, help='path to position map')
-    parser.add_argument('--name_id_map', type=str, help='path to map which mapping counters name and their coresspond id')
-    parser.add_argument('--anomaly_list', type=str, help='path to anomaly file')
 
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
@@ -174,6 +170,16 @@ if __name__ == '__main__':
     parser.add_argument('--mode_select', type=str, default="random", help="random, low")
     parser.add_argument('--modes', type=int, default=32, help="number of frequencies randomly selected to keep in FEB, too low --> loss information, too high --> overfit; ideal: 32, 64, 128")
 
+    # Contrastive
+    parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
+    parser.add_argument('--position_map', type=str, help='path to position map')
+    parser.add_argument('--name_id_map', type=str, help='path to map which mapping counters name and their coresspond id')
+    parser.add_argument('--anomaly_list', type=str, help='path to anomaly file')
+    parser.add_argument('--neighbor_sim_anchor', type=int, default=1, help='number of neighbors that are considered as positive samples of an anchor in contrastive learning')
+    parser.add_argument('--neighbor_sim_apos', type=int, default=0, help='number of augmentations of neighbors that are considered as positive samples of an anchor in contrastive learning')
+    parser.add_argument('--temperature', type=float, default=1, help='temperature of smoothing the softmax')
+    parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones')
+    
     args = parser.parse_args()
     if isinstance(args.moving_avg, list) and len(args.moving_avg) == 1:
         args.moving_avg = args.moving_avg[0]
