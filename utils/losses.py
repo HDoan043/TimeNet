@@ -132,7 +132,7 @@ class NTXentLoss(nn.Module):
         r = np.random.rand()
         if r < 0.4: neighbor_sim_anchor = self.neighbor_sim_anchor
         else: neighbor_sim_anchor = 0
-        pos_anchor_mask = torch.zeros((B,B), device=sim.device)                      # pos_anchor_mask: [B, B]
+        pos_anchor_mask = t.zeros((B,B), device=sim.device)                      # pos_anchor_mask: [B, B]
         for i in range(1, neighbor_sim_anchor+1):
             pos_anchor_mask.diagonal(offset=i).fill_(1)
             pos_anchor_mask.diagonal(offset=-i).fill_(1)
