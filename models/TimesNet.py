@@ -112,6 +112,7 @@ class Model(nn.Module):
                                            configs.dropout, configs.encode_timestamps)
         self.layer = configs.e_layers
         self.layer_norm = nn.LayerNorm(configs.d_model)
+
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             self.predict_linear = nn.Linear(
                 self.seq_len, self.pred_len + self.seq_len)
@@ -125,7 +126,9 @@ class Model(nn.Module):
             self.dropout = nn.Dropout(configs.dropout)
             self.projection = nn.Linear(
                 configs.d_model * configs.seq_len, configs.num_class)
-
+        if configs.contrastive == 1:
+            self.attn = Linear(configs.d_model, 1)
+            
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         total_time = time.time()
         # Normalization from Non-stationary Transformer
@@ -220,7 +223,9 @@ class Model(nn.Module):
                   (means[:, 0, :].unsqueeze(1).repeat(
                       1, sample_length, 1)))
         if self.configs.contrastive:
-            return enc_out, dec_out
+            attn = self.attn(enc_out)                                          # attn: [3B, win_size, 1]
+            attn_score = torch.softmax(attn, dim=1)                            # attn_score: [3B, win_size, 1]
+            return enc_out, dec_out, attn_score
         return dec_out
 
     def classification(self, x_enc, x_mark_enc):
