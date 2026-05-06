@@ -121,10 +121,10 @@ def contrastive_collate_fn(batch):
 
     for (x_tuple, _, _, _) in batch:
         anchor, pos, neg, label = x_tuple
-        anchors.append(anchor)
-        positives.append(pos)
-        negatives.append(neg)
-        labels.append(label)
+        anchors.append(torch.Tensor(anchor))
+        positives.append(torch.Tensor(pos))
+        negatives.append(torch.Tensor(neg))
+        labels.append(torch.Tensor(label))
 
     anchors = torch.stack(anchors)
     positives = torch.stack(positives)
