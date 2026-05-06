@@ -179,6 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--neighbor_sim_pos', type=int, default=0, help='number of augmentations of neighbors that are considered as positive samples of an anchor in contrastive learning')
     parser.add_argument('--temperature', type=float, default=1, help='temperature of smoothing the softmax')
     parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones')
+    parser.add_argument('--contrastive_weight', type=float, default=0.1, help='ratio of the contrastive loss')
     
     args = parser.parse_args()
     if isinstance(args.moving_avg, list) and len(args.moving_avg) == 1:
