@@ -92,7 +92,6 @@ class NTXentLoss(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.temperature = args.temperature
-        self.attn = nn.Linear(args.d_model, 1)
         self.mse = nn.MSELoss()
         self.neighbor_sim_anchor = args.neighbor_sim_anchor
         self.neighbor_sim_pos = args.neighbor_sim_pos
