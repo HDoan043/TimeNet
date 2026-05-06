@@ -399,7 +399,7 @@ class Dataset_Custom(Dataset):
         self.data_stamp = data_stamp
 
         # =========================== CONTRASTIVE LEARNING ==============================
-        if self.args.contrastive == 1 and self.args.is_training:
+        if self.args.contrastive == 1 and self.set_type==0:
             with open(self.args.anomaly_list, "r", encoding="utf-8") as f:
                 self.anomaly_ls = json.load(f)
             with open(self.args.name_id_map, "r") as f:
@@ -432,7 +432,7 @@ class Dataset_Custom(Dataset):
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
-            if self.args.contrastive == 1 and self.args.is_training:
+            if self.args.contrastive == 1 and self.set_type==0:
                 raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
 
                 # Gen Negative sample
