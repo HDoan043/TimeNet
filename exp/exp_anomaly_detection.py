@@ -126,7 +126,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                     train_loss.append(loss.item())
                 else:
                     batch_all_samples, idx, pos_idx, neg_idx, label = batch
-                    batch_x = batch_all_samples
+                    batch_x = batch_all_samples.float().to(self.device)
                     hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
                     f_dim = -1 if self.args.features == 'MS' else 0
                     outputs = outputs[:, :, f_dim:]
