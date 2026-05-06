@@ -171,8 +171,8 @@ class NTXentLoss(nn.Module):
         # print(f"reconstruct_loss: {recon_loss.item()}")
         # print(f"NT-Xent Loss: {contrastive_weight*loss.mean().item()}")
         # ------------------ ADAPTIVE WEIGHT -----------------
-        contrastive_weight = recon_loss.detach()/( loss.mean().detach() + 1e-6)
-        contrastive_weight = contrastive_weight.clamp(0.1,10)
+        # contrastive_weight = recon_loss.detach()/( loss.mean().detach() + 1e-6)
+        # contrastive_weight = contrastive_weight.clamp(0.1,10)
         # ------------------- FIXED WEIGHT -------------------
-        # contrastive_weight = 0.5
+        contrastive_weight = self.args.contrastive_weight
         return recon_loss + contrastive_weight*loss.mean()
