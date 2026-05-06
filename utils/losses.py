@@ -98,9 +98,15 @@ class NTXentLoss(nn.Module):
         self.emphasize_negative = args.emphasize_negative
 
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
+        # same device
+        self.mse = self.mse.to(x.device)
+        idx = idx.to(x.device)
+        pos_idx = pos_idx.to(x.device)
+        neg_idx = neg_idx.to(x.device)
+        attn_pooling = attn_pooling.to(x.device)
+        
         # reconstruct loss (anchor only)
         B = idx.shape[0]
-        self.mse = self.mse.to(x.device)
         recon_loss = self.mse(x[idx], x_hat[idx])
 
         # normalize
