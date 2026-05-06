@@ -4,6 +4,7 @@ from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, Progres
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
+from utils.losses import *
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 import torch
@@ -38,7 +39,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        criterion = nn.MSELoss() if self.args.contrastive != 1 else 
+        criterion = NTXentLoss(self.args) if self.args.contrastive == 1 and self.args.is_training == 1 else nn.MSELoss()
         return criterion
 
     def vali(self, vali_data, vali_loader, corr_matrix, criterion):
@@ -105,22 +106,32 @@ class Exp_Anomaly_Detection(Exp_Basic):
             epoch_time = time.time()
             pbar = ProgressBar(train_loader, bin=60)
             i = 0
-            for batch_x, batch_y, batch_x_mark, batch_y_mark in pbar:
+            for batch in pbar:
                 aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
-                batch_x = batch_x.float().to(self.device)
-                batch_x_mark = batch_x_mark.to(self.device) 
-
-                if self.args.model.lower() == "timesnetv2":
-                    outputs = self.model(batch_x, None, None, None, corr_matrix)
+                if self.args.contrastive == 0:
+                    batch_x, batch_y, batch_x_mark, batch_y_mark = batch
+                    batch_x = batch_x.float().to(self.device)
+                    batch_x_mark = batch_x_mark.to(self.device) 
+    
+                    if self.args.model.lower() == "timesnetv2":
+                        outputs = self.model(batch_x, None, None, None, corr_matrix)
+                    else:
+                        outputs = self.model(batch_x, batch_x_mark, None, None)
+    
+                    f_dim = -1 if self.args.features == 'MS' else 0
+                    outputs = outputs[:, :, f_dim:]
+                    loss = criterion(outputs, batch_x)
+                    train_loss.append(loss.item())
                 else:
-                    outputs = self.model(batch_x, batch_x_mark, None, None)
-
-                f_dim = -1 if self.args.features == 'MS' else 0
-                outputs = outputs[:, :, f_dim:]
-                loss = criterion(outputs, batch_x)
-                train_loss.append(loss.item())
+                    batch_all_samples, idx, pos_idx, neg_idx, label = batch
+                    batch_x, batch_y, batch_x_mark, batch_y_mark = batch_all_samples
+                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
+                    f_dim = -1 if self.args.features == 'MS' else 0
+                    outputs = outputs[:, :, f_dim:]
+                    loss = criterion(batch_x, outputs, hidden_state, idx, pos_idx, neg_idx, label, attn_pooling)
+                    train_loss.append(loss.item())
 
                 speed = (time.time() - time_begin) / aggregate_steps
                 left_time_s = speed * ((self.args.train_epochs - epoch) * train_steps - i)
