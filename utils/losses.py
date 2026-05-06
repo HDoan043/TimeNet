@@ -108,7 +108,7 @@ class NTXentLoss(nn.Module):
 
         # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
         mask = torch.eye(sim.shape[0], device=sim.device).bool()
-        # sim.masked_fill_(mask, -torch.inf)
+        sim.masked_fill_(mask, -torch.inf)
 
         # positive similarity
         # positive samples of an anchor are the windows near the anchor (distance from the anchor is small enough) and their augmentations
@@ -130,23 +130,23 @@ class NTXentLoss(nn.Module):
         # denominator
         full_neg_mask = ~full_pos_mask
         full_neg_mask.diagonal(offset=0).fill_(0)
-        neg_sim = sim[idx].clone()                                                    # neg_sim: [B, 3B
-        # mask positive + self
+        neg_sim = sim[idx].clone()                                                    # neg_sim: [B, 3B]
         neg_sim[~full_neg_mask] = -torch.inf
-        weights = torch.softmax(neg_sim, dim=1)
-        
+        exp_neg = torch.exp(neg_sim)
+        weights = torch.ones_like(exp_neg, device=exp_neg.device)
+        weights[idx,neg_idx] += alpha
+        weights = (weights*full_neg_mask)/(weights*full_neg_mask).sum(dim=1, keepdim=1)
         # chọn top-k hardest negatives
-        k = int(0.1 * weights.shape[1])
-        hard_neg_mask = torch.zeros_like(weights)
-        topk_idx = torch.topk(neg_sim, k=k, dim=1).indices
+        # k = int(0.1 * weights.shape[1])
+        # hard_neg_mask = torch.zeros_like(weights)
+        # topk_idx = torch.topk(neg_sim, k=k, dim=1).indices
         
-        hard_neg_mask.scatter_(1, topk_idx, 1)
+        # hard_neg_mask.scatter_(1, topk_idx, 1)
         
-        weights = weights * (1 + alpha * hard_neg_mask)
-        weights = weights / weights.sum(dim=1, keepdim=True)
+        # weights = weights * (1 + alpha * hard_neg_mask)
+        # weights = weights / weights.sum(dim=1, keepdim=True)
         
-        denom = exp_sim[idx]*weights                                                    # denom: [B, 3B]
-        denom = (denom*full_neg_mask).sum(dim=1)                        
+        denom = (exp_neg*weights).sum(dim=1)                        
 
         loss = -torch.log(pos_sum / denom)
 
