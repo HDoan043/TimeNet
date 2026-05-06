@@ -121,7 +121,7 @@ class NTXentLoss(nn.Module):
         z = nn.functional.normalize(z, dim=1)                                # z: [3*batch_size, 1, d_model]
 
         # similarity matrix (3B x 3B)
-        sim = torch.matmul(z, z.T) / self.temperature                        # sim: [3*batch_size, 3*batch_size]
+        sim = t.matmul(z, z.T) / self.temperature                        # sim: [3*batch_size, 3*batch_size]
         
         # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
         mask = t.eye(sim.shape[0], device=sim.device).bool()
@@ -136,7 +136,7 @@ class NTXentLoss(nn.Module):
         for i in range(1, neighbor_sim_anchor+1):
             pos_anchor_mask.diagonal(offset=i).fill_(1)
             pos_anchor_mask.diagonal(offset=-i).fill_(1)
-        pos_mask = torch.eye(B, device=sim.device)                                   # pos_mask: [B, B]
+        pos_mask = t.eye(B, device=sim.device)                                   # pos_mask: [B, B]
         for i in range(1, self.neighbor_sim_pos+1):
             pos_mask.diagonal(offset=i).fill_(1)
             pos_mask.diagonal(offset=-i).fill_(1)
