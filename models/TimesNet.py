@@ -222,7 +222,7 @@ class Model(nn.Module):
         dec_out = dec_out.add(
                   (means[:, 0, :].unsqueeze(1).repeat(
                       1, sample_length, 1)))
-        if self.configs.contrastive:
+        if self.configs.contrastive == 1:
             attn = self.attn(enc_out)                                          # attn: [3B, win_size, 1]
             attn_score = torch.softmax(attn, dim=1)                            # attn_score: [3B, win_size, 1]
             return enc_out, dec_out, attn_score
@@ -255,9 +255,9 @@ class Model(nn.Module):
                 x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]
         if self.task_name == 'anomaly_detection':
-            if self.configs.contrastive:
-                enc_out, dec_out = self.anomaly_detection(x_enc, x_mark_enc)
-                return enc_out, dec_out
+            if self.configs.contrastive == 1:
+                enc_out, dec_out, attn_score = self.anomaly_detection(x_enc, x_mark_enc)
+                return enc_out, dec_out, attn_score
             else:
                 dec_out = self.anomaly_detection(x_enc, x_mark_enc)
                 return dec_out  # [B, L, D]
