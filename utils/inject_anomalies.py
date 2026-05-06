@@ -265,10 +265,11 @@ def inject_one(df_clean, df, anomaly, position_map, name_id_map, is_fake=False):
     end = anomaly["end"]
     
     indexes_start = df.index.tolist()[0]
+    indexes_end = df.index.tolist()[-1]
     anomaly_index_start = indexes_start + start
     anomaly_index_end = indexes_start + end
     
-    indexes = list(range(int(anomaly_index_start), int(anomaly_index_end)+1))
+    indexes = list(range(int(anomaly_index_start), min(int(anomaly_index_end)+1, indexes_end+1)))
 
     if len(indexes) == 0:
         return df
