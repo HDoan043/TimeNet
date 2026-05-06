@@ -126,8 +126,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
                     train_loss.append(loss.item())
                 else:
                     batch_all_samples, idx, pos_idx, neg_idx, label = batch
-                    batch_x, batch_y, batch_x_mark, batch_y_mark = batch_all_samples
-                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
+                    batch_x = batch_all_samples
+                    hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
                     f_dim = -1 if self.args.features == 'MS' else 0
                     outputs = outputs[:, :, f_dim:]
                     loss = criterion(batch_x, outputs, hidden_state, idx, pos_idx, neg_idx, label, attn_pooling)
