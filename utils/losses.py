@@ -94,7 +94,7 @@ class NTXentLoss(nn.Module):
         self.temperature = temperature
         self.mse = nn.MSELoss()
 
-    def forward(self, x, x_hat, z, idx, pos_idx, labels):
+    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels):
         # reconstruct loss (anchor only)
         B = idx.shape[0]
         recon_loss = self.mse(x[idx], x_hat[idx])
@@ -112,30 +112,32 @@ class NTXentLoss(nn.Module):
 
         # positive similarity
         # positive samples of an anchor are the windows near the anchor (distance from the anchor is small enough) and their augmentations
-        pos_anchor_mask = torch.zeros(B,B).to(sim.device)                            # pos_anchor_mask: [B, B]
+        pos_anchor_mask = torch.zeros((B,B), device=sim.device)                            # pos_anchor_mask: [B, B]
         neighbor_sim_anchor = 1 
         for i in range(1, neighbor_sim_anchor+1):
             pos_anchor_mask.diagonal(offset=i).fill_(1)
             pos_anchor_mask.diagonal(offset=-i).fill_(1)
-        pos_mask = torch.eye((B,B), device=sim.device)                               # pos_mask: [B, B]
+        pos_mask = torch.eye(B, device=sim.device)                               # pos_mask: [B, B]
         neighbor_sim_pos = 0
         for i in range(1, neighbor_sim_pos+1):
             pos_mask.diagonal(offset=i).fill_(1)
             pos_mask.diagonal(offset=-1).fill_(1)
-        neg_mask = torch.zeros(B,B).to(sim.device)                                   # neg_mask: [B, B]
-        full_pos_mask = torch.stack([pos_anchor_mask, pos_mask, neg_mask], dim=1)    # full_pos_mask: [B, 3B]
-        pos_sim = sim[idx]*full_pos_mask                                             # pos_sim: [B, 3B] 
-        full_neg_mask = ~full_pos_mask
-        pos_sim.masked_fill_(full_neg_mask, -torch.inf)                              # pos_sim[i,j] = 1 if sample[j] is a positive sample of anchor[i], = -inf else
+        neg_mask = torch.zeros((B,B), device=sim.device)                             # neg_mask: [B, B]
+        full_pos_mask = torch.cat([pos_anchor_mask, pos_mask, neg_mask], dim=1)      # full_pos_mask: [B, 3B], full_pos_mask[i,j] = 1 if sample[j] is a positive sample of anchor[i], = 0 else
+        exp_sim = torch.exp(sim)
+        pos_exp = exp_sim[idx] * full_pos_mask
+        pos_sum = pos_exp.sum(dim=1)
         
         # denominator
-        exp_sim = torch.exp(sim)                                               # exp_sim: [3*batch_size, 3*batch_size]
-        denom = exp_sim[idx].sum(dim=1)
-        neg_sim = sim[idx]                                                      # [B, 3B]
-        weights = torch.softmax(neg_sim, dim=1)                                 # càng giống → weight càng lớn
+        full_neg_mask = ~full_pos_mask
+        weights = torch.ones_like(full_neg_mask, device=full_neg_mask.device)  # weights: [B, 3B]
+        weights[idx, neg_idx] = torch.softmax(sim[idx, neg_idx], dim=1) +1     # +1 is to make weights of true negative samples in range [1;2], while weights of other negative samples (other anchors or their aurgmentations) are 1, 
+                                                                            # this is to emphasize more in the real negative samples
         
-        denom = (exp_sim[idx] * weights).sum(dim=1)
+        exp_sim = torch.exp(sim)                                               # exp_sim: [3*batch_size, 3*batch_size]
+        denom = exp_sim[idx]*full_neg_mask                                     # denom: [B, 3B]
+        denom = (denom*weights).sum(dim=1)
 
-        loss = -torch.log(torch.exp(pos_sim) / denom)
+        loss = -torch.log(pos_sum / denom)
 
         return recon_loss + loss.mean()
