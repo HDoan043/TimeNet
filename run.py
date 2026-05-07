@@ -179,6 +179,13 @@ if __name__ == '__main__':
     parser.add_argument('--neighbor_sim_anchor', type=int, default=1, help='number of neighbors that are considered as positive samples of an anchor in contrastive learning')
     parser.add_argument('--neighbor_sim_pos', type=int, default=0, help='number of augmentations of neighbors that are considered as positive samples of an anchor in contrastive learning')
     parser.add_argument('--temperature', type=float, default=1, help='temperature of smoothing the softmax')
+    # positive samples generating control
+    parser.add_argument('--jitter_ratio', type=float, default=0.55, help='rate of choosing jitter as an augmentation when generate positive samples')
+    parser.add_argument('--scaling_ratio', type=float, default=0.3, help='rate of choosing scaling as an augmentation when generate positive samples')
+    parser.add_argument('--magnitude_ratio', type=float, default=0.15, help='rate of choosing magnitude warp as an augmentation when generate positive samples')
+    parser.add_argument('--jitter_sigma', type=float, default=0.3, help='sigma of jitter augmentation')
+    parser.add_argument('--scaling_ratio', type=float, default=0.2, help='sigma of scaling augmentation')
+    parser.add_argument('--magnitude_ratio', type=float, default=0.1, help='sigma of magnitude augmentation')
     parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones')
     parser.add_argument('--contrastive_weight', type=float, default=0.1, help='ratio of the contrastive loss')
     
