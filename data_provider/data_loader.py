@@ -455,11 +455,11 @@ class Dataset_Custom(Dataset):
                 positive = self.inverse_transform(positive)
                 for aug in augs:
                     if aug == jitter: 
-                        positive = aug(positive, sigma=0.1)
+                        positive = aug(positive, sigma=0.3)
                     elif aug == scaling:
-                        positive = aug(positive, sigma=0.08)
+                        positive = aug(positive, sigma=0.2)
                     else:
-                        positive = aug(positive, sigma=0.05)
+                        positive = aug(positive, sigma=0.1)
                 positive = self.scaler.transform(positive)
                 seq_x = (seq_x, positive, negative, label)
             return seq_x, seq_y, seq_x_mark, seq_y_mark
