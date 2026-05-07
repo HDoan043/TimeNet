@@ -450,7 +450,7 @@ class Dataset_Custom(Dataset):
                 elif r < 0.7: num_aug = 2
                 else: num_aug = 3
                 
-                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False, p=[self.args.jitter_ratio, self.args.scaling_ratio, self.magnitude_ratio])
+                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False, p=[self.args.jitter_ratio, self.args.scaling_ratio, self.args.magnitude_ratio])
                 positive = seq_x.copy()
                 positive = self.inverse_transform(positive)
                 for aug in augs:
