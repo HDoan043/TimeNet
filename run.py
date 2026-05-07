@@ -184,8 +184,8 @@ if __name__ == '__main__':
     parser.add_argument('--scaling_ratio', type=float, default=0.3, help='rate of choosing scaling as an augmentation when generate positive samples')
     parser.add_argument('--magnitude_ratio', type=float, default=0.15, help='rate of choosing magnitude warp as an augmentation when generate positive samples')
     parser.add_argument('--jitter_sigma', type=float, default=0.3, help='sigma of jitter augmentation')
-    parser.add_argument('--scaling_ratio', type=float, default=0.2, help='sigma of scaling augmentation')
-    parser.add_argument('--magnitude_ratio', type=float, default=0.1, help='sigma of magnitude augmentation')
+    parser.add_argument('--scaling_sigma', type=float, default=0.2, help='sigma of scaling augmentation')
+    parser.add_argument('--magnitude_sigma', type=float, default=0.1, help='sigma of magnitude augmentation')
     parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones')
     parser.add_argument('--contrastive_weight', type=float, default=0.1, help='ratio of the contrastive loss')
     
