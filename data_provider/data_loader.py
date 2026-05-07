@@ -450,16 +450,16 @@ class Dataset_Custom(Dataset):
                 elif r < 0.7: num_aug = 2
                 else: num_aug = 3
                 
-                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False, p=[0.55,0.3,0.15])
+                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False, p=[self.args.jitter_ratio, self.args.scaling_ratio, self.magnitude_ratio])
                 positive = seq_x.copy()
                 positive = self.inverse_transform(positive)
                 for aug in augs:
                     if aug == jitter: 
-                        positive = aug(positive, sigma=0.3)
+                        positive = aug(positive, sigma=self.args.jitter_sigma)
                     elif aug == scaling:
-                        positive = aug(positive, sigma=0.2)
+                        positive = aug(positive, sigma=self.args.scaling_sigma)
                     else:
-                        positive = aug(positive, sigma=0.1)
+                        positive = aug(positive, sigma=self.args.magnitude_sigma)
                 positive = self.scaler.transform(positive)
                 seq_x = (seq_x, positive, negative, label)
             return seq_x, seq_y, seq_x_mark, seq_y_mark
