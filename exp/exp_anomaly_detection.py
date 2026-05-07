@@ -70,6 +70,20 @@ class Exp_Anomaly_Detection(Exp_Basic):
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
 
+        if self.args.from_pretrained != "":
+            print(f'[⏯️]Training from pretrained model ...')
+            checkpoint_path = os.path.join(self.args.from_pretrained, setting, 'checkpoint.pth')
+            backup_checkpoint_path = os.path.join(self.args.from_pretrained, 'checkpoint.pth')
+            backup_checkpoint_path2= self.args.from_pretrained
+            if os.path.exists(checkpoint_path):
+                self.model.load_state_dict(torch.load(checkpoint_path))
+            elif os.path.exists(backup_checkpoint_path):
+                self.model.load_state_dict(torch.load(backup_checkpoint_path))
+            elif os.path.exist(backup_checkpoint_path2):
+                self.model.load_state_dict(torch.load(backup_checkpoint_path2))
+            else:
+                print(f'[⚠️] Cannot find the pretrained model, start training from 0...')
+
         corr_matrix = train_data.get_corr_matrix()
         corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
         corr_matrix.require_grad = False
