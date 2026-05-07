@@ -94,8 +94,8 @@ class NTXentLoss(nn.Module):
         self.args = args
         self.temperature = args.temperature
         self.mse = nn.MSELoss()
-        self.neighbor_sim_anchor = args.neighbor_sim_anchor
-        self.neighbor_sim_pos = args.neighbor_sim_pos
+        self.neighbor_sim_anchor = min(args.neighbor_sim_anchor, args.batch_size-1)
+        self.neighbor_sim_pos = min(args.neighbor_sim_pos, args.batch_size-1)
         self.emphasize_negative = args.emphasize_negative
         self.contrastive_weight = args.contrastive_weight
 
