@@ -40,6 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
     parser.add_argument('--train_ratio', type=float, default=0.7, help="ratio of train set")
     parser.add_argument('--test_ratio', type=float, default=0.2, help="ratio of test set")
+    parser.add_argument('--from_pretrained', type=str, default='', help="pretrained model path")
 
     # forecasting task
     parser.add_argument('--seq_len', type=int, default=96, help='input sequence length')
