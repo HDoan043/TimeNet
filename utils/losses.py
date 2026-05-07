@@ -132,8 +132,9 @@ class NTXentLoss(nn.Module):
         # positive similarity
         # positive samples of an anchor are the windows near the anchor (distance from the anchor is small enough) and their augmentations
         r = np.random.rand()
-        if r < 0.4: neighbor_sim_anchor = self.neighbor_sim_anchor
-        else: neighbor_sim_anchor = 0
+        # if r < 0.8: neighbor_sim_anchor = self.neighbor_sim_anchor
+        # else: neighbor_sim_anchor = 0
+        neighbor_sim_anchor = self.neighbor_sim_anchor
         pos_anchor_mask = t.zeros((B,B), device=sim.device)                      # pos_anchor_mask: [B, B]
         for i in range(1, neighbor_sim_anchor+1):
             pos_anchor_mask.diagonal(offset=i).fill_(1)
