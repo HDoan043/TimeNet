@@ -446,19 +446,20 @@ class Dataset_Custom(Dataset):
                 # Gen Posivie sample
                 raw_window = raw_window.values
                 r = np.random.rand()
-                if r < 0.7: num_aug = 1
-                else: num_aug = 2
+                if r < 0.5: num_aug = 1
+                elif r < 0.7: num_aug = 2
+                else: num_aug = 3
                 
-                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False, p=[0.6,0.35,0.05])
+                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False, p=[0.55,0.3,0.15])
                 positive = seq_x.copy()
                 positive = self.inverse_transform(positive)
                 for aug in augs:
                     if aug == jitter: 
-                        positive = aug(positive, sigma=0.01)
+                        positive = aug(positive, sigma=0.1)
                     elif aug == scaling:
-                        positive = aug(positive, sigma=0.02)
+                        positive = aug(positive, sigma=0.08)
                     else:
-                        positive = aug(positive, sigma=0.02)
+                        positive = aug(positive, sigma=0.05)
                 positive = self.scaler.transform(positive)
                 seq_x = (seq_x, positive, negative, label)
             return seq_x, seq_y, seq_x_mark, seq_y_mark
