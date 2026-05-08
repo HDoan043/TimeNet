@@ -7,6 +7,10 @@ def jitter(x, sigma=0.01, clip=0.03):
     có sự tương quan (cùng tăng hoặc cùng giảm nhẹ).
     x: [T, C]
     """
+    if isinstance(sigma, list) or isinstance(sigma, tuple):
+        sigma = np.random.uniform(*sigma)
+    if isinstance(clip, list) or isinstance(clip, tuple):
+        clip = np.random.uniform(*clip)
     T, C = x.shape
     # Noise theo trục thời gian (cùng giá trị bộ đếm tại cùng nhãn thời gian sẽ chịu 1 noise như nhau)
     noise_t = np.random.normal(0, sigma, size=(T, 1))
@@ -24,6 +28,8 @@ def scaling(x, sigma=0.02):
     Global Scaling: Toàn bộ hệ thống tăng/giảm tải đồng bộ.
     Bảo toàn invariant: Req >= Accept.
     """
+    if isinstance(sigma, list) or isinstance(sigma, tuple):
+        sigma = np.random.uniform(*sigma)
     factor = np.random.normal(1.0, sigma)
     return x * factor
 
@@ -31,6 +37,10 @@ def magnitude_warp(x, sigma=0.05, knot=4):
     """
     Correlated Magnitude Warp: Toàn bộ hệ thống fluctuation đồng bộ theo thời gian.
     """
+    if isinstance(sigma, list) or isinstance(sigma, tuple):
+        sigma = np.random.uniform(*sigma)
+    if isinstance(knot, list) or isinstance(knot, tuple):
+        knot = np.random.uniform(*knot)
     T, C = x.shape
     orig_steps = np.arange(T)
     warp_steps = np.linspace(0, T - 1, num=knot + 2)
@@ -47,6 +57,10 @@ def time_warp(x, sigma=0.1, knot=4):
     Global Time Warp: Co giãn trục thời gian đồng bộ cho tất cả counter.
     Giữ nguyên causal chain (Req t=10, Accept t=12).
     """
+    if isinstance(sigma, list) or isinstance(sigma, tuple):
+        sigma = np.random.uniform(*sigma)
+    if isinstance(knot, list) or isinstance(knot, tuple):
+        knot = np.random.uniform(*knot)
     T, C = x.shape
     orig_steps = np.arange(T)
     warp_steps = np.linspace(0, T - 1, num=knot + 2)
@@ -141,6 +155,8 @@ def window_warp_5g(x, window_ratio=0.1, scale_range=(0.92, 1.08)):
     window_ratio: Tỷ lệ độ dài đoạn bị warp (nên để 0.05 - 0.15)
     scale_range: Ngưỡng co giãn (0.8 - 1.2 là an toàn cho viễn thông)
     """
+    if isinstance(window_ratio, list) or isinstance(window_ratio, tuple):
+        window_ratio = np.randum.uniform(*window_ratio)
     T, C = x.shape
     
     # 1. Xác định độ dài đoạn warp (tối thiểu 4 bước để spline/interp có nghĩa)
