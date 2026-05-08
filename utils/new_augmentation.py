@@ -98,24 +98,6 @@ def window_slice(x):
         
     return ret
 
-def window_warp(x, window_ratio=0.1, scales=[0.5, 2.]):
-    # https://halshs.archives-ouvertes.fr/halshs-01357973/document
-    warp_scales = np.random.choice(scales, x.shape[0])
-    warp_size = np.ceil(window_ratio*x.shape[1]).astype(int)
-    window_steps = np.arange(warp_size)
-        
-    window_starts = np.random.randint(low=1, high=x.shape[1]-warp_size-1, size=(x.shape[0])).astype(int)
-    window_ends = (window_starts + warp_size).astype(int)
-            
-    ret = np.zeros_like(x)
-    for i, pat in enumerate(x):
-        for dim in range(x.shape[2]):
-            start_seg = pat[:window_starts[i],dim]
-            window_seg = np.interp(np.linspace(0, warp_size-1, num=int(warp_size*warp_scales[i])), window_steps, pat[window_starts[i]:window_ends[i],dim])
-            end_seg = pat[window_ends[i]:,dim]
-            warped = np.concatenate((start_seg, window_seg, end_seg))                
-            ret[i,:,dim] = np.interp(np.arange(x.shape[1]), np.linspace(0, x.shape[1]-1., num=warped.size), warped).T
-    return ret
 # Proposed
 
 def random_guided_warp_5g(x, neighbors):
