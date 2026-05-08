@@ -311,7 +311,6 @@ class Dataset_Custom(Dataset):
             y = y.values
             contrastive_df = pd.DataFrame(data, columns = cols)
 
-        
         df_stamp = df_raw[['date']][border1:border2]
         timestamps = list(pd.to_datetime(df_stamp['date']))
         df_stamp['date'] = timestamps 
@@ -452,7 +451,7 @@ class Dataset_Custom(Dataset):
                 # Gen Negative sample
                 num_anomaly = np.random.choice([1,2], p=[0.7,0.3])
                 anomaly_ls = np.random.choice(self.anomaly_ls, num_anomaly, replace = False)
-                positive = 0
+                positive = None
                 while 1:
                     negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
                     if label.sum() != 0:
@@ -460,7 +459,7 @@ class Dataset_Custom(Dataset):
                     else:
                         positive = negative.copy()
                 negative = self.scaler.transform(negative)
-                if positive != 0:
+                if positive:
                     seq_x = (seq_x, positive, negative, label)
                     return seq_x, seq_y, seq_x_mark, seq_y_mark
         
