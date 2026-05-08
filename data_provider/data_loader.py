@@ -460,7 +460,7 @@ class Dataset_Custom(Dataset):
         
                 # Gen Posivie sample
                 if np.random.rand() <0.3:
-                    anomaly_ls = np.random.choice(self.fake_anomaly_ls, 1, replace = False)
+                    anomaly_ls = np.random.choice(self.fake_anomaly_ls, 1)
                     positive, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
                     positive = self.scaler.transform(positive)
                     seq_x = (seq_x, positive, negative, label)
