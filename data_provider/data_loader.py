@@ -419,7 +419,7 @@ class Dataset_Custom(Dataset):
             self.fake_anomaly_ls = [each for each in self.anomaly_ls if "FALSE ANOMALY (LABEL 0)" in each["anomaly"] or "HARD NEGATIVE - MUST LABEL AS 0" in each["anomaly"]\
                                                         or "FALSE ANOMALY (LABEL 0)" in each["anomaly"] or "FALSE ANOMALY (LABEL 0)" in each["anomaly"]\
                                                             or "LABEL 0" in each["anomaly"] or "LABEL AS 0" in each["anomaly"]]
-            self.real_anomaly_ls = [each for each in self.anomaly_ls if each not in self.real_anomaly_ls]
+            self.real_anomaly_ls = [each for each in self.anomaly_ls if each not in self.fake_anomaly_ls]
             with open(self.args.name_id_map, "r") as f:
                 self.name_id_map = json.load(f)
             with open(self.args.position_map, "r") as f:
