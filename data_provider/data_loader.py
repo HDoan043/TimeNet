@@ -415,6 +415,11 @@ class Dataset_Custom(Dataset):
                 }
             with open(self.args.anomaly_list, "r", encoding="utf-8") as f:
                 self.anomaly_ls = json.load(f)
+        
+            self.real_anomaly_ls = [each for each in self.anomaly_ls if "FALSE ANOMALY (LABEL 0)" in anomaly or "HARD NEGATIVE - MUST LABEL AS 0" in anomaly\
+                                                        or "FALSE ANOMALY (LABEL 0)" in anomaly or "FALSE ANOMALY (LABEL 0)" in anomaly\
+                                                            or "LABEL 0" in anomaly or "LABEL AS 0" in each["anomaly"]]
+            self.fake_anomaly_ls = [each for each in self.anomaly_ls if each not in real_anomaly_ls]
             with open(self.args.name_id_map, "r") as f:
                 self.name_id_map = json.load(f)
             with open(self.args.position_map, "r") as f:
@@ -449,22 +454,18 @@ class Dataset_Custom(Dataset):
                 raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
                 # Gen Negative sample
                 num_anomaly = np.random.choice([1,2], p=[0.7,0.3])
-                hard_positive = 0
-                while 1:
-                    anomaly_ls = np.random.choice(self.anomaly_ls, num_anomaly, replace = False)
-                    negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
-                    if label.sum() != 0:
-                        break
-                    else:
-                        positive = negative.copy()
-                        hard_positive = 1
+                anomaly_ls = np.random.choice(self.real_anomaly_ls, num_anomaly, replace = False)
+                negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
                 negative = self.scaler.transform(negative)
-                if hard_positive:
+        
+                # Gen Posivie sample
+                if np.random.rand() <0.3:
+                    anomaly_ls = np.random.choice(self.fake_anomaly_ls, replace = False)
+                    positive, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
                     positive = self.scaler.transform(positive)
                     seq_x = (seq_x, positive, negative, label)
                     return seq_x, seq_y, seq_x_mark, seq_y_mark
-        
-                # Gen Posivie sample
+                    
                 raw_window = raw_window.values
                 positive = seq_x.copy()
 
