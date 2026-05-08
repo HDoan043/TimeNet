@@ -116,45 +116,6 @@ def window_warp(x, window_ratio=0.1, scales=[0.5, 2.]):
             warped = np.concatenate((start_seg, window_seg, end_seg))                
             ret[i,:,dim] = np.interp(np.arange(x.shape[1]), np.linspace(0, x.shape[1]-1., num=warped.size), warped).T
     return ret
-
-def spawner(x, labels, sigma=0.05, verbose=0):
-    # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6983028/
-    # use verbose=-1 to turn off warnings
-    # use verbose=1 to print out figures
-    
-    import utils.dtw as dtw
-    random_points = np.random.randint(low=1, high=x.shape[1]-1, size=x.shape[0])
-    window = np.ceil(x.shape[1] / 10.).astype(int)
-    orig_steps = np.arange(x.shape[1])
-    l = np.argmax(labels, axis=1) if labels.ndim > 1 else labels
-    
-    ret = np.zeros_like(x)
-    # for i, pat in enumerate(tqdm(x)):
-    for i, pat in enumerate(x):
-        # guarentees that same one isnt selected
-        choices = np.delete(np.arange(x.shape[0]), i)
-        # remove ones of different classes
-        choices = np.where(l[choices] == l[i])[0]
-        if choices.size > 0:     
-            random_sample = x[np.random.choice(choices)]
-            # SPAWNER splits the path into two randomly
-            path1 = dtw.dtw(pat[:random_points[i]], random_sample[:random_points[i]], dtw.RETURN_PATH, slope_constraint="symmetric", window=window)
-            path2 = dtw.dtw(pat[random_points[i]:], random_sample[random_points[i]:], dtw.RETURN_PATH, slope_constraint="symmetric", window=window)
-            combined = np.concatenate((np.vstack(path1), np.vstack(path2+random_points[i])), axis=1)
-            if verbose:
-                # print(random_points[i])
-                dtw_value, cost, DTW_map, path = dtw.dtw(pat, random_sample, return_flag = dtw.RETURN_ALL, slope_constraint=slope_constraint, window=window)
-                dtw.draw_graph1d(cost, DTW_map, path, pat, random_sample)
-                dtw.draw_graph1d(cost, DTW_map, combined, pat, random_sample)
-            mean = np.mean([pat[combined[0]], random_sample[combined[1]]], axis=0)
-            for dim in range(x.shape[2]):
-                ret[i,:,dim] = np.interp(orig_steps, np.linspace(0, x.shape[1]-1., num=mean.shape[0]), mean[:,dim]).T
-        else:
-            # if verbose > -1:
-            #     print("There is only one pattern of class {}, skipping pattern average".format(l[i]))
-            ret[i,:] = pat
-    return jitter(ret, sigma=sigma)
-
 # Proposed
 
 def random_guided_warp_5g(x, neighbors):
