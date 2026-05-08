@@ -22,7 +22,7 @@ if __name__ == '__main__':
         "time_warp": {"ratio": 0.20, "parameter": {"sigma": (0.03, 0.08), "knot": (3,5)}},
         "window_warp_5g": {"ratio": 0.20, "parameter": {"window_ratio": (0.03,0.08), "scale_range": (0.92, 1.08)}},
         "scaling": {"ratio": 0.10, "parameter": {"sigma": (0.01, 0.03)}},
-        "magnitude_warp": {"ratio": 0.15, "parameter": {"sigma": np.random.uniform(0.02, 0.05), "knot": (3,5)}},
+        "magnitude_warp": {"ratio": 0.15, "parameter": {"sigma": (0.02, 0.05), "knot": (3,5)}},
         "window_slice": {"ratio": 0.05, "parameter": {}},
         "jitter": {"ratio": 0.10, "parameter":{"sigma": (0.003,0.01), "clip": (0.01, 0.03)}},
         "random_guided_warp_5g": {"ratio": 0.20, "parameter": {}}
