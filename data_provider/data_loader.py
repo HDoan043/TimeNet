@@ -447,12 +447,11 @@ class Dataset_Custom(Dataset):
 
             if self.args.contrastive == 1 and self.set_type==0:
                 raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
-
                 # Gen Negative sample
                 num_anomaly = np.random.choice([1,2], p=[0.7,0.3])
-                anomaly_ls = np.random.choice(self.anomaly_ls, num_anomaly, replace = False)
                 hard_positive = 0
                 while 1:
+                    anomaly_ls = np.random.choice(self.anomaly_ls, num_anomaly, replace = False)
                     negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
                     if label.sum() != 0:
                         break
@@ -461,6 +460,7 @@ class Dataset_Custom(Dataset):
                         hard_positive = 1
                 negative = self.scaler.transform(negative)
                 if hard_positive:
+                    positive = self.scaler.transform(positive)
                     seq_x = (seq_x, positive, negative, label)
                     return seq_x, seq_y, seq_x_mark, seq_y_mark
         
