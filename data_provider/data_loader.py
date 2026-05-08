@@ -447,7 +447,7 @@ class Dataset_Custom(Dataset):
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
             if self.args.contrastive == 1 and self.set_type==0:
-                raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy().reset_index()
+                raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
 
                 # Gen Negative sample
                 num_anomaly = np.random.choice([1,2], p=[0.7,0.3])
