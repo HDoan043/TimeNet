@@ -12,7 +12,7 @@ from data_provider.m4 import M4Dataset, M4Meta
 from data_provider.uea import subsample, interpolate_missing, Normalizer
 from sktime.datasets import load_from_tsfile_to_dataframe
 import warnings
-from utils.augmentation import *
+from utils import new_augmentation
 from utils.inject_anomalies import *
 
 warnings.filterwarnings('ignore')
@@ -400,6 +400,20 @@ class Dataset_Custom(Dataset):
 
         # =========================== CONTRASTIVE LEARNING ==============================
         if self.args.contrastive == 1 and self.set_type==0:
+            try:
+                self.augmentation_config = json.loads(self.args.augmentation_config)
+            except:
+                self.augmentation_config = {}
+            if not self.augmentation_config:
+                self.augmentation_config = {
+                    "time_warp": {"ratio": 0.20, "parameter": {"sigma": (0.03, 0.08), "knot": (3,5)}},
+                    "window_warp_5g": {"ratio": 0.20, "parameter": {"window_ratio": (0.03,0.08), "scale_range": (0.92, 1.08)}},
+                    "scaling": {"ratio": 0.10, "parameter": {"sigma": (0.01, 0.03)}},
+                    "magnitude_warp": {"ratio": 0.15, "parameter": {"sigma": np.random.uniform(0.02, 0.05), "knot": (3,5)}},
+                    "window_slice": {"ratio": 0.05, "parameter": {}},
+                    "jitter": {"ratio": 0.10, "parameter":{"sigma": (0.003,0.01), "clip": (0.01, 0.03)}},
+                    "random_guided_warp_5g": {"ratio": 0.20, "parameter": {}}
+                }
             with open(self.args.anomaly_list, "r", encoding="utf-8") as f:
                 self.anomaly_ls = json.load(f)
             with open(self.args.name_id_map, "r") as f:
@@ -440,27 +454,67 @@ class Dataset_Custom(Dataset):
                 anomaly_ls = np.random.choice(self.anomaly_ls, num_anomaly, replace = False)
                 negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
                 negative = self.scaler.transform(negative)
-                if np.random.rand() < 0.3:
-                    negative = jitter(seq_x, sigma=0.05)
-
+        
                 # Gen Posivie sample
                 raw_window = raw_window.values
-                r = np.random.rand()
-                if r < 0.5: num_aug = 1
-                elif r < 0.7: num_aug = 2
-                else: num_aug = 3
-                
-                augs = np.random.choice([jitter, scaling, magnitude_warp], num_aug, replace=False, p=[self.args.jitter_ratio, self.args.scaling_ratio, self.args.magnitude_ratio])
                 positive = seq_x.copy()
+
+                neighbors = []
+
+                offsets = np.random.choice(
+                    [o for o in range(-24, 25) if o != 0],
+                    size=6,
+                    replace=False
+                )
+                
+                for offset in offsets:
+                    start = x_index_start + offset
+                    end = x_index_end + offset
+                
+                    if start >= 0 and end <= len(self.data_x):
+                        neighbors.append( self.data_x[start:end].copy())
+                
                 positive = self.inverse_transform(positive)
-                for aug in augs:
-                    if aug == jitter: 
-                        positive = aug(positive, sigma=self.args.jitter_sigma)
-                    elif aug == scaling:
-                        positive = aug(positive, sigma=self.args.scaling_sigma)
-                    else:
-                        positive = aug(positive, sigma=self.args.magnitude_sigma)
+                neighbors = [self.inverse_transform(neighbor) for neighbor in neighbors]
+
+                self.augmentation_config["random_guided_warp_5g"]["parameter"]["neighbors"] = neighbors
+
+                r = np.random.rand()
+                aug_ls = []
+                if r<0.7: num_aug = 1
+                elif r<0.95: num_aug = 2
+                else: num_aug = 3
+
+                if num_aug == 1:
+                    aug_ls = list(self.augmentation_config.keys())
+                    p = [self.augmentation_config[k]["ratio"] for k in aug_ls]
+                    aug_ls = np.random.choice(aug_ls, num_aug, p=p)
+                else:
+                    temporal_augs = ["time_warp", "window_warp_5g", "random_guided_warp_5g", "window_slice"]
+                    temporal_p = np.array([self.augmentation_config[k]["ratio"] for k in temporal_augs])
+                    temporal_p = temporal_p / temporal_p.sum()
+                    magnitude_augs = ["jitter", "scaling", "magnitude_warp"]
+                    magnitude_p = np.array([self.augmentation_config[k]["ratio"] for k in magnitude_augs])
+                    magnitude_p = magnitude_p / magnitude_p.sum()
+                    temporal_aug = np.random.choice(temporal_augs, p=temporal_p)
+                    aug_ls.append(temporal_aug)
+                    aug_ls.extend(np.random.choice(magnitude_augs, num_aug - 1, p=magnitude_p))
+
+                for aug in aug_ls:
+                    aug_func = getattr(new_augmentation, aug)
+                    parameters = self.augmentation_config[aug]["parameter"]
+                    positive = aug_func(positive, **parameters)
+                window_min = raw_window.min(axis=0)
+                window_max = raw_window.max(axis=0)
+                
+                margin = 0.15 * (window_max - window_min)
+                positive = np.clip( positive, window_min - margin, window_max + margin)
                 positive = self.scaler.transform(positive)
+
+                assert positive.shape == seq_x.shape
+                assert not np.isnan(positive).any()
+                assert not np.isinf(positive).any()
+                
                 seq_x = (seq_x, positive, negative, label)
             return seq_x, seq_y, seq_x_mark, seq_y_mark
     
