@@ -13,18 +13,18 @@ def smooth_transition(start, end, length):
 
 def lag(df_clean, df, i, col, col_multiplier_map):
     lag = np.random.randint(5, 10)
-    if i - lag >= 0:
+    if i - lag >= 0 and (i-lag) in df_clean.index:
         df.at[i, col] = df_clean.at[i - lag, col] * col_multiplier_map[col]
         df.at[i, col] = max(df.at[i, col], 0)
         
 def trend(df_clean, df, i, col, col_multiplier_map):
     base = df_clean.at[i, col] * col_multiplier_map[col]
-    trend = df_clean.at[i - 1, col] - df_clean.at[i - 5, col]
-    df.at[i, col] = base - 0.7 * trend
-    df.at[i, col] = max(df.at[i, col], 0)
+    if (i-1) in df_clean.index and (i-5) in df_clean.index:
+        trend = df_clean.at[i - 1, col] - df_clean.at[i - 5, col]
+        df.at[i, col] = base - 0.7 * trend
+        df.at[i, col] = max(df.at[i, col], 0)
     
 def correlation(df_clean, df, i, col, col_multiplier_map):
-
     cols = list(col_multiplier_map.keys())   
     if len(cols) <= 1:
         return
@@ -211,7 +211,7 @@ def apply_seasonal_shift(df_clean, df, indexes, exclude_cols=None):
         shift = np.random.randint(1, 6)
 
         for i in indexes:
-            if i - shift >= 0:
+            if i - shift >= 0 and (i-shift) in df.index:
                 df.at[i, col] = 0.8 * df.at[i, col] + 0.2 * df.at[i - shift, col]
 
     return df
