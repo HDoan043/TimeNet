@@ -1,5 +1,6 @@
 import numpy as np
-from tqdm import tqdm
+from scipy.interpolate import CubicSpline
+
 
 def jitter(x, sigma=0.01, clip=0.03):
     """
@@ -40,7 +41,7 @@ def magnitude_warp(x, sigma=0.05, knot=4):
     if isinstance(sigma, list) or isinstance(sigma, tuple):
         sigma = np.random.uniform(*sigma)
     if isinstance(knot, list) or isinstance(knot, tuple):
-        knot = np.random.uniform(*knot)
+        knot = np.random.randint(*knot)
     T, C = x.shape
     orig_steps = np.arange(T)
     warp_steps = np.linspace(0, T - 1, num=knot + 2)
@@ -60,7 +61,7 @@ def time_warp(x, sigma=0.1, knot=4):
     if isinstance(sigma, list) or isinstance(sigma, tuple):
         sigma = np.random.uniform(*sigma)
     if isinstance(knot, list) or isinstance(knot, tuple):
-        knot = np.random.uniform(*knot)
+        knot = np.random.randint(*knot)
     T, C = x.shape
     orig_steps = np.arange(T)
     warp_steps = np.linspace(0, T - 1, num=knot + 2)
@@ -142,10 +143,12 @@ def random_guided_warp_5g(x, neighbors):
     resample_steps = np.linspace(0, current_len - 1, T)
     
     ret = np.zeros_like(x)
+    alpha = np.random.uniform(0.7, 0.9)
     for c in range(C):
-        # Nội suy tuyến tính để làm mượt các đoạn gấp khúc do DTW
-        alpha = np.random.uniform(0.7, 0.9)
-        ret[:, c] = (alpha * x[:, c] + (1 - alpha) * warped_interp)
+        # Bước nội suy mẫu neighbor về kích thước T
+        warped_interp_c = np.interp(resample_steps, np.arange(current_len), warped_data[:, c])
+        # Thực hiện cộng tổ hợp
+        ret[:, c] = (alpha * x[:, c] + (1 - alpha) * warped_interp_c)
         
     return ret
 
@@ -156,7 +159,7 @@ def window_warp_5g(x, window_ratio=0.1, scale_range=(0.92, 1.08)):
     scale_range: Ngưỡng co giãn (0.8 - 1.2 là an toàn cho viễn thông)
     """
     if isinstance(window_ratio, list) or isinstance(window_ratio, tuple):
-        window_ratio = np.randum.uniform(*window_ratio)
+        window_ratio = np.random.uniform(*window_ratio)
     T, C = x.shape
     
     # 1. Xác định độ dài đoạn warp (tối thiểu 4 bước để spline/interp có nghĩa)
