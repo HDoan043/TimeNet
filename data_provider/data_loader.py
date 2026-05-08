@@ -416,10 +416,10 @@ class Dataset_Custom(Dataset):
             with open(self.args.anomaly_list, "r", encoding="utf-8") as f:
                 self.anomaly_ls = json.load(f)
         
-            self.real_anomaly_ls = [each for each in self.anomaly_ls if "FALSE ANOMALY (LABEL 0)" in each["anomaly"] or "HARD NEGATIVE - MUST LABEL AS 0" in each["anomaly"]\
+            self.fake_anomaly_ls = [each for each in self.anomaly_ls if "FALSE ANOMALY (LABEL 0)" in each["anomaly"] or "HARD NEGATIVE - MUST LABEL AS 0" in each["anomaly"]\
                                                         or "FALSE ANOMALY (LABEL 0)" in each["anomaly"] or "FALSE ANOMALY (LABEL 0)" in each["anomaly"]\
                                                             or "LABEL 0" in each["anomaly"] or "LABEL AS 0" in each["anomaly"]]
-            self.fake_anomaly_ls = [each for each in self.anomaly_ls if each not in self.real_anomaly_ls]
+            self.real_anomaly_ls = [each for each in self.anomaly_ls if each not in self.real_anomaly_ls]
             with open(self.args.name_id_map, "r") as f:
                 self.name_id_map = json.load(f)
             with open(self.args.position_map, "r") as f:
@@ -459,7 +459,7 @@ class Dataset_Custom(Dataset):
                 negative = self.scaler.transform(negative)
         
                 # Gen Posivie sample
-                if np.random.rand() <0.3:
+                if np.random.rand() <0.3 and len(self.fake_anomaly_ls)>0:
                     anomaly_ls = np.random.choice(self.fake_anomaly_ls, 1)
                     positive, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
                     positive = self.scaler.transform(positive)
