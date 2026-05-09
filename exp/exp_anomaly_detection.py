@@ -30,8 +30,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
             model = nn.DataParallel(model, device_ids=self.args.device_ids)
         return model
 
-    def _get_data(self, flag):
-        data_set, data_loader = data_provider(self.args, flag)
+    def _get_data(self, flag, contrastive=False):
+        data_set, data_loader = data_provider(self.args, flag, contrastive=contrastive)
         return data_set, data_loader
 
     def _select_optimizer(self):
@@ -66,7 +66,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         return total_loss
 
     def train(self, setting, trial=None):
-        train_data, train_loader = self._get_data(flag='train')
+        train_data, train_loader = self._get_data(flag='train', contrastive=self.args.contrastive)
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
 
@@ -203,7 +203,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')
-        train_data, train_loader = self._get_data(flag='train')
+        train_data, train_loader = self._get_data(flag='train', contrastive=False)
         timestamps = test_data.get_timestamps()
 
         corr_matrix = train_data.get_corr_matrix()
