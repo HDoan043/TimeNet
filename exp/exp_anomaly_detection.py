@@ -235,18 +235,18 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # (1) stastic on the train set
         with torch.no_grad():
             for i, batch in enumerate(train_loader):
-                if self.args.contrastive == 0:
-                    (batch_x, batch_y, batch_x_mark, batch_y_mark) = batch
-                    batch_x = batch_x.float().to(self.device)
-                    batch_x_mark = batch_x_mark.to(self.device) 
-                    # reconstruction
-                    if self.args.model.lower() == "timesnetv2":
-                        outputs = self.model(batch_x, None, None, None, corr_matrix)
-                    else: outputs = self.model(batch_x, batch_x_mark, None, None)
-                else:
-                    batch_all_samples, idx, pos_idx, neg_idx, label = batch
-                    batch_x = batch_all_samples.float().to(self.device)
-                    hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
+                # if self.args.contrastive == 0:
+                (batch_x, batch_y, batch_x_mark, batch_y_mark) = batch
+                batch_x = batch_x.float().to(self.device)
+                batch_x_mark = batch_x_mark.to(self.device) 
+                # reconstruction
+                if self.args.model.lower() == "timesnetv2":
+                    outputs = self.model(batch_x, None, None, None, corr_matrix)
+                else: outputs = self.model(batch_x, batch_x_mark, None, None)
+                # else:
+                #     batch_all_samples, idx, pos_idx, neg_idx, label = batch
+                #     batch_x = batch_all_samples.float().to(self.device)
+                #     hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
                 # criterion
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
