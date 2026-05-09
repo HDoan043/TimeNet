@@ -248,8 +248,9 @@ class Dataset_Custom(Dataset):
         self.data_path = data_path
         self.train_ratio = train_ratio
         self.test_ratio = test_ratio
+        self.contrastive = contrastive
         self.__read_data__()
-
+        
     def __read_data__(self):
         self.scaler = StandardScaler()
         df_raw = pd.read_csv(os.path.join(self.root_path,self.data_path))
