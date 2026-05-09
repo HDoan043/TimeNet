@@ -373,10 +373,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
             avg_time_ms = np.mean(inference_times)
             std_time_ms = np.std(inference_times) 
 
-            print(f"\tMean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
             max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
             max_memory_mb = max_memory_bytes / (1024 * 1024)
-            print(f"\tPeak Memory: {max_memory_mb:.2f} MB")
 
         print("--- Finish ---")
         print(f"Best anomaly_ratio: {best_ratio}, Best threshold: {best_threshold}")
