@@ -14,6 +14,7 @@ import os
 import time
 import warnings
 import numpy as np
+import pandas as pd
 import json
 
 warnings.filterwarnings('ignore')
@@ -255,6 +256,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # (2) find the threshold
         attens_energy = []
         test_labels = []
+        timestamps = []
         for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
             batch_x = batch_x.float().to(self.device)
             batch_x_mark = batch_x_mark.to(self.device) 
@@ -281,7 +283,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 print("score: {}".format(score.shape))
                 print("batch_y: {}".format(batch_y.shape))
             test_labels.append(batch_y)
-
+            timestamps.append(batch_x_mark)
         
         attens_energy = np.concatenate(attens_energy, axis=0)                        # attens_energy: [batch_size*num_batch x win_size]
         ######################################
@@ -333,7 +335,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             f.close()
             return accuracy, precision, recall, f_score, threshold
 
-        print("=== TRYING ANOMALY RATIOS .... ===")
+        print(f"=== TRYING ANOMALY RATIOS {self.args.anomaly_ratio} ===")
         best_ratio = 0
         best_acc = 0
         best_pre = 0
