@@ -341,22 +341,13 @@ class Exp_Anomaly_Detection(Exp_Basic):
         best_f1 = 0
         old_test_label = test_labels.copy()
         for each in self.args.anomaly_ratio:
-            print(f"***anomaly_ratio == {each}")
             threshold = np.percentile(combined_energy, 100 - each)
-            ######################################
-            # Save threshold
-            np.save(folder_path + "threshold.npy", threshold)
-            ######################################
-            print("\tUse calculated threshold :", threshold)
                 
             # (3) evaluation on the test set
             pred = (test_energy > threshold).astype(int)
             test_labels = old_test_label.copy()
             test_labels = np.concatenate(test_labels, axis=0)
-            ######################################
-            # Save ground truth
-            np.save(folder_path + "true.npy", test_labels)
-            ######################################
+            
             test_labels = np.array(test_labels.reshape(-1))
             gt = test_labels.astype(int)
     
@@ -368,9 +359,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
         
             accuracy = accuracy_score(gt, pred)
             precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-            print("\tAccuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-                accuracy, precision,
-                recall, f_score))
+            # print("\tAccuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+            #     accuracy, precision,
+            #     recall, f_score))
             if f_score >= best_f1:
                 best_acc = accuracy
                 best_pre = precision
