@@ -210,7 +210,7 @@ class Dataset_Custom(Dataset):
     def __init__(self, args, root_path, flag='train', task_name="long_term_forecasting",
                  size=None, features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='5min', 
-                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1):
+                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1, contrastive=False):
         # size [seq_len, label_len, pred_len]
         self.args = args
         # info
@@ -450,7 +450,7 @@ class Dataset_Custom(Dataset):
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
-            if self.args.contrastive == 1 and self.set_type==0:
+            if self.contrastive:
                 raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
                 # Gen Negative sample
                 num_anomaly = np.random.choice([1,2], p=[0.7,0.3])
