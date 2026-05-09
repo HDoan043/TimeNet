@@ -380,7 +380,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         print("--- Finish ---")
         print(f"Best anomaly_ratio: {best_ratio}, Best threshold: {best_threshold}")
-        print("Best Accuracy : {:0.4f}, Best Precision : {:0.4f}, Best Recall : {:0.4f}, Best F-score : {:0.4f} ".format(
+        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
             best_acc, best_pre, best_re, best_f1))
         f = open("result_anomaly_detection.txt", 'a')
         f.write(setting + "  \n")
