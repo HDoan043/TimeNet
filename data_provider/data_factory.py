@@ -47,10 +47,11 @@ def data_provider(args, flag, contrastive=False):
             freq=freq,
             seasonal_patterns=args.seasonal_patterns,
             train_ratio = train_ratio,
-            test_ratio = test_ratio
+            test_ratio = test_ratio,
+            contrastive = contrastive
         )
         print(flag, len(data_set))
-        if args.contrastive and flag == "train" and contrastive:
+        if contrastive:
             data_loader = DataLoader(
                 data_set,
                 batch_size=batch_size,
