@@ -12,7 +12,7 @@ data_dict = {
 }
 
 
-def data_provider(args, flag):
+def data_provider(args, flag, contrastive=False):
     Data = data_dict[args.data]
     timeenc = 0 if args.embed != 'timeF' else 1
 
@@ -50,7 +50,7 @@ def data_provider(args, flag):
             test_ratio = test_ratio
         )
         print(flag, len(data_set))
-        if args.contrastive and flag == "train":
+        if args.contrastive and flag == "train" and contrastive:
             data_loader = DataLoader(
                 data_set,
                 batch_size=batch_size,
