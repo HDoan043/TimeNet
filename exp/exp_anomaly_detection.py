@@ -248,6 +248,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 #     batch_x = batch_all_samples.float().to(self.device)
                 #     hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
                 # criterion
+                print(batch_x.shape)
+                print(outputs.shape)
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
                 attens_energy.append(score)
@@ -434,8 +436,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 if self.args.model.lower() == "timesnetv2":
                     outputs = self.model(batch_x, None, None, None, corr_matrix)
                 else: outputs = self.model(batch_x, batch_x_mark, None, None)   # criterion
-                print(batch_x.shape)
-                print(outputs.shape)
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
                 attens_energy.append(score)
