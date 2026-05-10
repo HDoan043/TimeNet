@@ -373,6 +373,7 @@ class Dataset_Custom(Dataset):
         print("[ℹ️] Number of {} samples: {}".format(self.flag, len(possible_index)))
 
         # ========================= ENCODE TIMELABEL ===============================
+        self.stamp = df_stamp['date'].values
         if self.timeenc == 0:
             df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
             df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
@@ -449,7 +450,7 @@ class Dataset_Custom(Dataset):
             seq_x = self.data_x[x_index_start: x_index_end]
             seq_y = self.data_y[y_index_start: y_index_end]
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
-            seq_y_mark = self.data_stamp[y_index_start:y_index_end]
+            seq_y_mark = self.stamp[y_index_start:y_index_end]
 
             if self.contrastive:
                 raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
