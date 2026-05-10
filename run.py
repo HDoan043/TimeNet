@@ -183,15 +183,20 @@ if __name__ == '__main__':
 
     # Contrastive
     parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
+    parser.add_argument('--contrastive_criterion', type=str, default="NTXent", help='NTXent: use NTXent Loss, Triplet: use Triplet')
+    # Negative sampling 
     parser.add_argument('--position_map', type=str, help='path to position map')
     parser.add_argument('--name_id_map', type=str, help='path to map which mapping counters name and their coresspond id')
     parser.add_argument('--anomaly_list', type=str, help='path to anomaly file')
     parser.add_argument('--neighbor_sim_anchor', type=int, default=1, help='number of neighbors that are considered as positive samples of an anchor in contrastive learning')
     parser.add_argument('--neighbor_sim_pos', type=int, default=0, help='number of augmentations of neighbors that are considered as positive samples of an anchor in contrastive learning')
     parser.add_argument('--temperature', type=float, default=1, help='temperature of smoothing the softmax')
-    # positive samples generating control
+    # Positive samples generating control
     parser.add_argument('--augmentation_config', type=str, default=str(augmentation_config), help='config of augmentation to generating positive samples for contrastive learning')
-    parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones')
+    # NTXent Loss
+    parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones (Use in NTXent Loss)')
+    # Triplet loss
+    parser.add_argument('--margin', type-float, default=0.3, help='how the positive representation should be far from the negative one in Triplet Loss')
     parser.add_argument('--contrastive_weight', type=float, default=0.1, help='ratio of the contrastive loss')
     
     args = parser.parse_args()
