@@ -534,7 +534,7 @@ class Dataset_Custom(Dataset):
         # return len(self.data_x) - self.seq_len - self.pred_len + 1
         return len(self.possible_index)
 
-    def decode_timestamp(self, data_stamp, year=2026):
+    def decode_timestamp(self, data_stamp, year=2025):
         # Đảm bảo dữ liệu là 2D (seq_len, num_features)
         if data_stamp.ndim == 1:
             data_stamp = data_stamp.reshape(1, -1)
