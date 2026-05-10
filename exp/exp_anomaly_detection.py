@@ -223,7 +223,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 self.model.load_state_dict(torch.load(backup_checkpoint_path))
 
         attens_energy = []
-        folder_path = self.args.test_results_path
+        folder_path = self.args.test_result_path if self.args.test_result_path != "" else './test_results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
