@@ -40,7 +40,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        criterion = NTXentLoss(self.args) if self.args.contrastive == 1 and self.args.is_training == 1 else nn.MSELoss()
+        if self.args.contrastive == 1 and self.args.is_training == 1:
+            if self.args.contrastive_loss.lower() in ["ntxent", "nt-xent", "nt_xent", "nt_xent_loss", "nt-xent_loss"]:
+                criterion = NTXentLoss(self.args)
+            else:
+                criterion = TripletLoss(self.args)
+        else: criterion = nn.MSELoss()
         return criterion
 
     def vali(self, vali_data, vali_loader, corr_matrix, criterion):
