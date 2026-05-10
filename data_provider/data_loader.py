@@ -450,7 +450,7 @@ class Dataset_Custom(Dataset):
             seq_x = self.data_x[x_index_start: x_index_end]
             seq_y = self.data_y[y_index_start: y_index_end]
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
-            seq_y_mark = self.stamp[y_index_start:y_index_end]
+            seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
             if self.contrastive:
                 raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
@@ -534,6 +534,37 @@ class Dataset_Custom(Dataset):
         # return len(self.data_x) - self.seq_len - self.pred_len + 1
         return len(self.possible_index)
 
+    def decode_timestamp(data_stamp, year=2025, has_5min=True):
+        """
+        data_stamp: mảng numpy (N, 4) hoặc (N, 5)
+        year: Năm mặc định (do code cũ của bạn không lưu năm)
+        """
+        df = pd.DataFrame(data_stamp)
+        
+        # Đặt tên cột dựa trên cấu trúc bạn đã tạo
+        cols = ['month', 'day', 'weekday', 'hour']
+        if has_5min:
+            cols.append('5minute')
+        
+        df.columns = cols
+        
+        # Tính toán Phút (minute)
+        if has_5min:
+            # 5minute = x // 5 => quay ngược lại x = index * 5
+            # Lưu ý: Đây là giá trị xấp xỉ đầu khoảng 5 phút
+            df['minute'] = df['5minute'] * 5
+        else:
+            df['minute'] = 0
+            
+        # Tạo cột Year (vì trong mảng của bạn không có)
+        df['year'] = year
+        
+        # Chuyển về định dạng datetime
+        # Pandas to_datetime yêu cầu các cột: year, month, day, hour, minute
+        dt_series = pd.to_datetime(df[['year', 'month', 'day', 'hour', 'minute']])
+        
+        return dt_series
+        
     def get_timestamps(self):
         return self.possible_timestamps
 
