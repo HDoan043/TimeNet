@@ -179,3 +179,31 @@ class NTXentLoss(nn.Module):
         # ------------------- FIXED WEIGHT -------------------
         contrastive_weight = self.contrastive_weight
         return recon_loss + contrastive_weight*loss.mean()
+class TripletLoss(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.args = args
+        self.triplet = nn.TripletMarginLoss(margin=args.margin, p=2)
+    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
+        # same device
+        idx = idx.to(x.device)
+        pos_idx = pos_idx.to(x.device)
+        neg_idx = neg_idx.to(x.device)
+        attn_pooling = attn_pooling.to(x.device)
+
+        # reconstruct loss (anchor only)
+        B = idx.shape[0]
+        recon_loss = self.mse(x[idx], x_hat[idx])
+
+        # normalize
+        # -------------- ATTENTION POOLING -------------------
+        z = (z*attn_pooling).sum(dim=1)                                      # z: [3B, 1, d_model]
+        z = nn.functional.normalize(z, dim=1)                                # z: [3*batch_size, 1, d_model]
+
+        z_anchor = z[idx]                                                    # z_anchor: [batch_sze, d_model]
+        z_pos = z[pos_idx]                                                   # z_pos: [batch_size, d_model]
+        z_neg = z[neg_idx]                                                   # z_neg: [batch_size, d_model]
+
+        loss = self.triplet(z_anchor, z_pos, z_neg)
+        return loss
+        
