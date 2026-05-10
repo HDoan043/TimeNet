@@ -249,7 +249,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         timestamps = []
         for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
             batch_x = batch_x.float().to(self.device)
-            batch_x_mark = batch_x_mark.detach().cpu().numpy() 
+            batch_x_mark = batch_x_mark.to(self.device) 
             # reconstruction
             if self.args.use_gpu:
                 torch.cuda.synchronize()
@@ -271,7 +271,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 print("score: {}".format(score.shape))
                 print("batch_y: {}".format(batch_y.shape))
             test_labels.append(batch_y)
-            timestamps.append(batch_x_mark)
+            timestamps.append(batch_x_mark.detach().cpu().numpy())
         
         attens_energy = np.concatenate(attens_energy, axis=0)                        # attens_energy: [batch_size*num_batch x win_size]
         ######################################
@@ -371,17 +371,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
             max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
             max_memory_mb = max_memory_bytes / (1024 * 1024)
 
-        print("--- Finish ---")
         print(f"Best anomaly_ratio: {best_ratio}, Best threshold: {best_threshold}")
         print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
             best_acc, best_pre, best_re, best_f1))
-        f = open("result_anomaly_detection.txt", 'a')
-        f.write(setting + "  \n")
-        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            best_acc, best_pre, best_re, best_f1))
-        f.write('\n')
-        f.write('\n')
-        f.close()
         return best_acc, best_pre, best_re, best_f1, best_threshold
     def infer(self, setting, flag='test'):
         infer_data, infer_loader = self._get_data(flag='test')
