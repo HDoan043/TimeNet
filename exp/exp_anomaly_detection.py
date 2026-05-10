@@ -223,7 +223,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 self.model.load_state_dict(torch.load(backup_checkpoint_path))
 
         attens_energy = []
-        folder_path = './test_results/' + setting + '/'
+        folder_path = self.args.test_results_path
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
@@ -276,9 +276,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
             inference_times.append((end_time - start_time) * 1000)            
             # criterion
-            score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)      # score:  [batch_size x win_size x 1]
+            score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)      # score:  [batch_size x win_size]
             score = score.detach().cpu().numpy()
-            attens_energy.append(score)
+            attens_energy.append(score)                                              # attens_energy: [batch_size x win_size] x num_batch
             if i > len(test_loader) -2:
                 print("score: {}".format(score.shape))
                 print("batch_y: {}".format(batch_y.shape))
@@ -290,8 +290,19 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # Save predict result
         np.save(folder_path + "pred.npy", attens_energy)
         ######################################
-        test_energy = np.array(attens_energy.reshape(-1))
+        test_energy = np.array(attens_energy.reshape(-1))                            # test_energy: [batch_size * num_batch * win_size]
         combined_energy = np.concatenate([train_energy, test_energy], axis=0)
+
+        test_labels = np.concatenate(test_labels, axis=0)
+        
+        test_labels = np.array(test_labels.reshape(-1))
+        gt = test_labels.astype(int)
+
+        timestamps = np.concatenate(timestamps, axis=0)
+        timestamps = pd.to_datetime(timestamps, format='%Y-%m-%d %H:%M:%S')
+
+        predict_df = pd.DataFrame({"date": timestamps, "score": test_energy, "label": gt})
+        predict_df.to_csv(folder_path + "anomaly_score_df.csv")
 
         if self.args.threshold > -1:
             threshold = self.args.threshold
@@ -299,13 +310,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 
             # (3) evaluation on the test set
             pred = (test_energy > threshold).astype(int)
-            test_labels = np.concatenate(test_labels, axis=0)
             ######################################
             # Save ground truth
             np.save(folder_path + "true.npy", test_labels)
             ######################################
-            test_labels = np.array(test_labels.reshape(-1))
-            gt = test_labels.astype(int)
+            
             # (4) detection adjustment
             gt, pred = adjustment(gt, pred)
             pred = np.array(pred)
@@ -341,17 +350,13 @@ class Exp_Anomaly_Detection(Exp_Basic):
         best_pre = 0
         best_re = 0
         best_f1 = 0
-        old_test_label = test_labels.copy()
+        
         for each in self.args.anomaly_ratio:
             threshold = np.percentile(combined_energy, 100 - each)
                 
             # (3) evaluation on the test set
             pred = (test_energy > threshold).astype(int)
-            test_labels = old_test_label.copy()
-            test_labels = np.concatenate(test_labels, axis=0)
             
-            test_labels = np.array(test_labels.reshape(-1))
-            gt = test_labels.astype(int)
     
             # (4) detection adjustment
             gt, pred = adjustment(gt, pred)
