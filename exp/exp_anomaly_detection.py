@@ -85,10 +85,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
             else:
                 print(f'[⚠️] Cannot find the pretrained model, start training from 0...')
 
-        corr_matrix = train_data.get_corr_matrix()
-        corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
-        corr_matrix.require_grad = False
-
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
             os.makedirs(path)
@@ -119,9 +115,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
-            pbar = ProgressBar(train_loader, bin=60)
+            # pbar = ProgressBar(train_loader, bin=60)
             i = 0
-            for batch in pbar:
+            for batch in train_loader:
+            # for batch in pbar:
                 aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
@@ -130,10 +127,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                     batch_x = batch_x.float().to(self.device)
                     batch_x_mark = batch_x_mark.to(self.device) 
     
-                    if self.args.model.lower() == "timesnetv2":
-                        outputs = self.model(batch_x, None, None, None, corr_matrix)
-                    else:
-                        outputs = self.model(batch_x, batch_x_mark, None, None)
+                    outputs = self.model(batch_x, batch_x_mark, None, None)
                     loss = criterion(outputs, batch_x)
                     train_loss.append(loss.item())
                 else:
@@ -207,10 +201,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
         train_data, train_loader = self._get_data(flag='train', contrastive=False)
         timestamps = test_data.get_timestamps()
 
-        corr_matrix = train_data.get_corr_matrix()
-        corr_matrix = torch.tensor(corr_matrix, dtype = torch.float32, device = self.device)
-        corr_matrix.require_grad = False
-
         inference_times = []
         
         if test:
@@ -259,15 +249,13 @@ class Exp_Anomaly_Detection(Exp_Basic):
         timestamps = []
         for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
             batch_x = batch_x.float().to(self.device)
-            batch_x_mark = batch_x_mark.to(self.device) 
+            batch_x_mark = batch_x_mark.detach().cpu().numpy() 
             # reconstruction
             if self.args.use_gpu:
                 torch.cuda.synchronize()
             start_time = time.time()
             if self.args.contrastive == 0:
-                if self.args.model.lower() == "timesnetv2":
-                    outputs = self.model(batch_x, None, None, None, corr_matrix)
-                else: outputs = self.model(batch_x, batch_x_mark, None, None)
+                outputs = self.model(batch_x, batch_x_mark, None, None)
             else:
                 hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
             if self.args.use_gpu:
