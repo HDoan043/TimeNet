@@ -117,8 +117,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
             epoch_time = time.time()
             pbar = ProgressBar(train_loader, bin=60)
             i = 0
-            # for batch in train_loader:
-            for batch in pbar:
+            for batch in train_loader:
+            # for batch in pbar:
                 aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
@@ -137,30 +137,30 @@ class Exp_Anomaly_Detection(Exp_Basic):
                     loss = criterion(batch_x, outputs, hidden_state, idx, pos_idx, neg_idx, label, attn_pooling)
                     train_loss.append(loss.item())
 
-                speed = (time.time() - time_begin) / aggregate_steps
-                left_time_s = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                if left_time_s <60: 
-                    left_time = f"{round(left_time_s,4)}s"
-                elif left_time_s<3600:
-                    left_time = f"{round(left_time_s/60,4)}mins"
-                else: left_time = f"{round(left_time_s/3600,4)}hs"
+                # speed = (time.time() - time_begin) / aggregate_steps
+                # left_time_s = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                # if left_time_s <60: 
+                #     left_time = f"{round(left_time_s,4)}s"
+                # elif left_time_s<3600:
+                #     left_time = f"{round(left_time_s/60,4)}mins"
+                # else: left_time = f"{round(left_time_s/3600,4)}hs"
     
-                pbar.set_postfix(
-                    {
-                        "Epoch": epoch + 1,
-                        "Iteration": f"{i+1}/{train_steps}",
-                        "Loss": loss.item(),
-                        "Speed": f"{round(speed, 4)}s/iter",
-                        "Left time": left_time
-                    }
-                )
-                # if (i + 1) % 100 == 0:
-                #     print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                #     speed = (time.time() - time_now) / iter_count
-                #     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                #     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                #     iter_count = 0
-                #     time_now = time.time()
+                # pbar.set_postfix(
+                #     {
+                #         "Epoch": epoch + 1,
+                #         "Iteration": f"{i+1}/{train_steps}",
+                #         "Loss": loss.item(),
+                #         "Speed": f"{round(speed, 4)}s/iter",
+                #         "Left time": left_time
+                #     }
+                # )
+                if (i + 1) % 100 == 0:
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    speed = (time.time() - time_now) / iter_count
+                    left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    iter_count = 0
+                    time_now = time.time()
 
                 loss.backward()
                 model_optim.step()
