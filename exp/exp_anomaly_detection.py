@@ -287,6 +287,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         gt = test_labels.astype(int)
 
         timestamps = np.concatenate(timestamps, axis=0)
+        timestamps = np.array(timestamps.reshape(-1))
         timestamps = pd.to_datetime(timestamps, format='%Y-%m-%d %H:%M:%S')
 
         predict_df = pd.DataFrame({"date": timestamps, "score": test_energy, "label": gt})
