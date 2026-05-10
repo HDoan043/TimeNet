@@ -271,7 +271,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 print("score: {}".format(score.shape))
                 print("batch_y: {}".format(batch_y.shape))
             test_labels.append(batch_y)
-            timestamps.append(batch_x_mark.detach().cpu().numpy())
+            timestamps.append(batch_y_mark.detach().cpu().numpy())
         
         attens_energy = np.concatenate(attens_energy, axis=0)                        # attens_energy: [batch_size*num_batch x win_size]
         ######################################
