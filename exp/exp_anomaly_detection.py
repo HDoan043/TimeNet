@@ -115,10 +115,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
-            # pbar = ProgressBar(train_loader, bin=60)
+            pbar = ProgressBar(train_loader, bin=60)
             i = 0
-            for batch in train_loader:
-            # for batch in pbar:
+            # for batch in train_loader:
+            for batch in pbar:
                 aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
