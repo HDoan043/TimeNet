@@ -534,38 +534,38 @@ class Dataset_Custom(Dataset):
         # return len(self.data_x) - self.seq_len - self.pred_len + 1
         return len(self.possible_index)
 
-        def decode_timestamp(self, data_stamp, year=2026):
-            # Đảm bảo dữ liệu là 2D (seq_len, num_features)
-            if data_stamp.ndim == 1:
-                data_stamp = data_stamp.reshape(1, -1)
+    def decode_timestamp(self, data_stamp, year=2026):
+        # Đảm bảo dữ liệu là 2D (seq_len, num_features)
+        if data_stamp.ndim == 1:
+            data_stamp = data_stamp.reshape(1, -1)
+    
+        # Lấy số cột để xác định có feature '5minute' hay không
+        num_cols = data_stamp.shape[1]
         
-            # Lấy số cột để xác định có feature '5minute' hay không
-            num_cols = data_stamp.shape[1]
-            
-            # Khởi tạo dữ liệu qua Dictionary để tránh lỗi constructor
-            data_dict = {
-                'month': data_stamp[:, 0].astype(int),
-                'day': data_stamp[:, 1].astype(int),
-                'weekday': data_stamp[:, 2].astype(int),
-                'hour': data_stamp[:, 3].astype(int)
-            }
-            
-            # Nếu có cột thứ 5 (thường là 5minute trong TimesNet)
-            if num_cols == 5:
-                # data_stamp[:, 4] là giá trị x // 5, ta nhân ngược lại để ra phút
-                data_dict['minute'] = data_stamp[:, 4].astype(int) * 5
-            else:
-                data_dict['minute'] = 0
+        # Khởi tạo dữ liệu qua Dictionary để tránh lỗi constructor
+        data_dict = {
+            'month': data_stamp[:, 0].astype(int),
+            'day': data_stamp[:, 1].astype(int),
+            'weekday': data_stamp[:, 2].astype(int),
+            'hour': data_stamp[:, 3].astype(int)
+        }
         
-            df = pd.DataFrame(data_dict)
-            df['year'] = year # Thêm năm vì feature encoding thường bỏ qua năm
+        # Nếu có cột thứ 5 (thường là 5minute trong TimesNet)
+        if num_cols == 5:
+            # data_stamp[:, 4] là giá trị x // 5, ta nhân ngược lại để ra phút
+            data_dict['minute'] = data_stamp[:, 4].astype(int) * 5
+        else:
+            data_dict['minute'] = 0
+    
+        df = pd.DataFrame(data_dict)
+        df['year'] = year # Thêm năm vì feature encoding thường bỏ qua năm
+    
+        # Chuyển thành datetime objects
+        # Các cột cần: year, month, day, hour, minute
+        dt_series = pd.to_datetime(df[['year', 'month', 'day', 'hour', 'minute']])
         
-            # Chuyển thành datetime objects
-            # Các cột cần: year, month, day, hour, minute
-            dt_series = pd.to_datetime(df[['year', 'month', 'day', 'hour', 'minute']])
-            
-            # Trả về định dạng string để bạn dễ đọc/lưu log
-            return dt_series.dt.strftime('%Y-%m-%d %H:%M:%S').values
+        # Trả về định dạng string để bạn dễ đọc/lưu log
+        return dt_series.dt.strftime('%Y-%m-%d %H:%M:%S').values
         
     def get_timestamps(self):
         return self.possible_timestamps
