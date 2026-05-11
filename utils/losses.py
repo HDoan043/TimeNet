@@ -200,27 +200,18 @@ class NTXentLoss(nn.Module):
         labels: [B, W]
         return: [B, W]
         """
-    
-        # tạo gaussian kernel
         x = torch.arange(kernel_size, device=labels.device) - kernel_size // 2
-    
         kernel = torch.exp(-(x**2) / (2 * sigma**2))
         kernel = kernel / kernel.sum()
-    
         # reshape cho conv1d
         kernel = kernel.view(1, 1, kernel_size)
-    
+        
         # input shape: [B, 1, W]
         labels = labels.unsqueeze(1)
-    
         padding = kernel_size // 2
-    
-        blurred = F.conv1d(
-            labels,
-            kernel,
-            padding=padding
-        )
-    
+        
+        blurred = F.conv1d( labels, kernel, padding=padding)
+        
         return blurred.squeeze(1)
         
 class TripletLoss(nn.Module):
@@ -258,30 +249,21 @@ class TripletLoss(nn.Module):
         loss = self.triplet(z_anchor, z_pos, z_neg)
         return loss
         
-     def gaussian_blur_1d(self, labels, kernel_size=5, sigma=1.0):
+    def gaussian_blur_1d(self, labels, kernel_size=5, sigma=1.0):
         """
         labels: [B, W]
         return: [B, W]
         """
-    
-        # tạo gaussian kernel
         x = torch.arange(kernel_size, device=labels.device) - kernel_size // 2
-    
         kernel = torch.exp(-(x**2) / (2 * sigma**2))
         kernel = kernel / kernel.sum()
-    
         # reshape cho conv1d
         kernel = kernel.view(1, 1, kernel_size)
-    
+        
         # input shape: [B, 1, W]
         labels = labels.unsqueeze(1)
-    
         padding = kernel_size // 2
-    
-        blurred = F.conv1d(
-            labels,
-            kernel,
-            padding=padding
-        )
-    
+        
+        blurred = F.conv1d( labels, kernel, padding=padding)
+        
         return blurred.squeeze(1)
