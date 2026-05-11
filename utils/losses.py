@@ -113,17 +113,32 @@ class NTXentLoss(nn.Module):
         # normalize
         # collapse
         # -------------- MEAN ---------------------
-        # z = z.mean(dim=1)                                                    # z: [3*batch_size, 1, d_model]
+        # z = z.mean(dim=1)                                                    # z: [3*B, 1, d_model]
         # -------------- MAX POOLING ----------------
         # z = z.max(dim=1).values                                             # z: [3B, 1, d_model]
         # -------------- LAST TIMESTAMP ------------------
         # z = z[:, -1, :]
         # -------------- ATTENTION POOLING -------------------
-        z = (z*attn_pooling).sum(dim=1)                                      # z: [3B, 1, d_model]
-        z = nn.functional.normalize(z, dim=1)                                # z: [3*batch_size, 1, d_model]
+        # z = (z*attn_pooling).sum(dim=1)                                      # z: [3B, 1, d_model]
+        # z = nn.functional.normalize(z, dim=1)                                     # z: [3B, 1, d_model]
+        # -------------- ATTENTION POOLING WITH EMPHASIZED ANOMALY ----------------------
+        labels = self.gaussian_blur_1d(labels)                                 # labels: [B, win_size]
+        labels = labels.unsqueeze(-1)                                          # labels: [B, win_size, 1]
+        alpha = self.args.label_guided_weight
+        neg_att = attn_pooling[neg_idx]
+        neg_att = neg_att*(1+ alpha*labels)                           
+        neg_att = neg_att/(neg_att.sum(dim=1, keepdim=True))    
 
+        attn_anchor = attn_pooling[idx]
+        attn_pos = attn_pooling[pos_idx]
+        z_anchor = (z[idx] * attn_anchor).sum(dim=1)
+        z_pos = (z[pos_idx] * attn_pos).sum(dim=1)
+        z_neg = (z[neg_idx] * neg_att).sum(dim=1)
+        z = torch.cat([z_anchor, z_pos, z_neg], dim=0)
+        z = nn.functional.normalize(z, dim=1)                                   # z: [3B, 1, d_model]
+        
         # similarity matrix (3B x 3B)
-        sim = t.matmul(z, z.T) / self.temperature                        # sim: [3*batch_size, 3*batch_size]
+        sim = t.matmul(z, z.T) / self.temperature                        # sim: [3B, 3B]
         
         # mask self similarity ( all similarity between the representation of a sample and itself are ignored)
         mask = t.eye(sim.shape[0], device=sim.device).bool()
@@ -179,6 +194,35 @@ class NTXentLoss(nn.Module):
         # ------------------- FIXED WEIGHT -------------------
         contrastive_weight = self.contrastive_weight
         return recon_loss + contrastive_weight*loss.mean()
+
+    def gaussian_blur_1d(self, labels, kernel_size=5, sigma=1.0):
+        """
+        labels: [B, W]
+        return: [B, W]
+        """
+    
+        # tạo gaussian kernel
+        x = torch.arange(kernel_size, device=labels.device) - kernel_size // 2
+    
+        kernel = torch.exp(-(x**2) / (2 * sigma**2))
+        kernel = kernel / kernel.sum()
+    
+        # reshape cho conv1d
+        kernel = kernel.view(1, 1, kernel_size)
+    
+        # input shape: [B, 1, W]
+        labels = labels.unsqueeze(1)
+    
+        padding = kernel_size // 2
+    
+        blurred = F.conv1d(
+            labels,
+            kernel,
+            padding=padding
+        )
+    
+        return blurred.squeeze(1)
+        
 class TripletLoss(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -197,8 +241,15 @@ class TripletLoss(nn.Module):
 
         # normalize
         # -------------- ATTENTION POOLING -------------------
-        z = (z*attn_pooling).sum(dim=1)                                      # z: [3B, 1, d_model]
-        z = nn.functional.normalize(z, dim=1)                                # z: [3*batch_size, 1, d_model]
+        # z = (z*attn_pooling).sum(dim=1)                                      # z: [3B, 1, d_model]
+        # z = nn.functional.normalize(z, dim=1)                                # z: [3*batch_size, 1, d_model]
+        # -------------- ATTENTION POOLING WITH EMPHASIZED ANOMALY ----------------------
+        labels = self.gaussian_blur_1d(labels)                                 # labels: [B, win_size]
+        labels = labels.unsqueeze(-1)                                          # labels: [B, win_size, 1]
+        alpha = self.args.label_guided_weight
+        neg_att = attn_pooling[neg_idx]
+        neg_att = neg_att*(1+ alpha*labels)                           
+        neg_att = neg_att/(neg_att.sum(dim=1, keepdim=True))    
 
         z_anchor = z[idx]                                                    # z_anchor: [batch_sze, d_model]
         z_pos = z[pos_idx]                                                   # z_pos: [batch_size, d_model]
@@ -207,3 +258,30 @@ class TripletLoss(nn.Module):
         loss = self.triplet(z_anchor, z_pos, z_neg)
         return loss
         
+     def gaussian_blur_1d(self, labels, kernel_size=5, sigma=1.0):
+        """
+        labels: [B, W]
+        return: [B, W]
+        """
+    
+        # tạo gaussian kernel
+        x = torch.arange(kernel_size, device=labels.device) - kernel_size // 2
+    
+        kernel = torch.exp(-(x**2) / (2 * sigma**2))
+        kernel = kernel / kernel.sum()
+    
+        # reshape cho conv1d
+        kernel = kernel.view(1, 1, kernel_size)
+    
+        # input shape: [B, 1, W]
+        labels = labels.unsqueeze(1)
+    
+        padding = kernel_size // 2
+    
+        blurred = F.conv1d(
+            labels,
+            kernel,
+            padding=padding
+        )
+    
+        return blurred.squeeze(1)
