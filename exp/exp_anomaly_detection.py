@@ -41,7 +41,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
     def _select_criterion(self):
         if self.args.contrastive == 1 and self.args.is_training == 1:
-            if self.args.contrastive_loss.lower() in ["ntxent", "nt-xent", "nt_xent", "nt_xent_loss", "nt-xent_loss"]:
+            if self.args.contrastive_criterion.lower() in ["ntxent", "nt-xent", "nt_xent", "nt_xent_loss", "nt-xent_loss"]:
                 criterion = NTXentLoss(self.args)
             else:
                 criterion = TripletLoss(self.args)
