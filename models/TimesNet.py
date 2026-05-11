@@ -112,7 +112,6 @@ class Model(nn.Module):
                                            configs.dropout, configs.encode_timestamps)
         self.layer = configs.e_layers
         self.layer_norm = nn.LayerNorm(configs.d_model)
-        self.attn = nn.Linear(configs.d_model, 1)
 
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             self.predict_linear = nn.Linear(
@@ -133,6 +132,7 @@ class Model(nn.Module):
                 nn.ReLU(),
                 nn.Linear(configs.d_model, configs.contrastive_d_model)
             )
+            self.attn = nn.Linear(configs.contrastive_d_model, 1)
             
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         total_time = time.time()
