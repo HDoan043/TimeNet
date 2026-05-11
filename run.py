@@ -186,6 +186,7 @@ if __name__ == '__main__':
     parser.add_argument('--contrastive_criterion', type=str, default="NTXent", help='NTXent: use NTXent Loss, Triplet: use Triplet')
     parser.add_argument('--label_guided_weight', type=float, default=0.3, help='Hidden representation of an input window is in shape win_size x d_model, while it should be a vector with shape 1 x d_model for similarity calculation. \
                                                                                 This weight determines how the anomaly timestamps affected the negative sample in collapsing from shape of win_size x d_model to 1 x d_model')
+    parser.add_argument('--contrastive_d_model', type=int, default=64, help="dim of hidden latent of contrastive projector")
     # Negative sampling 
     parser.add_argument('--position_map', type=str, help='path to position map')
     parser.add_argument('--name_id_map', type=str, help='path to map which mapping counters name and their coresspond id')
