@@ -29,6 +29,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         if self.args.use_multi_gpu and self.args.use_gpu:
             model = nn.DataParallel(model, device_ids=self.args.device_ids)
+
+        real_model = ( self.model.module if isinstance(self.model, nn.DataParallel) else self.model)
+        for p in real_model.enc_embedding.parameters(): p.requires_grad=False
+        for i in range(1): 
+            for p in real_model.model[i].parameters(): p.requires_grad=False
+            
         return model
 
     def _get_data(self, flag, contrastive=False):
