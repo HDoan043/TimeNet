@@ -50,7 +50,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 if id(p) not in projector_param_ids:
                     base_params.append(p)
     
-            model_optim = AdamW([
+            model_optim = optim.AdamW([
                 {
                     "params": base_params,
                     "lr": self.args.learning_rate
