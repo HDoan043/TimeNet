@@ -132,7 +132,7 @@ class Model(nn.Module):
                 nn.ReLU(),
                 nn.Linear(configs.d_model, configs.contrastive_d_model)
             )
-            self.attn = nn.Linear(configs.contrastive_d_model, 1)
+            self.collapse_attn = nn.Linear(configs.contrastive_d_model, 1)
             
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         total_time = time.time()
@@ -230,7 +230,7 @@ class Model(nn.Module):
         
         if self.configs.contrastive == 1:
             z = self.contrastive_project(enc_out)                              # z: [B, win_size, contrastive_d_model]
-            attn = self.attn(z)                                                # attn: [3B, win_size, 1]
+            attn = self.collapse_attn(z)                                       # attn: [3B, win_size, 1]
             attn_score = torch.softmax(attn, dim=1)                            # attn_score: [3B, win_size, 1]
             return z, dec_out, attn_score
         return dec_out
