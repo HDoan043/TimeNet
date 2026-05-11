@@ -198,7 +198,7 @@ if __name__ == '__main__':
     # NTXent Loss
     parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones (Use in NTXent Loss)')
     # Triplet loss
-    parser.add_argument('--margin', type-float, default=0.3, help='how the positive representation should be far from the negative one in Triplet Loss')
+    parser.add_argument('--margin', type=float, default=0.3, help='how the positive representation should be far from the negative one in Triplet Loss')
     parser.add_argument('--contrastive_weight', type=float, default=0.1, help='ratio of the contrastive loss')
     
     args = parser.parse_args()
