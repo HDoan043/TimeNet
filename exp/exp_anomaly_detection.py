@@ -36,30 +36,37 @@ class Exp_Anomaly_Detection(Exp_Basic):
         return data_set, data_loader
 
     def _select_optimizer(self):
+        real_model = ( self.model.module if isinstance(self.model, nn.DataParallel) else self.model)
         if self.args.contrastive == 1 and self.args.is_training == 1:
             base_params = []
-            projector_params = list(self.model.contrastive_project.parameters())
-            
+            projector_params = list(
+                real_model.contrastive_project.parameters()
+            )
             projector_param_ids = {
                 id(p) for p in projector_params
             }
-            
-            for p in self.model.parameters():
+    
+            for p in real_model.parameters():
                 if id(p) not in projector_param_ids:
                     base_params.append(p)
-            
-            optimizer = AdamW([
+    
+            model_optim = AdamW([
                 {
                     "params": base_params,
                     "lr": self.args.learning_rate
                 },
                 {
                     "params": projector_params,
-                    "lr": self.args.learning_rate*100
+                    "lr": self.args.learning_rate * 100
                 }
             ])
+    
         else:
-            model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+            model_optim = optim.Adam(
+                real_model.parameters(),
+                lr=self.args.learning_rate
+            )
+    
         return model_optim
 
     def _select_criterion(self):
