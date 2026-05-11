@@ -200,8 +200,8 @@ class NTXentLoss(nn.Module):
         labels: [B, W]
         return: [B, W]
         """
-        x = torch.arange(kernel_size, device=labels.device) - kernel_size // 2
-        kernel = torch.exp(-(x**2) / (2 * sigma**2))
+        x = t.arange(kernel_size, device=labels.device) - kernel_size // 2
+        kernel = t.exp(-(x**2) / (2 * sigma**2))
         kernel = kernel / kernel.sum()
         # reshape cho conv1d
         kernel = kernel.view(1, 1, kernel_size)
@@ -254,8 +254,8 @@ class TripletLoss(nn.Module):
         labels: [B, W]
         return: [B, W]
         """
-        x = torch.arange(kernel_size, device=labels.device) - kernel_size // 2
-        kernel = torch.exp(-(x**2) / (2 * sigma**2))
+        x = t.arange(kernel_size, device=labels.device) - kernel_size // 2
+        kernel = t.exp(-(x**2) / (2 * sigma**2))
         kernel = kernel / kernel.sum()
         # reshape cho conv1d
         kernel = kernel.view(1, 1, kernel_size)
