@@ -105,11 +105,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
             backup_checkpoint_path = os.path.join(self.args.from_pretrained, 'checkpoint.pth')
             backup_checkpoint_path2= self.args.from_pretrained
             if os.path.exists(checkpoint_path):
-                self.model.load_state_dict(torch.load(checkpoint_path))
+                self.model.load_state_dict(torch.load(checkpoint_path), strict=False)
             elif os.path.exists(backup_checkpoint_path):
-                self.model.load_state_dict(torch.load(backup_checkpoint_path))
+                self.model.load_state_dict(torch.load(backup_checkpoint_path), strict=False)
             elif os.path.exist(backup_checkpoint_path2):
-                self.model.load_state_dict(torch.load(backup_checkpoint_path2))
+                self.model.load_state_dict(torch.load(backup_checkpoint_path2), strict=False)
             else:
                 print(f'[⚠️] Cannot find the pretrained model, start training from 0...')
 
