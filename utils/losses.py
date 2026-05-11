@@ -135,7 +135,7 @@ class NTXentLoss(nn.Module):
         z_anchor = (z[idx] * attn_anchor).sum(dim=1)
         z_pos = (z[pos_idx] * attn_pos).sum(dim=1)
         z_neg = (z[neg_idx] * neg_att).sum(dim=1)
-        z = torch.cat([z_anchor, z_pos, z_neg], dim=0)
+        z = t.cat([z_anchor, z_pos, z_neg], dim=0)
         z = nn.functional.normalize(z, dim=1)                                   # z: [3B, 1, d_model]
         
         # similarity matrix (3B x 3B)
@@ -243,6 +243,14 @@ class TripletLoss(nn.Module):
         neg_att = attn_pooling[neg_idx]
         neg_att = neg_att*(1+ alpha*labels)                           
         neg_att = neg_att/(neg_att.sum(dim=1, keepdim=True))    
+
+        attn_anchor = attn_pooling[idx]
+        attn_pos = attn_pooling[pos_idx]
+        z_anchor = (z[idx] * attn_anchor).sum(dim=1)
+        z_pos = (z[pos_idx] * attn_pos).sum(dim=1)
+        z_neg = (z[neg_idx] * neg_att).sum(dim=1)
+        z = t.cat([z_anchor, z_pos, z_neg], dim=0)
+        z = nn.functional.normalize(z, dim=1)
 
         z_anchor = z[idx]                                                    # z_anchor: [batch_sze, d_model]
         z_pos = z[pos_idx]                                                   # z_pos: [batch_size, d_model]
