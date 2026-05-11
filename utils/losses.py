@@ -105,6 +105,7 @@ class NTXentLoss(nn.Module):
         pos_idx = pos_idx.to(x.device)
         neg_idx = neg_idx.to(x.device)
         attn_pooling = attn_pooling.to(x.device)
+        labels = labels.to(x.device)
 
         # reconstruct loss (anchor only)
         B = idx.shape[0]
@@ -225,7 +226,8 @@ class TripletLoss(nn.Module):
         pos_idx = pos_idx.to(x.device)
         neg_idx = neg_idx.to(x.device)
         attn_pooling = attn_pooling.to(x.device)
-
+        labels = labels.to(x.device)
+        
         # reconstruct loss (anchor only)
         B = idx.shape[0]
         recon_loss = self.mse(x[idx], x_hat[idx])
