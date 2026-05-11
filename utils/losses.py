@@ -220,6 +220,7 @@ class TripletLoss(nn.Module):
         super().__init__()
         self.args = args
         self.triplet = nn.TripletMarginLoss(margin=args.margin, p=2)
+        self.mse = nn.MSELoss()
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
         # same device
         idx = idx.to(x.device)
