@@ -210,7 +210,7 @@ class NTXentLoss(nn.Module):
         labels = labels.unsqueeze(1)
         padding = kernel_size // 2
         
-        blurred = F.conv1d( labels, kernel, padding=padding)
+        blurred = nn.functional.conv1d( labels, kernel, padding=padding)
         
         return blurred.squeeze(1)
         
