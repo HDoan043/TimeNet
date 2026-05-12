@@ -4,42 +4,51 @@ from utils.inject_anomalies import *
 
 # positive sampler
 def stochastic_positive_sampler(i, datacustom, jitter_range=(-2, 2)):
-    """
-    Lấy mẫu dương theo phương pháp Stochastic (Xác suất) kết hợp Jitter.
-    """
     lags = datacustom.lags 
     scores = datacustom.scores
     data = datacustom.data_x 
-    win_size = datacustom.args.win_size
+    win_size = datacustom.win_size
     T = data.shape[0]
     
-    # Lọc các lag không bị tràn mảng (Out of bounds)
+    # Đảm bảo i + lag không vượt quá giới hạn cuối mảng
     valid_indices = [idx for idx, lag in enumerate(lags) if i + lag <= T - win_size]
     
     if not valid_indices:
-        # Fallback: Nếu không có lag nào khớp, lấy ngay cửa sổ tiếp theo kèm jitter
-        # để tránh làm gãy luồng training.
         shift = win_size + np.random.randint(jitter_range[0], jitter_range[1] + 1)
-        pos_idx = min(i + shift, T - win_size)
-        return data[pos_idx : pos_idx + win_size]
+        pos_idx = int(np.clip(i + shift, 0, T - win_size))
+        return data[pos_idx : pos_idx + win_size].copy()
 
-    # VẤN ĐỀ 3 FIX: Sampling dựa trên trọng số điểm tương đồng
     p_lags = lags[valid_indices]
     p_scores = scores[valid_indices]
-    
-    # Chuyển scores thành xác suất (Softmax hoặc đơn giản là Normalize)
-    # Dùng Softmax nếu bạn muốn nhấn mạnh vào các lag có score cực cao
     probs = p_scores / (np.sum(p_scores) + 1e-8)
     
     chosen_lag = np.random.choice(p_lags, p=probs)
-    
-    # Thêm Jitter để model không "học thuộc lòng" vị trí chính xác của chu kỳ
     jitter = np.random.randint(jitter_range[0], jitter_range[1] + 1)
-    final_pos_idx = max(0, min(i + chosen_lag + jitter, T - win_size))
     
-    return data[final_pos_idx : final_pos_idx + win_size]
+    # Ép kiểu int để tránh lỗi chỉ số mảng
+    final_pos_idx = int(np.clip(i + chosen_lag + jitter, 0, T - win_size))
+    
+    return data[final_pos_idx : final_pos_idx + win_size].copy()
+
+def neighbor_positive_sampler(datacustom, x_index_start, x_index_end):
+    data_x = datacustom.data_x
+    win_size = datacustom.win_size
+    T = data_x.shape[0]
+    
+    neighbor_distance = 2 # Tăng lên 2 để có nhiều lựa chọn hơn 1
+    possible_indices = [j for j in range(max(0, x_index_start - neighbor_distance), 
+                                         min(T - win_size, x_index_start + neighbor_distance + 1)) 
+                        if j != x_index_start]
+    
+    if not possible_indices:
+        return data_x[x_index_start : x_index_start + win_size].copy()
+        
+    chosen_idx = np.random.choice(possible_indices)
+    return data_x[chosen_idx : chosen_idx + win_size].copy()
 
 def augmentation_positive_sampler(datacustom, x_index_start, x_index_end):
+    raw_window = datacustom.df_for_contrastive.iloc[x_index_start: x_index_end].values
+    
     data_x = datacustom.data_x
     augmentation_config = datacustom.augmentation_config
     inverse_transform = datacustom.inverse_transform
@@ -94,29 +103,23 @@ def augmentation_positive_sampler(datacustom, x_index_start, x_index_end):
         aug_func = getattr(new_augmentation, aug)
         parameters = augmentation_config[aug]["parameter"]
         positive = aug_func(positive, **parameters)
-    window_min = seq_x.min(axis=0)
-    window_max = seq_x.max(axis=0)
-    
+        
+    window_min, window_max = raw_window.min(axis=0), raw_window.max(axis=0)
     margin = 0.15 * (window_max - window_min)
-    positive = np.clip( positive, window_min - margin, window_max + margin)
+    positive = np.clip(positive, window_min - margin, window_max + margin)
     positive = scaler.transform(positive)
 
     return positive
 
-def neighbor_positive_sampler(datacustom, x_index_start, x_index_end):
-    data_x = datacustom.data_x
-    win_size = datacustom.win_size
-    
-    neighbor_distance = 1
-    neighbor_candidates = [data_x[j: j + win_size].copy() for j in range(max(0,x_index_start - neighbor_distance), 
-                                                                                min(len(data_x),x_index_end + neighbor_distance)) if j !=x_index_start ]
-    positive = np.random.choice(neighbor_candidates)
-    return positive
-
-# negative sampler
 def negative_sampler(datacustom, x_index_start, x_index_end):
+    # Đảm bảo lấy đúng window từ df thô
     raw_window = datacustom.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
-    num_anomaly = np.random.choice([1,2], p=[0.7,0.3])
-    anomaly_ls = np.random.choice(datacustom.real_anomaly_ls, num_anomaly, replace = False)
+    num_anomaly = np.random.choice([1, 2], p=[0.7, 0.3])
+    anomaly_ls = np.random.choice(datacustom.real_anomaly_ls, num_anomaly, replace=False)
+    
+    # Inject xong trả về data đã scale
     negative, label = inject_full(raw_window, anomaly_ls, datacustom.position_map, datacustom.name_id_map)
-    negative = datacustom.scaler.transform(negative)
+    # StandardScaler transform nhận vào array 2D
+    negative_scaled = datacustom.scaler.transform(negative.values if hasattr(negative, 'values') else negative)
+    
+    return negative_scaled, label
