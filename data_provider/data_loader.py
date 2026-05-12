@@ -14,6 +14,7 @@ from sktime.datasets import load_from_tsfile_to_dataframe
 import warnings
 from utils import new_augmentation
 from utils.inject_anomalies import *
+from utils.tools import *
 
 warnings.filterwarnings('ignore')
 
@@ -401,6 +402,7 @@ class Dataset_Custom(Dataset):
 
         # =========================== CONTRASTIVE LEARNING ==============================
         if self.args.contrastive == 1 and self.set_type==0:
+            
             try:
                 self.augmentation_config = json.loads(self.args.augmentation_config)
             except:
@@ -566,6 +568,38 @@ class Dataset_Custom(Dataset):
         
         # Trả về định dạng string để bạn dễ đọc/lưu log
         return dt_series.dt.strftime('%Y-%m-%d %H:%M:%S').values
+
+    def stochastic_positive_sampler(i, lags, scores, data, win_size, jitter_range=(-2, 2)):
+        """
+        Lấy mẫu dương theo phương pháp Stochastic (Xác suất) kết hợp Jitter.
+        """
+        T = data.shape[0]
+        
+        # Lọc các lag không bị tràn mảng (Out of bounds)
+        valid_indices = [idx for idx, lag in enumerate(lags) if i + lag <= T - win_size]
+        
+        if not valid_indices:
+            # Fallback: Nếu không có lag nào khớp, lấy ngay cửa sổ tiếp theo kèm jitter
+            # để tránh làm gãy luồng training.
+            shift = win_size + np.random.randint(jitter_range[0], jitter_range[1] + 1)
+            pos_idx = min(i + shift, T - win_size)
+            return data[pos_idx : pos_idx + win_size]
+    
+        # VẤN ĐỀ 3 FIX: Sampling dựa trên trọng số điểm tương đồng
+        p_lags = lags[valid_indices]
+        p_scores = scores[valid_indices]
+        
+        # Chuyển scores thành xác suất (Softmax hoặc đơn giản là Normalize)
+        # Dùng Softmax nếu bạn muốn nhấn mạnh vào các lag có score cực cao
+        probs = p_scores / (np.sum(p_scores) + 1e-8)
+        
+        chosen_lag = np.random.choice(p_lags, p=probs)
+        
+        # Thêm Jitter để model không "học thuộc lòng" vị trí chính xác của chu kỳ
+        jitter = np.random.randint(jitter_range[0], jitter_range[1] + 1)
+        final_pos_idx = max(0, min(i + chosen_lag + jitter, T - win_size))
+        
+        return data[final_pos_idx : final_pos_idx + win_size]
         
     def get_timestamps(self):
         return self.possible_timestamps
