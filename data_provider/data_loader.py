@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 from utils.timefeatures import time_features
+from utils.tools import get_periodic_lags
 from data_provider.m4 import M4Dataset, M4Meta
 from data_provider.uea import subsample, interpolate_missing, Normalizer
 from data_provider.contrastive_sampling import *
