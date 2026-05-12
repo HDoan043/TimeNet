@@ -32,7 +32,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         real_model = ( model.module if isinstance(model, nn.DataParallel) else model)
         for p in real_model.enc_embedding.parameters(): p.requires_grad=False
-        for i in range(1): 
+        for i in range(2): 
             for p in real_model.model[i].parameters(): p.requires_grad=False
             
         return model
