@@ -13,9 +13,6 @@ from data_provider.uea import subsample, interpolate_missing, Normalizer
 from data_provider.contrastive_sampling import *
 from sktime.datasets import load_from_tsfile_to_dataframe
 import warnings
-from utils import new_augmentation
-from utils.inject_anomalies import *
-from utils.tools import *
 
 warnings.filterwarnings('ignore')
 
