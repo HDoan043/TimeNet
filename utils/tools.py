@@ -152,43 +152,36 @@ def cal_accuracy(y_pred, y_true):
     return np.mean(y_pred == y_true)
 
 def get_periodic_lags(matrix, win_size, min_lag=None):
-    """
-    Tìm các lag chu kỳ dựa trên Autocorrelation (FFT-based) 
-    đã sửa các lỗi về nhiễu biên và peak detection.
-    """
     T, C = matrix.shape
     if min_lag is None:
         min_lag = win_size
         
-    # 1. Chuẩn hóa từng channel (Zero-mean, Unit-variance)
-    # Tránh việc channel biến thiên lớn "áp bức" các channel khác
+    # 1. Chuẩn hóa từng channel
     norm_matrix = (matrix - np.mean(matrix, axis=0)) / (np.std(matrix, axis=0) + 1e-8)
     
-    # 2. Độ dài FFT tối ưu để tránh hiện tượng wrap-around (Circular Convolution)
-    # Dùng 2*T-1 là bắt buộc để có Linear Convolution chính xác
+    # 2. Tính toán n_fft để chạy FFT nhanh hơn
     n_fft = next_fast_len(2 * T - 1)
-    total_acf = np.zeros(n_fft)
+    
+    # --- SỬA TẠI ĐÂY ---
+    # Khởi tạo total_acf có độ dài T để khớp với acf[:T]
+    total_acf = np.zeros(T) 
     
     for c in range(C):
         channel = norm_matrix[:, c]
         X = fft(channel, n=n_fft)
         S = X * np.conj(X)
-        acf = ifft(S).real
+        acf_full = ifft(S).real
         
-        # VẤN ĐỀ 1 FIX: Slicing để loại bỏ phần đuôi đối xứng của FFT
-        acf = acf[:T] 
+        # Chỉ lấy phần lag từ 0 đến T-1 (khử nhiễu biên/đối xứng)
+        acf = acf_full[:T]
         
-        # Normalize acf từng channel để cộng dồn công bằng
+        # Cộng dồn (Lúc này cả 2 mảng đều có độ dài T)
         total_acf += acf / (acf[0] + 1e-8)
     
     total_acf /= C
+    total_acf[0] = 0 # Triệt tiêu lag 0
     
-    # VẤN ĐỀ 2 FIX: Triệt tiêu lag 0 để không gây nhiễu cho Peak Detection
-    total_acf[0] = 0
-    
-    # 3. Peak Detection với Prominence thay vì Height
-    # distance=min_lag: Đảm bảo các chu kỳ tìm được cách nhau ít nhất 1 cửa sổ
-    # prominence=0.01: Chỉ lấy các đỉnh thực sự nổi bật so với thung lũng xung quanh
+    # 3. Peak Detection
     limit = T - win_size
     scores = total_acf[:limit]
     
@@ -198,9 +191,8 @@ def get_periodic_lags(matrix, win_size, min_lag=None):
         prominence=0.01
     )
     
-    # Lọc lại theo min_lag một lần nữa cho chắc chắn
     valid_mask = peaks >= min_lag
     final_lags = peaks[valid_mask]
-    final_scores = props['prominences'][valid_mask] # Dùng prominence làm score
+    final_scores = props['prominences'][valid_mask]
     
     return final_lags, final_scores
