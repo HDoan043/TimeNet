@@ -5,6 +5,8 @@ import torch
 import matplotlib.pyplot as plt
 import pandas as pd
 import math
+from scipy.fft import fft, ifft, next_fast_len
+from scipy.signal import find_peaks
 
 plt.switch_backend('agg')
 
@@ -149,7 +151,56 @@ def adjustment(gt, pred):
 def cal_accuracy(y_pred, y_true):
     return np.mean(y_pred == y_true)
 
-def visualize_anomaly(test_energy, ground_truth, timestamp):
-    '''
-    test_energy:
-    '''
+def get_periodic_lags(matrix, win_size, min_lag=None):
+    """
+    Tìm các lag chu kỳ dựa trên Autocorrelation (FFT-based) 
+    đã sửa các lỗi về nhiễu biên và peak detection.
+    """
+    T, C = matrix.shape
+    if min_lag is None:
+        min_lag = win_size
+        
+    # 1. Chuẩn hóa từng channel (Zero-mean, Unit-variance)
+    # Tránh việc channel biến thiên lớn "áp bức" các channel khác
+    norm_matrix = (matrix - np.mean(matrix, axis=0)) / (np.std(matrix, axis=0) + 1e-8)
+    
+    # 2. Độ dài FFT tối ưu để tránh hiện tượng wrap-around (Circular Convolution)
+    # Dùng 2*T-1 là bắt buộc để có Linear Convolution chính xác
+    n_fft = next_fast_len(2 * T - 1)
+    total_acf = np.zeros(n_fft)
+    
+    for c in range(C):
+        channel = norm_matrix[:, c]
+        X = fft(channel, n=n_fft)
+        S = X * np.conj(X)
+        acf = ifft(S).real
+        
+        # VẤN ĐỀ 1 FIX: Slicing để loại bỏ phần đuôi đối xứng của FFT
+        acf = acf[:T] 
+        
+        # Normalize acf từng channel để cộng dồn công bằng
+        total_acf += acf / (acf[0] + 1e-8)
+    
+    total_acf /= C
+    
+    # VẤN ĐỀ 2 FIX: Triệt tiêu lag 0 để không gây nhiễu cho Peak Detection
+    total_acf[0] = 0
+    
+    # 3. Peak Detection với Prominence thay vì Height
+    # distance=min_lag: Đảm bảo các chu kỳ tìm được cách nhau ít nhất 1 cửa sổ
+    # prominence=0.01: Chỉ lấy các đỉnh thực sự nổi bật so với thung lũng xung quanh
+    limit = T - win_size
+    scores = total_acf[:limit]
+    
+    peaks, props = find_peaks(
+        scores,
+        distance=min_lag,
+        prominence=0.01
+    )
+    
+    # Lọc lại theo min_lag một lần nữa cho chắc chắn
+    valid_mask = peaks >= min_lag
+    final_lags = peaks[valid_mask]
+    final_scores = props['prominences'][valid_mask] # Dùng prominence làm score
+    
+    return final_lags, final_scores
