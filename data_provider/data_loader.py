@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from utils.timefeatures import time_features
 from data_provider.m4 import M4Dataset, M4Meta
 from data_provider.uea import subsample, interpolate_missing, Normalizer
+from data_provider.contrastive_sampling import *
 from sktime.datasets import load_from_tsfile_to_dataframe
 import warnings
 from utils import new_augmentation
@@ -458,30 +459,17 @@ class Dataset_Custom(Dataset):
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
             if self.contrastive:
-                raw_window = self.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
                 # Gen Negative sample
-                num_anomaly = np.random.choice([1,2], p=[0.7,0.3])
-                anomaly_ls = np.random.choice(self.real_anomaly_ls, num_anomaly, replace = False)
-                negative, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
-                negative = self.scaler.transform(negative)
+                negative, label = negative_sampler(self, x_index_start, x_index_end)
         
                 # Gen Posivie sample
-                # if np.random.rand() <0.3 and len(self.fake_anomaly_ls)>0:
-                #     anomaly_ls = np.random.choice(self.fake_anomaly_ls, 1)
-                #     positive, label = inject_full(raw_window, anomaly_ls, self.position_map, self.name_id_map)
-                #     positive = self.scaler.transform(positive)
-                #     seq_x = (seq_x, positive, negative, label)
-                #     return seq_x, seq_y, seq_x_mark, seq_y_mark
                 r = np.random.rand()
                 if r < 0.7:
-                    positive = self.stochastic_positive_sampler(x_index_start)
+                    positive = stochastic_positive_sampler(x_index_start, self)
                 elif r<0.95:
-                    neighbor_distance = 1
-                    neighbor_candidates = [self.data_x[j: j + self.args.win_size].copy() for j in range(max(0,x_index_start - neighbor_distance), 
-                                                                                                min(len(self.data_x),x_index_end + neighbor_distance)) if j !=x_index_start ]
-                    positive = np.random.choice(neighbor_candidates)
+                    positive = neighbor_positive_sampler(self, x_index_start, x_index_end)
                 else:
-                    positive = self.augmentation_positive_sampler(seq_x, x_index_start, x_index_end)
+                    positive = augmentation_positive_sampler(self, x_index_start, x_index_end)
                 
                 assert positive.shape == seq_x.shape
                 assert not np.isnan(positive).any()
@@ -526,99 +514,6 @@ class Dataset_Custom(Dataset):
         
         # Trả về định dạng string để bạn dễ đọc/lưu log
         return dt_series.dt.strftime('%Y-%m-%d %H:%M:%S').values
-
-    def augmentation_positive_sampler(self, seq_x, x_index_start, x_index_end):
-        positive = seq_x.copy()
-
-        neighbors = []
-
-        offsets = np.random.choice(
-            [o for o in range(-24, 25) if o != 0],
-            size=6,
-            replace=False
-        )
-        
-        for offset in offsets:
-            start = x_index_start + offset
-            end = x_index_end + offset
-        
-            if start >= 0 and end <= len(self.data_x):
-                neighbors.append( self.data_x[start:end].copy())
-        
-        positive = self.inverse_transform(positive)
-        neighbors = [self.inverse_transform(neighbor) for neighbor in neighbors]
-
-        self.augmentation_config["random_guided_warp_5g"]["parameter"]["neighbors"] = neighbors
-
-        r = np.random.rand()
-        aug_ls = []
-        if r<0.7: num_aug = 1
-        elif r<0.95: num_aug = 2
-        else: num_aug = 3
-
-        if num_aug == 1:
-            aug_ls = list(self.augmentation_config.keys())
-            p = [self.augmentation_config[k]["ratio"] for k in aug_ls]
-            aug_ls = np.random.choice(aug_ls, num_aug, p=p)
-        else:
-            temporal_augs = ["time_warp", "window_warp_5g", "random_guided_warp_5g", "window_slice"]
-            temporal_p = np.array([self.augmentation_config[k]["ratio"] for k in temporal_augs])
-            temporal_p = temporal_p / temporal_p.sum()
-            magnitude_augs = ["jitter", "scaling", "magnitude_warp"]
-            magnitude_p = np.array([self.augmentation_config[k]["ratio"] for k in magnitude_augs])
-            magnitude_p = magnitude_p / magnitude_p.sum()
-            temporal_aug = np.random.choice(temporal_augs, p=temporal_p)
-            aug_ls.append(temporal_aug)
-            aug_ls.extend(np.random.choice(magnitude_augs, num_aug - 1, p=magnitude_p))
-
-        for aug in aug_ls:
-            aug_func = getattr(new_augmentation, aug)
-            parameters = self.augmentation_config[aug]["parameter"]
-            positive = aug_func(positive, **parameters)
-        window_min = raw_window.min(axis=0)
-        window_max = raw_window.max(axis=0)
-        
-        margin = 0.15 * (window_max - window_min)
-        positive = np.clip( positive, window_min - margin, window_max + margin)
-        positive = self.scaler.transform(positive)
-
-        return positive
-        
-    def stochastic_positive_sampler(self, i, jitter_range=(-2, 2)):
-        """
-        Lấy mẫu dương theo phương pháp Stochastic (Xác suất) kết hợp Jitter.
-        """
-        data = self.data_x
-        T = data.shape[0]
-        lags = self.lags
-        scores = self.scores
-        win_size = self.args.win_size
-        
-        # Lọc các lag không bị tràn mảng (Out of bounds)
-        valid_indices = [idx for idx, lag in enumerate(lags) if i + lag <= T - win_size]
-        
-        if not valid_indices:
-            # Fallback: Nếu không có lag nào khớp, lấy ngay cửa sổ tiếp theo kèm jitter
-            # để tránh làm gãy luồng training.
-            shift = win_size + np.random.randint(jitter_range[0], jitter_range[1] + 1)
-            pos_idx = min(i + shift, T - win_size)
-            return data[pos_idx : pos_idx + win_size]
-    
-        # VẤN ĐỀ 3 FIX: Sampling dựa trên trọng số điểm tương đồng
-        p_lags = lags[valid_indices]
-        p_scores = scores[valid_indices]
-        
-        # Chuyển scores thành xác suất (Softmax hoặc đơn giản là Normalize)
-        # Dùng Softmax nếu bạn muốn nhấn mạnh vào các lag có score cực cao
-        probs = p_scores / (np.sum(p_scores) + 1e-8)
-        
-        chosen_lag = np.random.choice(p_lags, p=probs)
-        
-        # Thêm Jitter để model không "học thuộc lòng" vị trí chính xác của chu kỳ
-        jitter = np.random.randint(jitter_range[0], jitter_range[1] + 1)
-        final_pos_idx = max(0, min(i + chosen_lag + jitter, T - win_size))
-        
-        return data[final_pos_idx : final_pos_idx + win_size]
         
     def get_timestamps(self):
         return self.possible_timestamps
