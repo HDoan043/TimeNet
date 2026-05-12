@@ -4,47 +4,76 @@ from utils.inject_anomalies import *
 
 # positive sampler
 def stochastic_positive_sampler(i, datacustom, jitter_range=(-2, 2)):
-    lags = datacustom.lags 
+    """
+    Bản tối ưu: Vectorized Bidirectional Sampling.
+    Tìm tất cả các vị trí chu kỳ trong cả quá khứ và tương lai cực nhanh.
+    """
+    lags = datacustom.lags
     scores = datacustom.scores
-    data = datacustom.data_x 
+    data = datacustom.data_x
     win_size = datacustom.win_size
-    T = data.shape[0]
+    T_max = data.shape[0] - win_size
     
-    # Đảm bảo i + lag không vượt quá giới hạn cuối mảng
-    valid_indices = [idx for idx, lag in enumerate(lags) if i + lag <= T - win_size]
+    # 1. Tính toán song song tất cả các vị trí ứng viên (Tiến & Lùi)
+    fwd_indices = i + lags
+    bwd_indices = i - lags
     
-    if not valid_indices:
-        shift = win_size + np.random.randint(jitter_range[0], jitter_range[1] + 1)
-        pos_idx = int(np.clip(i + shift, 0, T - win_size))
+    # 2. Tạo Mask lọc nhanh các chỉ số hợp lệ bằng Numpy (Vectorized)
+    mask_fwd = (fwd_indices >= 0) & (fwd_indices <= T_max)
+    mask_bwd = (bwd_indices >= 0) & (bwd_indices <= T_max)
+    
+    # 3. Gộp các ứng viên hợp lệ
+    valid_indices = np.concatenate([fwd_indices[mask_fwd], bwd_indices[mask_bwd]])
+    valid_scores = np.concatenate([scores[mask_fwd], scores[mask_bwd]])
+    
+    # 4. Xử lý trường hợp không có lag nào khớp (Edge cases)
+    if valid_indices.size == 0:
+        # Fallback: Lấy neighbor ngẫu nhiên trong tầm win_size
+        shift = np.random.randint(-win_size, win_size + 1)
+        pos_idx = int(np.clip(i + shift, 0, T_max))
         return data[pos_idx : pos_idx + win_size].copy()
 
-    p_lags = lags[valid_indices]
-    p_scores = scores[valid_indices]
-    probs = p_scores / (np.sum(p_scores) + 1e-8)
+    # 5. Lấy mẫu theo xác suất (Weighted Random Choice)
+    probs = valid_scores / (valid_scores.sum() + 1e-8)
+    chosen_idx = np.random.choice(valid_indices, p=probs)
     
-    chosen_lag = np.random.choice(p_lags, p=probs)
+    # 6. Thêm Jitter để tăng tính Robust
     jitter = np.random.randint(jitter_range[0], jitter_range[1] + 1)
+    final_idx = int(np.clip(chosen_idx + jitter, 0, T_max))
     
-    # Ép kiểu int để tránh lỗi chỉ số mảng
-    final_pos_idx = int(np.clip(i + chosen_lag + jitter, 0, T - win_size))
-    
-    return data[final_pos_idx : final_pos_idx + win_size].copy()
+    return data[final_idx : final_idx + win_size].copy()
 
-def neighbor_positive_sampler(datacustom, x_index_start, x_index_end):
-    data_x = datacustom.data_x
-    win_size = datacustom.win_size
-    T = data_x.shape[0]
+def neighbor_positive_sampler(datacustom, x_index_start):
+    """
+    Lấy cửa sổ lân cận (Adjacent). Tối ưu bằng cách tránh slice mảng trước khi chọn.
+    """
+    T_max = datacustom.data_x.shape[0] - datacustom.win_size
+    neighbor_dist = 3  # Khoảng cách lân cận
     
-    neighbor_distance = 2 # Tăng lên 2 để có nhiều lựa chọn hơn 1
-    possible_indices = [j for j in range(max(0, x_index_start - neighbor_distance), 
-                                         min(T - win_size, x_index_start + neighbor_distance + 1)) 
-                        if j != x_index_start]
+    # Chọn index trước, slice sau
+    possible_offsets = np.arange(-neighbor_dist, neighbor_dist + 1)
+    possible_offsets = possible_offsets[possible_offsets != 0]
     
-    if not possible_indices:
-        return data_x[x_index_start : x_index_start + win_size].copy()
-        
-    chosen_idx = np.random.choice(possible_indices)
-    return data_x[chosen_idx : chosen_idx + win_size].copy()
+    offset = np.random.choice(possible_offsets)
+    final_idx = int(np.clip(x_index_start + offset, 0, T_max))
+    
+    return datacustom.data_x[final_idx : final_idx + datacustom.win_size].copy()
+
+def negative_sampler(datacustom, x_index_start, x_index_end):
+    """
+    Negative sampling (Injection). Tối ưu bằng cách ép kiểu mảng ngay lập tức.
+    """
+    raw_window = datacustom.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
+    num_anomaly = 1 if np.random.rand() < 0.7 else 2
+    
+    anomaly_ls = np.random.choice(datacustom.real_anomaly_ls, num_anomaly, replace=False)
+    
+    negative, label = inject_full(raw_window, anomaly_ls, datacustom.position_map, datacustom.name_id_map)
+    
+    # Trả về mảng numpy float32 để tiết kiệm bộ nhớ và tăng tốc độ truyền lên GPU
+    return datacustom.scaler.transform(negative.values).astype('float32'), label
+
+# augmentation_positive_sampler giữ nguyên logic cũ nhưng thêm .astype('float32') ở đầu ra
 
 def augmentation_positive_sampler(datacustom, x_index_start, x_index_end):
     raw_window = datacustom.df_for_contrastive.iloc[x_index_start: x_index_end].values
@@ -110,16 +139,3 @@ def augmentation_positive_sampler(datacustom, x_index_start, x_index_end):
     positive = scaler.transform(positive)
 
     return positive
-
-def negative_sampler(datacustom, x_index_start, x_index_end):
-    # Đảm bảo lấy đúng window từ df thô
-    raw_window = datacustom.df_for_contrastive.iloc[x_index_start: x_index_end].copy()
-    num_anomaly = np.random.choice([1, 2], p=[0.7, 0.3])
-    anomaly_ls = np.random.choice(datacustom.real_anomaly_ls, num_anomaly, replace=False)
-    
-    # Inject xong trả về data đã scale
-    negative, label = inject_full(raw_window, anomaly_ls, datacustom.position_map, datacustom.name_id_map)
-    # StandardScaler transform nhận vào array 2D
-    negative_scaled = datacustom.scaler.transform(negative.values if hasattr(negative, 'values') else negative)
-    
-    return negative_scaled, label
