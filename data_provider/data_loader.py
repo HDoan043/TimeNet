@@ -467,7 +467,7 @@ class Dataset_Custom(Dataset):
                 if r < 0.7:
                     positive = stochastic_positive_sampler(x_index_start, self)
                 elif r<0.95:
-                    positive = neighbor_positive_sampler(self, x_index_start, x_index_end)
+                    positive = neighbor_positive_sampler(self, x_index_start)
                 else:
                     positive = augmentation_positive_sampler(self, x_index_start, x_index_end)
                 
