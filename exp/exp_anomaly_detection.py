@@ -248,10 +248,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
             print('loading model')
             checkpoint_path = os.path.join(self.args.checkpoints, setting, 'checkpoint.pth')
             if os.path.exists(checkpoint_path):
-                self.model.load_state_dict(torch.load(checkpoint_path))
+                self.model.load_state_dict(torch.load(checkpoint_path), strict=False)
             else:
                 backup_checkpoint_path = os.path.join(self.args.checkpoints, 'checkpoint.pth')
-                self.model.load_state_dict(torch.load(backup_checkpoint_path))
+                self.model.load_state_dict(torch.load(backup_checkpoint_path), strict=False)
 
         attens_energy = []
         folder_path = self.args.test_result_path if self.args.test_result_path != "" else './test_results/' + setting + '/'
