@@ -37,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, required=True, default='Autoformer',
                         help='model name, options: [Autoformer, Transformer, TimesNet]')
     parser.add_argument('--pate', type=int, default=0, help='1: Use PATE score (recommend), 0: use point adjustment and 4 metrics acc, pre, re, f1')
+    parser.add_argument('--aggregate', type=str, default='max', help='aggregation overlaping windows')
 
     # data loader
     parser.add_argument('--data', type=str, required=True, default='ETTh1', help='dataset type')
