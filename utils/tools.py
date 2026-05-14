@@ -7,6 +7,7 @@ import pandas as pd
 import math
 from scipy.fft import fft, ifft, next_fast_len
 from scipy.signal import find_peaks
+from pate.PATE_metric import PATE
 
 plt.switch_backend('agg')
 
@@ -196,3 +197,10 @@ def get_periodic_lags(matrix, win_size, min_lag=None):
     final_scores = props['prominences'][valid_mask]
     
     return final_lags, final_scores
+
+def PATE_evaluation(df, overlap_aggregate='max'):
+    df['date'] = pd.to_datetime(df['date'])
+    df = df.groupby(by='date', sort=True)[['score', 'label']].aggregate({'score': overlap_aggregate, 'label': 'max'})
+    score = df['score'].values
+    label = df['label'].values
+    return PATE(label, score, binary_scores=False)
