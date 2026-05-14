@@ -467,7 +467,7 @@ class Dataset_Custom(Dataset):
                 elif r<0.85:
                     positive = neighbor_positive_sampler(self, x_index_start)
                 elif r<0.92:
-                    positive = random_positve_sampler(x_index_start, self)
+                    positive = random_positive_sampler(x_index_start, self)
                 else:
                     positive = augmentation_positive_sampler(self, x_index_start, x_index_end)
                 
