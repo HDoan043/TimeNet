@@ -127,6 +127,12 @@ class Model(nn.Module):
             self.projection = nn.Linear(
                 configs.d_model * configs.seq_len, configs.num_class)
         if configs.contrastive == 1:
+            self.contrastive_decoder = nn.Sequential(
+                nn.Linear(configs.d_model, configs.d_model*2, bias=True),
+                nn.ReLU(),
+                nn.Linear(configs.d_mmodel*2, configs.d_model, bias=True),
+                nn.ReLU()
+            )
             self.contrastive_project = nn.Sequential(
                 nn.Linear(configs.d_model, configs.d_model), 
                 nn.ReLU(),
@@ -217,7 +223,11 @@ class Model(nn.Module):
             enc_out = self.layer_norm(self.model[i](enc_out))
 
         # project back
-        dec_out = self.projection(enc_out)
+        if self.configs.contrastive == 1:
+            dec_out = self.contrastive_decoder(enc_out)
+        else:
+            dec_out = enc_out
+        dec_out = self.projection(dec_out)
 
         # De-Normalization from Non-stationary Transformer
         sample_length = self.pred_len + self.seq_len if self.task_name == "long_term_forecasting" else self.win_size
