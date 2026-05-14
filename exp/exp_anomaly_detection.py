@@ -1,6 +1,6 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, ProgressBar
+from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, ProgressBar, PATE_evaluation
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
@@ -137,11 +137,13 @@ class Exp_Anomaly_Detection(Exp_Basic):
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         best_epoch = 0
+        best_pate = 0
         best_f1 = 0
         best_acc = 0
         best_pre = 0
         best_rec = 0
         best_threshold = 0
+        best_result = (0,0,0,0,0)
 
         model_optim = self._select_optimizer()
         criterion = self._select_criterion()
@@ -211,19 +213,33 @@ class Exp_Anomaly_Detection(Exp_Basic):
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
             # vali_loss = self.vali(vali_data, vali_loader, corr_matrix, criterion)
-            vali_best_acc, vali_best_pre, vali_best_rec, vali_best_f1, vali_best_threshold = self.test(setting)
-            if vali_best_f1 >= best_f1:
-                best_acc = vali_best_acc
-                best_pre = vali_best_pre 
-                best_rec = vali_best_rec
-                best_f1 = vali_best_f1
-                best_epoch = epoch
-                best_threshold = vali_best_threshold
-            print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali best f1: {3:.7f}".format(
-                epoch + 1, train_steps, train_loss, vali_best_f1))
-            early_stopping(vali_best_f1, self.model, path)
+            result = self.test(setting)
+            if len(result)>1:
+                vali_best_acc, vali_best_pre, vali_best_rec, vali_best_f1, vali_best_threshold = result
+                if vali_best_f1 >= best_f1:
+                    best_acc = vali_best_acc
+                    best_pre = vali_best_pre 
+                    best_rec = vali_best_rec
+                    best_f1 = vali_best_f1
+                    best_epoch = epoch
+                    best_threshold = vali_best_threshold
+                    best_result = (best_acc, best_pre, best_rec, best_f1, best_threshold)
+                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali best f1: {3:.7f}".format(
+                    epoch + 1, train_steps, train_loss, vali_best_f1))
+                score = vali_best_f1
+                
+            else: 
+                pate_score = result
+                if pate_score >= best_pate:
+                    best_epoch = epoch
+                    best_pate = pate_score
+                    best_result = (0,0,0,best_pate,0)
+                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Pate best: {3:.7f}".format(
+                    epoch + 1, train_steps, train_loss, pate_score))
+                score = pate_score
+            early_stopping(score, self.model, path)
             if trial:
-                trial.report(vali_best_f1, epoch)
+                trial.report(score, epoch)
                 if trial.should_prune():
                     raise optuna.exceptions.TrialPruned()
                     
@@ -235,7 +251,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
-        return best_acc, best_pre, best_rec, best_f1, best_threshold
+        return best_result
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')
@@ -333,92 +349,98 @@ class Exp_Anomaly_Detection(Exp_Basic):
         timestamps = np.array(timestamps.reshape(-1))
         timestamps = pd.to_datetime(timestamps, format='%Y-%m-%d %H:%M:%S')
 
-        predict_df = pd.DataFrame({"date": timestamps, "score": test_energy, "label": gt})
-        predict_df.to_csv(folder_path + "anomaly_score_df.csv")
+        if self.args.pate:
+            predict_df = pd.DataFrame({"date": timestamps, "score": test_energy, "label": gt})
+            predict_df.to_csv(folder_path + "anomaly_score_df.csv")
 
-        if self.args.threshold > -1:
-            threshold = self.args.threshold
-            print("Use provided threshold :", threshold)
+            pate_score = PATE_evaluation(predict_df)
+            print(f"PATE score: {pate_score}")
+            return pate_score
+
+        else:
+            if self.args.threshold > -1:
+                threshold = self.args.threshold
+                print("Use provided threshold :", threshold)
+                    
+                # (3) evaluation on the test set
+                pred = (test_energy > threshold).astype(int)
+                ######################################
+                # Save ground truth
+                np.save(folder_path + "true.npy", test_labels)
+                ######################################
                 
-            # (3) evaluation on the test set
-            pred = (test_energy > threshold).astype(int)
-            ######################################
-            # Save ground truth
-            np.save(folder_path + "true.npy", test_labels)
-            ######################################
+                # (4) detection adjustment
+                # gt, pred = adjustment(gt, pred)
+                pred = np.array(pred)
+                gt = np.array(gt)
+                
+                accuracy = accuracy_score(gt, pred)
+                precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
+                print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                    accuracy, precision,
+                    recall, f_score))
+                # Calculate batch time
+                avg_time_ms = np.mean(inference_times)
+                std_time_ms = np.std(inference_times) 
             
-            # (4) detection adjustment
-            # gt, pred = adjustment(gt, pred)
-            pred = np.array(pred)
-            gt = np.array(gt)
+                print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
+                max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
+                max_memory_mb = max_memory_bytes / (1024 * 1024)
+                print(f"Peak Memory: {max_memory_mb:.2f} MB")
+        
+                f = open("result_anomaly_detection.txt", 'a')
+                f.write(setting + "  \n")
+                f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                    accuracy, precision,
+                    recall, f_score))
+                f.write('\n')
+                f.write('\n')
+                f.close()
+                return accuracy, precision, recall, f_score, threshold
+    
+            print(f"=== TRYING ANOMALY RATIOS {self.args.anomaly_ratio} ===")
+            best_ratio = 0
+            best_acc = 0
+            best_pre = 0
+            best_re = 0
+            best_f1 = 0
             
-            accuracy = accuracy_score(gt, pred)
-            precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
+            for each in self.args.anomaly_ratio:
+                threshold = np.percentile(combined_energy, 100 - each)
+                    
+                # (3) evaluation on the test set
+                pred = (test_energy > threshold).astype(int)
+                
+        
+                # (4) detection adjustment
+                # gt, pred = adjustment(gt, pred)
+        
+                pred = np.array(pred)
+                gt = np.array(gt)
+            
+                accuracy = accuracy_score(gt, pred)
+                precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
+                # print("\tAccuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                #     accuracy, precision,
+                #     recall, f_score))
+                if f_score >= best_f1:
+                    best_acc = accuracy
+                    best_pre = precision
+                    best_re = recall
+                    best_f1 = f_score
+                    best_ratio = each
+                    best_threshold = threshold
+                # Calculate batch time
+                avg_time_ms = np.mean(inference_times)
+                std_time_ms = np.std(inference_times) 
+    
+                max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
+                max_memory_mb = max_memory_bytes / (1024 * 1024)
+    
+            print(f"Best anomaly_ratio: {best_ratio}, Best threshold: {best_threshold}")
             print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-                accuracy, precision,
-                recall, f_score))
-            # Calculate batch time
-            avg_time_ms = np.mean(inference_times)
-            std_time_ms = np.std(inference_times) 
-        
-            print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
-            max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
-            max_memory_mb = max_memory_bytes / (1024 * 1024)
-            print(f"Peak Memory: {max_memory_mb:.2f} MB")
-    
-            f = open("result_anomaly_detection.txt", 'a')
-            f.write(setting + "  \n")
-            f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-                accuracy, precision,
-                recall, f_score))
-            f.write('\n')
-            f.write('\n')
-            f.close()
-            return accuracy, precision, recall, f_score, threshold
-
-        print(f"=== TRYING ANOMALY RATIOS {self.args.anomaly_ratio} ===")
-        best_ratio = 0
-        best_acc = 0
-        best_pre = 0
-        best_re = 0
-        best_f1 = 0
-        
-        for each in self.args.anomaly_ratio:
-            threshold = np.percentile(combined_energy, 100 - each)
-                
-            # (3) evaluation on the test set
-            pred = (test_energy > threshold).astype(int)
-            
-    
-            # (4) detection adjustment
-            # gt, pred = adjustment(gt, pred)
-    
-            pred = np.array(pred)
-            gt = np.array(gt)
-        
-            accuracy = accuracy_score(gt, pred)
-            precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-            # print("\tAccuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            #     accuracy, precision,
-            #     recall, f_score))
-            if f_score >= best_f1:
-                best_acc = accuracy
-                best_pre = precision
-                best_re = recall
-                best_f1 = f_score
-                best_ratio = each
-                best_threshold = threshold
-            # Calculate batch time
-            avg_time_ms = np.mean(inference_times)
-            std_time_ms = np.std(inference_times) 
-
-            max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
-            max_memory_mb = max_memory_bytes / (1024 * 1024)
-
-        print(f"Best anomaly_ratio: {best_ratio}, Best threshold: {best_threshold}")
-        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            best_acc, best_pre, best_re, best_f1))
-        return best_acc, best_pre, best_re, best_f1, best_threshold
+                best_acc, best_pre, best_re, best_f1))
+            return best_acc, best_pre, best_re, best_f1, best_threshold
     def infer(self, setting, flag='test'):
         infer_data, infer_loader = self._get_data(flag='test')
         train_data, train_loader = self._get_data(flag='train')
