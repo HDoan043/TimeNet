@@ -353,7 +353,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             predict_df = pd.DataFrame({"date": timestamps, "score": test_energy, "label": gt})
             predict_df.to_csv(folder_path + "anomaly_score_df.csv")
 
-            pate_score = PATE_evaluation(predict_df)
+            pate_score = PATE_evaluation(predict_df, self.args.aggregate)
             print(f"PATE score: {pate_score}")
             return pate_score
 
