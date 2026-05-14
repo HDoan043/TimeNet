@@ -7,7 +7,7 @@ import pandas as pd
 import math
 from scipy.fft import fft, ifft, next_fast_len
 from scipy.signal import find_peaks
-from pate.PATE_metric import PATE
+from utils.pate_metric import PATE
 
 plt.switch_backend('agg')
 
