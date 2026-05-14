@@ -462,11 +462,11 @@ class Dataset_Custom(Dataset):
         
                 # Gen Posivie sample
                 r = np.random.rand()
-                if r < 0.6:
+                if r < 0.7:
                     positive = stochastic_positive_sampler(x_index_start, self)
-                elif r<0.85:
+                elif r<0.94:
                     positive = neighbor_positive_sampler(self, x_index_start)
-                elif r<0.92:
+                elif r<0.97:
                     positive = random_positive_sampler(x_index_start, self)
                 else:
                     positive = augmentation_positive_sampler(self, x_index_start, x_index_end)
