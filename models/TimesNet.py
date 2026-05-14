@@ -130,7 +130,7 @@ class Model(nn.Module):
             self.contrastive_decoder = nn.Sequential(
                 nn.Linear(configs.d_model, configs.d_model*2, bias=True),
                 nn.ReLU(),
-                nn.Linear(configs.d_mmodel*2, configs.d_model, bias=True),
+                nn.Linear(configs.d_model*2, configs.d_model, bias=True),
                 nn.ReLU()
             )
             self.contrastive_project = nn.Sequential(
