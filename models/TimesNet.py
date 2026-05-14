@@ -128,9 +128,9 @@ class Model(nn.Module):
                 configs.d_model * configs.seq_len, configs.num_class)
         if configs.contrastive == 1:
             self.contrastive_decoder = nn.Sequential(
-                nn.Linear(configs.d_model, configs.d_model*2, bias=True),
+                nn.Linear(configs.d_model, configs.d_model, bias=True),
                 nn.ReLU(),
-                nn.Linear(configs.d_model*2, configs.d_model, bias=True),
+                nn.Linear(configs.d_model, configs.d_model, bias=True),
                 nn.ReLU()
             )
             self.contrastive_project = nn.Sequential(
