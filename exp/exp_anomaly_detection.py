@@ -370,7 +370,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 ######################################
                 
                 # (4) detection adjustment
-                # gt, pred = adjustment(gt, pred)
+                gt, pred = adjustment(gt, pred)
                 pred = np.array(pred)
                 gt = np.array(gt)
                 
@@ -413,7 +413,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 
         
                 # (4) detection adjustment
-                # gt, pred = adjustment(gt, pred)
+                gt, pred = adjustment(gt, pred)
         
                 pred = np.array(pred)
                 gt = np.array(gt)
