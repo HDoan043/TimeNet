@@ -2,6 +2,34 @@ import numpy as np
 from utils import new_augmentation
 from utils.inject_anomalies import *
 
+def random_positive_sampler(i, datacustom):
+    """
+    Lấy một mẫu bình thường bất kỳ trong tập train, né vùng lân cận của i.
+    Tối ưu O(1), không tạo list gây chậm Dataloader.
+    """
+    T_max = datacustom.data_x.shape[0] - datacustom.win_size
+    # Nên để range rộng hơn một chút (ví dụ 5-10) để mẫu thực sự "khác biệt"
+    neighbor_range = 10 
+    
+    # Tổng số chỉ số khả thi sau khi trừ đi vùng cấm [i-range, i+range]
+    forbidden_span = 2 * neighbor_range + 1
+    total_valid = T_max - forbidden_span
+    
+    if total_valid <= 0: # Trường hợp mảng quá ngắn
+        return datacustom.data_x[i : i + datacustom.win_size].copy()
+    
+    # Chọn ngẫu nhiên trong dải thu hẹp
+    idx = np.random.randint(0, total_valid)
+    
+    # Nếu idx rơi vào hoặc vượt quá vùng cấm bên trái của i, ta đẩy nó sang bên phải
+    if idx >= (i - neighbor_range):
+        idx += forbidden_span
+    
+    # Đảm bảo index cuối cùng nằm trong biên an toàn
+    final_idx = int(np.clip(idx, 0, T_max))
+    
+    return datacustom.data_x[final_idx : final_idx + datacustom.win_size].copy()
+    
 # positive sampler
 def stochastic_positive_sampler(i, datacustom, jitter_range=(-2, 2)):
     """
