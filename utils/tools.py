@@ -198,9 +198,12 @@ def get_periodic_lags(matrix, win_size, min_lag=None):
     
     return final_lags, final_scores
 
-def PATE_evaluation(df, overlap_aggregate='max'):
+def aggregate(df, overlap_aggregate='max'):
     df['date'] = pd.to_datetime(df['date'])
     df = df.groupby(by='date', sort=True)[['score', 'label']].aggregate({'score': overlap_aggregate, 'label': 'max'})
     score = df['score'].values
     label = df['label'].values
+    return label, score
+    
+def PATE_evaluation(gt, score):
     return PATE(label, score, binary_scores=False)
