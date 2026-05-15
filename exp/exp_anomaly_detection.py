@@ -1,6 +1,6 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, ProgressBar, PATE_evaluation
+from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, ProgressBar, PATE_evaluation, aggregate
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
@@ -348,12 +348,13 @@ class Exp_Anomaly_Detection(Exp_Basic):
         timestamps = np.concatenate(timestamps, axis=0)
         timestamps = np.array(timestamps.reshape(-1))
         timestamps = pd.to_datetime(timestamps, format='%Y-%m-%d %H:%M:%S')
+        
+        predict_df = pd.DataFrame({"date": timestamps, "score": test_energy, "label": gt})
+        predict_df.to_csv(folder_path + "anomaly_score_df.csv")
 
+        gt, test_energy = aggregate(predict_df, self.args.aggregate)
         if self.args.pate:
-            predict_df = pd.DataFrame({"date": timestamps, "score": test_energy, "label": gt})
-            predict_df.to_csv(folder_path + "anomaly_score_df.csv")
-
-            pate_score = PATE_evaluation(predict_df, self.args.aggregate)
+            pate_score = PATE_evaluation(gt, pred)
             print(f"PATE score: {pate_score}")
             return pate_score
 
