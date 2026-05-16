@@ -189,6 +189,8 @@ if __name__ == '__main__':
     parser.add_argument('--label_guided_weight', type=float, default=0.3, help='Hidden representation of an input window is in shape win_size x d_model, while it should be a vector with shape 1 x d_model for similarity calculation. \
                                                                                 This weight determines how the anomaly timestamps affected the negative sample in collapsing from shape of win_size x d_model to 1 x d_model')
     parser.add_argument('--contrastive_d_model', type=int, default=64, help="dim of hidden latent of contrastive projector")
+    parser.add_argument('--contrastive_weight', type=float, default=0.1, help='ratio of the contrastive loss')
+    
     # Negative sampling 
     parser.add_argument('--position_map', type=str, help='path to position map')
     parser.add_argument('--name_id_map', type=str, help='path to map which mapping counters name and their coresspond id')
@@ -201,8 +203,9 @@ if __name__ == '__main__':
     # NTXent Loss
     parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones (Use in NTXent Loss)')
     # Triplet loss
-    parser.add_argument('--margin', type=float, default=0.3, help='how the positive representation should be far from the negative one in Triplet Loss')
-    parser.add_argument('--contrastive_weight', type=float, default=0.1, help='ratio of the contrastive loss')
+    parser.add_argument('--margin', type=float, default=0.3, help='how the positive representation should be far from the negative one in Triplet Loss and SeSimi Loss')
+    # SeSimi loss
+    parser.add_argument('--cross_association', type=int, default=0, help='Use cross association in SeSimi Loss')
     
     args = parser.parse_args()
     if isinstance(args.moving_avg, list) and len(args.moving_avg) == 1:
