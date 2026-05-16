@@ -21,7 +21,25 @@ import torch.nn as nn
 import numpy as np
 import pdb
 
-
+def gaussian_blur_1d(labels, kernel_size=5, sigma=1.0):
+        """
+        labels: [B, W]
+        return: [B, W]
+        """
+        x = t.arange(kernel_size, device=labels.device) - kernel_size // 2
+        kernel = t.exp(-(x**2) / (2 * sigma**2))
+        kernel = kernel / kernel.sum()
+        # reshape cho conv1d
+        kernel = kernel.view(1, 1, kernel_size)
+        
+        # input shape: [B, 1, W]
+        labels = labels.unsqueeze(1)
+        padding = kernel_size // 2
+        
+        blurred = nn.functional.conv1d( labels, kernel, padding=padding)
+        
+        return blurred.squeeze(1)
+    
 def divide_no_nan(a, b):
     """
     a/b where the resulted NaN or Inf are replaced by 0.
@@ -123,7 +141,7 @@ class NTXentLoss(nn.Module):
         # z = (z*attn_pooling).sum(dim=1)                                      # z: [3B, 1, d_model]
         # z = nn.functional.normalize(z, dim=1)                                     # z: [3B, 1, d_model]
         # -------------- ATTENTION POOLING WITH EMPHASIZED ANOMALY ----------------------
-        labels = self.gaussian_blur_1d(labels)                                 # labels: [B, win_size]
+        labels = gaussian_blur_1d(labels)                                      # labels: [B, win_size]
         labels = labels.unsqueeze(-1)                                          # labels: [B, win_size, 1]
         alpha = self.args.label_guided_weight
         neg_att = attn_pooling[neg_idx]
@@ -195,25 +213,6 @@ class NTXentLoss(nn.Module):
         # ------------------- FIXED WEIGHT -------------------
         contrastive_weight = self.contrastive_weight
         return recon_loss + contrastive_weight*loss.mean()
-
-    def gaussian_blur_1d(self, labels, kernel_size=5, sigma=1.0):
-        """
-        labels: [B, W]
-        return: [B, W]
-        """
-        x = t.arange(kernel_size, device=labels.device) - kernel_size // 2
-        kernel = t.exp(-(x**2) / (2 * sigma**2))
-        kernel = kernel / kernel.sum()
-        # reshape cho conv1d
-        kernel = kernel.view(1, 1, kernel_size)
-        
-        # input shape: [B, 1, W]
-        labels = labels.unsqueeze(1)
-        padding = kernel_size // 2
-        
-        blurred = nn.functional.conv1d( labels, kernel, padding=padding)
-        
-        return blurred.squeeze(1)
         
 class TripletLoss(nn.Module):
     def __init__(self, args):
@@ -238,7 +237,7 @@ class TripletLoss(nn.Module):
         # z = (z*attn_pooling).sum(dim=1)                                      # z: [3B, 1, d_model]
         # z = nn.functional.normalize(z, dim=1)                                # z: [3*batch_size, 1, d_model]
         # -------------- ATTENTION POOLING WITH EMPHASIZED ANOMALY ----------------------
-        labels = self.gaussian_blur_1d(labels)                                 # labels: [B, win_size]
+        labels = gaussian_blur_1d(labels)                                 # labels: [B, win_size]
         labels = labels.unsqueeze(-1)                                          # labels: [B, win_size, 1]
         alpha = self.args.label_guided_weight
         neg_att = attn_pooling[neg_idx]
@@ -259,22 +258,70 @@ class TripletLoss(nn.Module):
 
         loss = self.triplet(z_anchor, z_pos, z_neg)
         return loss
+
+class SeSimiLoss(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.args = args
+        self.margin = args.margin
+        self.label_guided_weight = args.label_guided_weight
+        self.cross_association = args.cross_association
         
-    def gaussian_blur_1d(self, labels, kernel_size=5, sigma=1.0):
-        """
-        labels: [B, W]
-        return: [B, W]
-        """
-        x = t.arange(kernel_size, device=labels.device) - kernel_size // 2
-        kernel = t.exp(-(x**2) / (2 * sigma**2))
-        kernel = kernel / kernel.sum()
-        # reshape cho conv1d
-        kernel = kernel.view(1, 1, kernel_size)
+    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
+        '''
+        My recommended loss: Semimi - Sequential Similarity
+        '''
         
-        # input shape: [B, 1, W]
-        labels = labels.unsqueeze(1)
-        padding = kernel_size // 2
+        batch_anchor = z[idx]                  # [B, win_size, d_model]            
+        batch_positive = z[pos_idx]            # [B, win_size, d_model]            
+        batch_negative = z[neg_idx]            # [B, win_size, d_model]   
+        # normalization
+        batch_anchor = nn.functional.normalize(batch_anchor, p=2, dim=-1)
+        batch_positive = nn.functional.normalize(batch_positive, p=2, dim=-1)
+        batch_negative = nn.functional.normalize(batch_negative, p=2, dim=-1)         
         
-        blurred = nn.functional.conv1d( labels, kernel, padding=padding)
+        # similarity
+        if not self.cross_association:
+            sim_a = t.matmul(batch_anchor,   batch_anchor.transpose(1,2))     # [B, win_size, win_size]
+            sim_p = t.matmul(batch_positive, batch_positive.transpose(1,2))   # [B, win_size, win_size]
+            sim_n = t.matmul(batch_negative, batch_negative.transpose(1,2))   # [B, win_size, win_size]
         
-        return blurred.squeeze(1)
+            # normalization
+            sim_a = nn.functional.normalize(sim_a, p=2, dim=-1)     # [B, win_size, win_size]
+            sim_p = nn.functional.normalize(sim_p, p=2, dim=-1)     # [B, win_size, win_size]
+            sim_n = nn.functional.normalize(sim_n, p=2, dim=-1)     # [B, win_size, win_size]
+            
+            # attention on the abnormal timestamps base on labels
+            label = gaussian_blur_1d(label).unsqueeze(-1)           # [B, win_size, 1]
+            label = t.maximum(label, label.transpose(1,2))          # [B, win_size, win_size]
+            
+            # loss
+            diff = (sim_a - sim_n)*(1+self.label_guided_weight*label)    # [B, win_size, win_size]
+            pos_dist = t.norm(sim_a - sim_p, p='fro', dim=(1,2))         # [B]
+            neg_dist = t.norm(diff, p='fro', dim=(1,2))                  # [B]
+            
+            loss = t.clamp(pos_dist - neg_dist + self.margin, min=0)     # [B]
+        else:
+            sim_a_p = t.matmul(batch_anchor, batch_positive.transpose(1,2))   # [B, win_size, win_size]
+            sim_a_n = t.matmul(batch_anchor, batch_negative.transpose(1,2))   # [B, win_size, win_size]
+            
+            # normalization
+            sim_a_p = nn.functional.normalize(sim_a_p, p=2, dim=-1) 
+            sim_a_n = nn.functional.normalize(sim_a_n, p=2, dim=-1) 
+            
+            # attention on the abnormal timestamps base on labels
+            label = gaussian_blur_1d(label).unsqueeze(-1)           # [B, win_size, 1]
+            label = t.maximum(label, label.transpose(1,2))          # [B, win_size, win_size]
+            sim_a_n = sim_a_n*(1+self.label_guided_weight*label)    # [B, win_size, win_size]
+            
+            # loss
+            win_size = batch_anchor.shape[1]
+            i_matrix = t.eye(win_size, device=sim_a_p.device).unsqueeze(0) # [B, win_size, win_size]
+            soft = 0.1
+            i_matrix = t.ones_like(i_matrix, device=sim_a_p.device)*soft + (1-soft)*i_matrix
+            pos_dist = t.norm(sim_a_p-i_matrix, p='fro', dim=(1,2)) # the representaton of timestamp i of anchor a should be the same as one of positive sample p
+                                                                    # where i of anchor a should be moderately the same as other timestamps'representation of positive sample p
+            neg_dist = t.norm(sim_a_n-i_matrix, p='fro', dim=(1,2))
+            
+            loss = t.clamp(pos_dist - neg_dist + self.margin, min=0)     # [B]
+        return t.mean(loss)
