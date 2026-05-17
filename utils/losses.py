@@ -311,7 +311,7 @@ class SeSimiLoss(nn.Module):
             sim_n = nn.functional.normalize(sim_n, p=2, dim=-1)     # [B, win_size, win_size]
             
             # attention on the abnormal timestamps base on labels
-            label = gaussian_blur_1d(label).unsqueeze(-1)           # [B, win_size, 1]
+            label = gaussian_blur_1d(labels).unsqueeze(-1)          # [B, win_size, 1]
             label = t.maximum(label, label.transpose(1,2))          # [B, win_size, win_size]
             
             # loss
@@ -329,7 +329,7 @@ class SeSimiLoss(nn.Module):
             sim_a_n = nn.functional.normalize(sim_a_n, p=2, dim=-1) 
             
             # attention on the abnormal timestamps base on labels
-            label = gaussian_blur_1d(label).unsqueeze(-1)           # [B, win_size, 1]
+            label = gaussian_blur_1d(labels).unsqueeze(-1)          # [B, win_size, 1]
             label = t.maximum(label, label.transpose(1,2))          # [B, win_size, win_size]
             sim_a_n = sim_a_n*(1+self.label_guided_weight*label)    # [B, win_size, win_size]
             
