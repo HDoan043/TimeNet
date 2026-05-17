@@ -79,7 +79,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         if self.args.contrastive == 1 and self.args.is_training == 1:
             if self.args.contrastive_criterion.lower() in ["ntxent", "nt-xent", "nt_xent", "nt_xent_loss", "nt-xent_loss"]:
                 criterion = NTXentLoss(self.args)
-            elif self.args.contrasitve_criterion.lower() in ["triplet", "triplet_loss", "triplet-loss"]:
+            elif self.args.contrastive_criterion.lower() in ["triplet", "triplet_loss", "triplet-loss"]:
                 criterion = TripletLoss(self.args)
             else:
                 criterion = SeSimiLoss(self.args)
