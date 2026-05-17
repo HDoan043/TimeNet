@@ -274,6 +274,7 @@ class SeSimiLoss(nn.Module):
         self.cross_association = args.cross_association
         self.reconstruct_weight = args.reconstruct_weight
         self.contrastive_weight = args.contrastive_weight
+        self.mse = nn.MSELoss()
         
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
         '''
