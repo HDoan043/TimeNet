@@ -115,6 +115,7 @@ class NTXentLoss(nn.Module):
         self.neighbor_sim_anchor = min(args.neighbor_sim_anchor, args.batch_size-1)
         self.neighbor_sim_pos = min(args.neighbor_sim_pos, args.batch_size-1)
         self.emphasize_negative = args.emphasize_negative
+        self.reconstruct_weight = args.reconstruct_weight
         self.contrastive_weight = args.contrastive_weight
 
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
@@ -212,12 +213,15 @@ class NTXentLoss(nn.Module):
         # contrastive_weight = contrastive_weight.clamp(0.1,10)
         # ------------------- FIXED WEIGHT -------------------
         contrastive_weight = self.contrastive_weight
-        return recon_loss + contrastive_weight*loss.mean()
+        reconstruct_weight = self.args.reconstruct_weight
+        return reconstruct_weight*recon_loss + contrastive_weight*loss.mean()
         
 class TripletLoss(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
+        self.reconstruct_weight = args.reconstruct_weight
+        self.contrastive_weight = args.contrastive_weight
         self.triplet = nn.TripletMarginLoss(margin=args.margin, p=2)
         self.mse = nn.MSELoss()
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
@@ -257,7 +261,9 @@ class TripletLoss(nn.Module):
         z_neg = z[neg_idx]                                                   # z_neg: [batch_size, d_model]
 
         loss = self.triplet(z_anchor, z_pos, z_neg)
-        return loss
+        reconstruct_weight = self.reconstruct_weight
+        contrastive_weight = self.contrastive_weight
+        return reconstruct_weight*recon_loss + contrastive_weight*loss
 
 class SeSimiLoss(nn.Module):
     def __init__(self, args):
@@ -266,11 +272,23 @@ class SeSimiLoss(nn.Module):
         self.margin = args.margin
         self.label_guided_weight = args.label_guided_weight
         self.cross_association = args.cross_association
+        self.reconstruct_weight = args.reconstruct_weight
+        self.contrastive_weight = args.contrastive_weight
         
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
         '''
         My recommended loss: Semimi - Sequential Similarity
         '''
+        # same device
+        idx = idx.to(x.device)
+        pos_idx = pos_idx.to(x.device)
+        neg_idx = neg_idx.to(x.device)
+        attn_pooling = attn_pooling.to(x.device)
+        labels = labels.to(x.device)
+
+        # reconstruct loss (anchor only)
+        B = idx.shape[0]
+        recon_loss = self.mse(x[idx], x_hat[idx])
         
         batch_anchor = z[idx]                  # [B, win_size, d_model]            
         batch_positive = z[pos_idx]            # [B, win_size, d_model]            
@@ -324,4 +342,6 @@ class SeSimiLoss(nn.Module):
             neg_dist = t.norm(sim_a_n-i_matrix, p='fro', dim=(1,2))
             
             loss = t.clamp(pos_dist - neg_dist + self.margin, min=0)     # [B]
-        return t.mean(loss)
+        contrastive_weight = self.contrastive_weight
+        reconstruct_weight = self.args.reconstruct_weight
+        return reconstruct_weight*recon_loss + contrastive_weight*t.mean(loss)
