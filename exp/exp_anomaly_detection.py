@@ -1,8 +1,7 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
 from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, ProgressBar, PATE_evaluation, aggregate
-from sklearn.metrics import precision_recall_fscore_support
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score, roc_auc_score, average_precision_score
 import torch.multiprocessing
 from utils.losses import *
 
@@ -140,6 +139,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         best_epoch = 0
         best_pate = 0
+        best_roc_auc = 0
+        best_pr_auc = 0
         best_f1 = 0
         best_acc = 0
         best_pre = 0
@@ -231,14 +232,33 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 score = vali_best_f1
                 
             else: 
-                pate_score = result
-                if pate_score >= best_pate:
-                    best_epoch = epoch
-                    best_pate = pate_score
-                    best_result = (0,0,0,best_pate,0)
-                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Pate best: {3:.7f}".format(
-                    epoch + 1, train_steps, train_loss, pate_score))
-                score = pate_score
+                if self.args.metric.lower() == "pate":
+                    pate_score = result
+                    if pate_score >= best_pate:
+                        best_epoch = epoch
+                        best_pate = pate_score
+                        best_result = (0,0,0,best_pate,0)
+                    print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Pate best: {3:.7f}".format(
+                        epoch + 1, train_steps, train_loss, pate_score))
+                    score = pate_score
+                elif self.args.metric.lower() in ["roc_auc", "roc-auc", "rocauc", "roc"]:
+                    roc_score = result
+                    if roc_score >= best_roc_auc:
+                        best_epoch = epoch
+                        best_roc_auc = roc_score
+                        best_result = (0,0,0,best_roc_auc,0)
+                    print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} ROC-AUC best: {3:.7f}".format(
+                        epoch + 1, train_steps, train_loss, roc_score))
+                    score = roc_score
+                else:
+                    pr_auc_score = result
+                    if pr_auc_score >= best_pr_auc:
+                        best_epoch = epoch
+                        best_pr_auc = pr_auc_score
+                        best_result = (0,0,0,best_pr_auc,0)
+                    print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} PR-AUC best: {3:.7f}".format(
+                        epoch + 1, train_steps, train_loss, pr_auc_score))
+                    score = pr_auc_score
             early_stopping(score, self.model, path)
             if trial:
                 trial.report(score, epoch)
@@ -355,52 +375,52 @@ class Exp_Anomaly_Detection(Exp_Basic):
         predict_df.to_csv(folder_path + "anomaly_score_df.csv")
 
         gt, test_energy = aggregate(predict_df, self.args.aggregate)
-        if self.args.pate:
-            pate_score = PATE_evaluation(gt, pred)
-            print(f"PATE score: {pate_score}")
-            return pate_score
+        pate_score = PATE_evaluation(gt, pred)
+        roc_auc = roc_auc_score(gt, pred)
+        pr_auc = average_precision_score(gt, pred)
+        print(f"PATE score: {pate_score}")
+        print(f"ROC-AUC score: {roc_auc}")
+        print(f"PR-AUC score: {pr_auc}")
 
-        else:
-            if self.args.threshold > -1:
-                threshold = self.args.threshold
-                print("Use provided threshold :", threshold)
-                    
-                # (3) evaluation on the test set
-                pred = (test_energy > threshold).astype(int)
-                ######################################
-                # Save ground truth
-                np.save(folder_path + "true.npy", test_labels)
-                ######################################
+        if self.args.threshold > -1:
+            threshold = self.args.threshold
+            print("Use provided threshold :", threshold)
                 
-                # (4) detection adjustment
-                gt, pred = adjustment(gt, pred)
-                pred = np.array(pred)
-                gt = np.array(gt)
-                
-                accuracy = accuracy_score(gt, pred)
-                precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-                print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-                    accuracy, precision,
-                    recall, f_score))
-                # Calculate batch time
-                avg_time_ms = np.mean(inference_times)
-                std_time_ms = np.std(inference_times) 
+            # (3) evaluation on the test set
+            pred = (test_energy > threshold).astype(int)
+            ######################################
+            # Save ground truth
+            np.save(folder_path + "true.npy", test_labels)
+            ######################################
             
-                print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
-                max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
-                max_memory_mb = max_memory_bytes / (1024 * 1024)
-                print(f"Peak Memory: {max_memory_mb:.2f} MB")
+            # (4) detection adjustment
+            gt, pred = adjustment(gt, pred)
+            pred = np.array(pred)
+            gt = np.array(gt)
+            
+            accuracy = accuracy_score(gt, pred)
+            precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
+            print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                accuracy, precision,
+                recall, f_score))
+            # Calculate batch time
+            avg_time_ms = np.mean(inference_times)
+            std_time_ms = np.std(inference_times) 
         
-                f = open("result_anomaly_detection.txt", 'a')
-                f.write(setting + "  \n")
-                f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-                    accuracy, precision,
-                    recall, f_score))
-                f.write('\n')
-                f.write('\n')
-                f.close()
-                return accuracy, precision, recall, f_score, threshold
+            print(f"Mean batch times: {avg_time_ms:.2f} ms ± {std_time_ms:.2f} ms")
+            max_memory_bytes = torch.cuda.max_memory_allocated(self.device)
+            max_memory_mb = max_memory_bytes / (1024 * 1024)
+            print(f"Peak Memory: {max_memory_mb:.2f} MB")
     
+            f = open("result_anomaly_detection.txt", 'a')
+            f.write(setting + "  \n")
+            f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                accuracy, precision,
+                recall, f_score))
+            f.write('\n')
+            f.write('\n')
+            f.close()
+        else:
             print(f"=== TRYING ANOMALY RATIOS {self.args.anomaly_ratio} ===")
             best_ratio = 0
             best_acc = 0
@@ -443,7 +463,16 @@ class Exp_Anomaly_Detection(Exp_Basic):
             print(f"Best anomaly_ratio: {best_ratio}, Best threshold: {best_threshold}")
             print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
                 best_acc, best_pre, best_re, best_f1))
-            return best_acc, best_pre, best_re, best_f1, best_threshold
+            accuracy = best_acc
+            precision = best_pre
+            recall = best_re
+            f_score = best_f1
+            threshold = best_threshold
+        if self.args.metric.lower() == "pate": return pate_score
+        elif self.args.metric.lower() in ["roc_auc", "roc-auc", "roc", "rocauc"]: return roc_auc
+        elif self.args.metric.lower() in ["pr_auc", "pr-auc", "prauc", "pr", "average precision score"]: return pr_auc
+        else: return accuracy, precision, recall, f_score, threshold
+        
     def infer(self, setting, flag='test'):
         infer_data, infer_loader = self._get_data(flag='test')
         train_data, train_loader = self._get_data(flag='train')
