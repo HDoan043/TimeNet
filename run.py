@@ -190,6 +190,7 @@ if __name__ == '__main__':
                                                                                 This weight determines how the anomaly timestamps affected the negative sample in collapsing from shape of win_size x d_model to 1 x d_model')
     parser.add_argument('--contrastive_d_model', type=int, default=64, help="dim of hidden latent of contrastive projector")
     parser.add_argument('--contrastive_weight', type=float, default=0.1, help='ratio of the contrastive loss')
+    parser.add_argument('--reconstruct_weight', type=float, default=1.0, help='ratio of the reconstruct loss')
     
     # Negative sampling 
     parser.add_argument('--position_map', type=str, help='path to position map')
