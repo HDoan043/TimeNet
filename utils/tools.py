@@ -204,6 +204,3 @@ def aggregate(df, overlap_aggregate='max'):
     score = df['score'].values
     label = df['label'].values
     return label, score
-    
-def PATE_evaluation(gt, score):
-    return PATE(label, score, binary_scores=False)
