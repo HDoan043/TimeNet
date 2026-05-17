@@ -178,9 +178,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
                     loss = criterion(outputs, batch_x)
                     train_loss.append(loss.item())
                 else:
-                    batch_all_samples, idx, pos_idx, neg_idx, label = batch
+                    batch_all_samples, batch_all_mark, idx, pos_idx, neg_idx, label = batch
                     batch_x = batch_all_samples.float().to(self.device)
-                    hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
+                    batch_x_mark = batch_all_mark.to(self.device)
+                    
+                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
                     loss = criterion(batch_x, outputs, hidden_state, idx, pos_idx, neg_idx, label, attn_pooling)
                     train_loss.append(loss.item())
 
@@ -313,7 +315,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 if self.args.contrastive == 0:
                     outputs = self.model(batch_x, batch_x_mark, None, None)    
                 else:
-                    hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
+                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
                 # criterion
             
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
@@ -327,34 +329,35 @@ class Exp_Anomaly_Detection(Exp_Basic):
         attens_energy = []
         test_labels = []
         timestamps = []
-        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
-            batch_x = batch_x.float().to(self.device)
-            batch_x_mark = batch_x_mark.to(self.device) 
-            # reconstruction
-            if self.args.use_gpu:
-                torch.cuda.synchronize()
-            start_time = time.time()
-            if self.args.contrastive == 0:
-                outputs = self.model(batch_x, batch_x_mark, None, None)
-            else:
-                hidden_state, outputs, attn_pooling = self.model(batch_x, None, None, None)
-            if self.args.use_gpu:
-                torch.cuda.synchronize() # Đợi GPU chạy xong 100%
-            end_time = time.time()
-
-            inference_times.append((end_time - start_time) * 1000)            
-            # criterion
-            score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)      # score:  [batch_size x win_size]
-            score = score.detach().cpu().numpy()
-            attens_energy.append(score)                                              # attens_energy: [batch_size x win_size] x num_batch
-            if i > len(test_loader) -2:
-                print("score: {}".format(score.shape))
-                print("batch_y: {}".format(batch_y.shape))
-            test_labels.append(batch_y)
-            batch_stamps = batch_x_mark.detach().cpu().numpy()
-            batch_stamps = [test_data.decode_timestamp(data_timestamp) for data_timestamp in batch_stamps]
-            timestamps.append(batch_stamps)
-        
+        with torch.no_grad():
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
+                batch_x = batch_x.float().to(self.device)
+                batch_x_mark = batch_x_mark.to(self.device) 
+                # reconstruction
+                if self.args.use_gpu:
+                    torch.cuda.synchronize()
+                start_time = time.time()
+                if self.args.contrastive == 0:
+                    outputs = self.model(batch_x, batch_x_mark, None, None)
+                else:
+                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
+                if self.args.use_gpu:
+                    torch.cuda.synchronize() # Đợi GPU chạy xong 100%
+                end_time = time.time()
+    
+                inference_times.append((end_time - start_time) * 1000)            
+                # criterion
+                score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)      # score:  [batch_size x win_size]
+                score = score.detach().cpu().numpy()
+                attens_energy.append(score)                                              # attens_energy: [batch_size x win_size] x num_batch
+                if i > len(test_loader) -2:
+                    print("score: {}".format(score.shape))
+                    print("batch_y: {}".format(batch_y.shape))
+                test_labels.append(batch_y)
+                batch_stamps = batch_x_mark.detach().cpu().numpy()
+                batch_stamps = [test_data.decode_timestamp(data_timestamp) for data_timestamp in batch_stamps]
+                timestamps.append(batch_stamps)
+            
         attens_energy = np.concatenate(attens_energy, axis=0)                        # attens_energy: [batch_size*num_batch x win_size]
         ######################################
         # Save predict result
