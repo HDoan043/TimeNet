@@ -1,6 +1,7 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, ProgressBar, PATE_evaluation, aggregate
+from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, ProgressBar, aggregate
+from utils.pate_metric import PATE
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, roc_auc_score, average_precision_score
 import torch.multiprocessing
 from utils.losses import *
@@ -375,10 +376,10 @@ class Exp_Anomaly_Detection(Exp_Basic):
         predict_df.to_csv(folder_path + "anomaly_score_df.csv")
 
         gt, test_energy = aggregate(predict_df, self.args.aggregate)
-        pate_score = PATE_evaluation(gt, test_energy)
+        # pate_score = PATE(gt, test_energy, e_buffer=6, d_buffer=12, binary_scores=False)
         roc_auc = roc_auc_score(gt, test_energy)
         pr_auc = average_precision_score(gt, test_energy)
-        print(f"PATE score: {pate_score}")
+        # print(f"PATE score: {pate_score}")
         print(f"ROC-AUC score: {roc_auc}")
         print(f"PR-AUC score: {pr_auc}")
 
