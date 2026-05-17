@@ -234,7 +234,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 
             else: 
                 if self.args.metric.lower() == "pate":
-                    pate_score = result
+                    pate_score = result[0]
                     if pate_score >= best_pate:
                         best_epoch = epoch
                         best_pate = pate_score
@@ -243,7 +243,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                         epoch + 1, train_steps, train_loss, pate_score))
                     score = pate_score
                 elif self.args.metric.lower() in ["roc_auc", "roc-auc", "rocauc", "roc"]:
-                    roc_score = result
+                    roc_score = result[0]
                     if roc_score >= best_roc_auc:
                         best_epoch = epoch
                         best_roc_auc = roc_score
@@ -252,7 +252,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                         epoch + 1, train_steps, train_loss, roc_score))
                     score = roc_score
                 else:
-                    pr_auc_score = result
+                    pr_auc_score = result[0]
                     if pr_auc_score >= best_pr_auc:
                         best_epoch = epoch
                         best_pr_auc = pr_auc_score
@@ -469,9 +469,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
             recall = best_re
             f_score = best_f1
             threshold = best_threshold
-        if self.args.metric.lower() == "pate": return pate_score
-        elif self.args.metric.lower() in ["roc_auc", "roc-auc", "roc", "rocauc"]: return roc_auc
-        elif self.args.metric.lower() in ["pr_auc", "pr-auc", "prauc", "pr", "average precision score"]: return pr_auc
+        if self.args.metric.lower() == "pate": return [pate_score]
+        elif self.args.metric.lower() in ["roc_auc", "roc-auc", "roc", "rocauc"]: return [roc_auc]
+        elif self.args.metric.lower() in ["pr_auc", "pr-auc", "prauc", "pr", "average precision score"]: return [pr_auc]
         else: return accuracy, precision, recall, f_score, threshold
         
     def infer(self, setting, flag='test'):
