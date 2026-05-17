@@ -375,9 +375,9 @@ class Exp_Anomaly_Detection(Exp_Basic):
         predict_df.to_csv(folder_path + "anomaly_score_df.csv")
 
         gt, test_energy = aggregate(predict_df, self.args.aggregate)
-        pate_score = PATE_evaluation(gt, pred)
-        roc_auc = roc_auc_score(gt, pred)
-        pr_auc = average_precision_score(gt, pred)
+        pate_score = PATE_evaluation(gt, test_energy)
+        roc_auc = roc_auc_score(gt, test_energy)
+        pr_auc = average_precision_score(gt, test_energy)
         print(f"PATE score: {pate_score}")
         print(f"ROC-AUC score: {roc_auc}")
         print(f"PR-AUC score: {pr_auc}")
