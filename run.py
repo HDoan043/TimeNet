@@ -205,8 +205,16 @@ if __name__ == '__main__':
     parser.add_argument('--emphasize_negative', type=float, default=0.5, help='how the true negative samples are emphasized more than the fake ones (Use in NTXent Loss)')
     # Triplet loss
     parser.add_argument('--margin', type=float, default=0.3, help='how the positive representation should be far from the negative one in Triplet Loss and SeSimi Loss')
-    # SeSimi loss
+    # SeSimi loss: Should enlarge the distance between anchor and the anomal region of negative window instead of the whole window
     parser.add_argument('--cross_association', type=int, default=0, help='Use cross association in SeSimi Loss')
+    parser.add_argument('--hard_mask', type=int, default=1, help='Use hard mask when calculate attention in SeSimi or not')
+    parser.add_argument('--max_ratio', type=float, default=0.7, help='SeSimi uses mask calculated by label and label.T, the 2 operators used are maximization and dot product, \
+                                                                    max_ratio is the rate of maximization')
+    parser.add_argument('--pos_ratio', type=float, default=0.5, help='Negative sample is a window including both the normal region and abnormal region, \
+                                                                    SeSimi loss aims to shorten the distance between the representation of the anchor and its positive sample,\
+                                                                        also shorten the distance between the representation of the anchor and the normal region in negative sample,\
+                                                                        while enlarge the distance between the represenation of the anchor and the abnormal region in negative sample.\
+                                                                        pos_ratio is the contribution ratio of distance between hidden state of the anchor and its positive samples.')
     
     args = parser.parse_args()
     if isinstance(args.moving_avg, list) and len(args.moving_avg) == 1:
