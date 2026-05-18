@@ -274,6 +274,9 @@ class SeSimiLoss(nn.Module):
         self.cross_association = args.cross_association
         self.reconstruct_weight = args.reconstruct_weight
         self.contrastive_weight = args.contrastive_weight
+        self.hard_mask = args.hard_mask
+        self.max_ratio = args.max_ratio 
+        self.pos_ratio = args.pos_ratio
         self.mse = nn.MSELoss()
         
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
@@ -297,52 +300,66 @@ class SeSimiLoss(nn.Module):
         # normalization
         batch_anchor = nn.functional.normalize(batch_anchor, p=2, dim=-1)
         batch_positive = nn.functional.normalize(batch_positive, p=2, dim=-1)
-        batch_negative = nn.functional.normalize(batch_negative, p=2, dim=-1)         
-        
+        batch_negative = nn.functional.normalize(batch_negative, p=2, dim=-1)    
+            
+        # attention on the abnormal timestamps base on labels
+        blur_label = gaussian_blur_1d(labels).unsqueeze(-1)                        # [B, win_size, 1]
+        hard_label = labels.unsqueeze(-1)                                          # [B, win_size, 1]
+        hard_mask = self.max_ratio*t.maximum(hard_label, hard_label.transpose(1,2))\
+             + (1-self.max_ratio)*t.matmul(hard_label, hard_label.transpose(1,2))  # [B, win_size, win_size]
+        soft_mask = self.max_ratio*t.maximum(blur_label, blur_label.transpose(1,2))\
+             + (1-self.max_ratio)*t.matmul(blur_label, blur_label.transpose(1,2))  # [B, win_size, win_size]
+        mask = hard_mask if self.hard_mask == 1 else soft_mask
+        anomaly_element = mask.sum(dim=(1,2))                                      # [B]
+        normal_element = (1-mask).sum(dim=(1,2))                              # [B]
+            
         # similarity
-        if not self.cross_association:
-            sim_a = t.matmul(batch_anchor,   batch_anchor.transpose(1,2))     # [B, win_size, win_size]
-            sim_p = t.matmul(batch_positive, batch_positive.transpose(1,2))   # [B, win_size, win_size]
-            sim_n = t.matmul(batch_negative, batch_negative.transpose(1,2))   # [B, win_size, win_size]
+        # if not self.cross_association:
+        sim_a = t.matmul(batch_anchor,   batch_anchor.transpose(1,2))          # [B, win_size, win_size]
+        sim_p = t.matmul(batch_positive, batch_positive.transpose(1,2))        # [B, win_size, win_size]
+        sim_n = t.matmul(batch_negative, batch_negative.transpose(1,2))        # [B, win_size, win_size]
+            
+        # negative distance
+        # abnormal region
+        neg_anomaly_dist = (sim_a - sim_n)*mask                                  # [B, win_size, win_size]
+        # normalize
+        neg_anomaly_dist = (neg_anomaly_dist**2).sum(dim=(1,2))                  # [B]
+        neg_anomaly_dist = t.sqrt(neg_anomaly_dist/(anomaly_element+1e-9) + 1e-9)# [B]
+        # normal region
+        neg_normal_dist = (sim_a - sim_n)*(1-mask)                               # [B]
+        neg_normal_dist = (neg_normal_dist**2).sum(dim=(1,2))                    # [B]
+        neg_normal_dist = t.sqrt(neg_normal_dist/(normal_element+1e-9) + 1e-9)   # [B]    
         
-            # normalization
-            sim_a = nn.functional.normalize(sim_a, p=2, dim=-1)     # [B, win_size, win_size]
-            sim_p = nn.functional.normalize(sim_p, p=2, dim=-1)     # [B, win_size, win_size]
-            sim_n = nn.functional.normalize(sim_n, p=2, dim=-1)     # [B, win_size, win_size]
-            
-            # attention on the abnormal timestamps base on labels
-            label = gaussian_blur_1d(labels).unsqueeze(-1)          # [B, win_size, 1]
-            label = t.maximum(label, label.transpose(1,2))          # [B, win_size, win_size]
-            
-            # loss
-            diff = (sim_a - sim_n)*(1+self.label_guided_weight*label)    # [B, win_size, win_size]
-            pos_dist = t.norm(sim_a - sim_p, p='fro', dim=(1,2))         # [B]
-            neg_dist = t.norm(diff, p='fro', dim=(1,2))                  # [B]
-            
-            loss = t.clamp(pos_dist - neg_dist + self.margin, min=0)     # [B]
-        else:
-            sim_a_p = t.matmul(batch_anchor, batch_positive.transpose(1,2))   # [B, win_size, win_size]
-            sim_a_n = t.matmul(batch_anchor, batch_negative.transpose(1,2))   # [B, win_size, win_size]
-            
-            # normalization
-            sim_a_p = nn.functional.normalize(sim_a_p, p=2, dim=-1) 
-            sim_a_n = nn.functional.normalize(sim_a_n, p=2, dim=-1) 
-            
-            # attention on the abnormal timestamps base on labels
-            label = gaussian_blur_1d(labels).unsqueeze(-1)          # [B, win_size, 1]
-            label = t.maximum(label, label.transpose(1,2))          # [B, win_size, win_size]
-            sim_a_n = sim_a_n*(1+self.label_guided_weight*label)    # [B, win_size, win_size]
-            
-            # loss
-            win_size = batch_anchor.shape[1]
-            i_matrix = t.eye(win_size, device=sim_a_p.device).unsqueeze(0) # [B, win_size, win_size]
-            soft = 0.1
-            i_matrix = t.ones_like(i_matrix, device=sim_a_p.device)*soft + (1-soft)*i_matrix
-            pos_dist = t.norm(sim_a_p-i_matrix, p='fro', dim=(1,2)) # the representaton of timestamp i of anchor a should be the same as one of positive sample p
-                                                                    # where i of anchor a should be moderately the same as other timestamps'representation of positive sample p
-            neg_dist = t.norm(sim_a_n-i_matrix, p='fro', dim=(1,2))
-            
-            loss = t.clamp(pos_dist - neg_dist + self.margin, min=0)     # [B]
+        # positive distance
+        pos_dist = t.sqrt(((sim_a - sim_p)**2).mean(dim=(1,2)) + 1e-9)           # [B]
+        
+        # loss
+        loss = t.clamp(self.pos_ratio*pos_dist + (1-self.pos_ratio)*neg_normal_dist 
+                       - neg_anomaly_dist + self.margin, min=0)     # [B]
+
         contrastive_weight = self.contrastive_weight
         reconstruct_weight = self.args.reconstruct_weight
+
         return reconstruct_weight*recon_loss + contrastive_weight*t.mean(loss)
+        # else:
+        #     sim_a_p = t.matmul(batch_anchor, batch_positive.transpose(1,2))   # [B, win_size, win_size]
+        #     sim_a_n = t.matmul(batch_anchor, batch_negative.transpose(1,2))   # [B, win_size, win_size]
+            
+        #     # normalization
+        #     sim_a_p = nn.functional.normalize(sim_a_p, p=2, dim=-1) 
+        #     sim_a_n = nn.functional.normalize(sim_a_n, p=2, dim=-1) 
+            
+        #     # attention on the abnormal timestamps base on labels
+        #     sim_a_n = sim_a_n*(1+self.label_guided_weight*label)    # [B, win_size, win_size]
+            
+        #     # loss
+        #     win_size = batch_anchor.shape[1]
+        #     i_matrix = t.eye(win_size, device=sim_a_p.device).unsqueeze(0) # [B, win_size, win_size]
+        #     soft = 0.1
+        #     i_matrix = t.ones_like(i_matrix, device=sim_a_p.device)*soft + (1-soft)*i_matrix
+        #     pos_dist = t.norm(sim_a_p-i_matrix, p='fro', dim=(1,2)) # the representaton of timestamp i of anchor a should be the same as one of positive sample p
+        #                                                             # where i of anchor a should be moderately the same as other timestamps'representation of positive sample p
+        #     neg_dist = t.norm(sim_a_n-i_matrix, p='fro', dim=(1,2))
+            
+        #     loss = t.clamp(pos_dist - neg_dist + self.margin, min=0)     # [B]
+        
