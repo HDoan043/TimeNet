@@ -1,6 +1,6 @@
 import numpy as np
 from utils import new_augmentation
-from utils.inject_anomalies import *
+from utils.inject_anomalies_optimal import *
 
 def random_positive_sampler(i, datacustom):
     """
