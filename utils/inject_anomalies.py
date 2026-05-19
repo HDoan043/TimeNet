@@ -115,29 +115,50 @@ def build_timeline_effects(anomaly, position_map, name_id_map):
 # =========================
 # Core injection (ADVANCED)
 # =========================
-def apply_causal_injection(df_clean, df, indexes, timeline_effects):
+def apply_causal_injection(df_clean, df, overlap_indexes, anomaly_start, anomaly_length, timeline_effects):
     if not timeline_effects:
         return df
 
-    # 1. Split indexes equally into each timeline 
-    num_steps = len(timeline_effects)
-    step_size = max(1, len(indexes) // num_steps)
+    # 1.  
+    sorted_timelines = sorted(list(timeline_effects.keys()))
+    num_timelines = len(sorted_timelines)
     
-    used = set()
-    for step, timeline in enumerate(timeline_effects.keys()):
-        # 2. Modify to make steps contain different indexes --> more realistic
-        shift = np.random.randint(-step_size//4, step_size//4)
-        start = max(0, step * step_size + shift)
-        end = min(len(indexes), (step + 1) * step_size + shift)
-        raw_idx = indexes[start:end]
+    # Nhóm các index thực tế vào đúng timeline của nó dựa trên tiến trình %
+    timeline_to_indexes = {t: [] for t in sorted_timelines}
+    
+    for i in overlap_indexes:
+        # Tính xem điểm i này nằm ở bao nhiêu % của toàn bộ sự cố gốc
+        progress = (i - anomaly_start) / max(1, anomaly_length)
         
-        step_idx = []
-        for i in raw_idx:
-            if i not in used or np.random.rand() < 0.1:  # cho overlap nhẹ
-                step_idx.append(i)
-                used.add(i)
+        # Ánh xạ % đó sang đúng timeline phase
+        timeline_idx = int(progress * num_timelines)
+        timeline_idx = min(max(0, timeline_idx), num_timelines - 1) 
+        
+        current_timeline = sorted_timelines[timeline_idx]
+        timeline_to_indexes[current_timeline].append(i)
+        
+    # num_steps = len(timeline_effects)
+    # step_size = max(1, len(indexes) // num_steps)
+    
+    # used = set()
+    # for step, timeline in enumerate(timeline_effects.keys()):
+        # # 2. Modify to make steps contain different indexes --> more realistic
+        # shift = np.random.randint(-step_size//4, step_size//4)
+        # start = max(0, step * step_size + shift)
+        # end = min(len(indexes), (step + 1) * step_size + shift)
+        # raw_idx = indexes[start:end]
+        
+        # step_idx = []
+        # for i in raw_idx:
+        #     if i not in used or np.random.rand() < 0.1:  # cho overlap nhẹ
+        #         step_idx.append(i)
+        #         used.add(i)
                 
         # step_idx = indexes[start:end]
+    for timeline, step_idx in timeline_to_indexes.items():
+        if not step_idx: 
+            continue
+            
         cols = list(timeline_effects[timeline].keys())
 
         col_multiplier_map = timeline_effects[timeline]
@@ -218,38 +239,61 @@ def apply_seasonal_shift(df_clean, df, indexes, exclude_cols=None):
 # =========================
 # Recovery (imperfect)
 # =========================
-def apply_tail_effect(df_clean, df, indexes):
+def apply_tail_effect(df_clean, df, anomaly_index_end, anomaly_length):
     cols = [c for c in df.columns if c not in ["date", "label", "Unnamed: 0"]]
 
-    tail_len = int(0.2 * len(indexes))
-    start = indexes[-1] + 1
-    end = min(len(df), start + tail_len)
-
-    for i in range(start, end):
-        prev = df.loc[i - 1]
-
-        for col in cols:
-            drift = np.random.uniform(0.95, 1.05)
-            df.at[i, col] = apply_noise(prev[col] * drift, 0.02)
+    tail_len = int(0.2 * anomaly_length)
+    
+    # Giới hạn vùng đuôi thực tế trên trục thời gian
+    tail_start_global = anomaly_index_end + 1
+    tail_end_global = tail_start_global + tail_len
+    
+    # Tìm vùng giao thoa giữa đuôi sự cố và cửa sổ df hiện tại
+    df_start = df.index[0]
+    df_end = df.index[-1]
+    
+    overlap_start = max(df_start, tail_start_global)
+    overlap_end = min(df_end, tail_end_global)
+    
+    if overlap_start > overlap_end:
+        return df # Đuôi không lọt vào cửa sổ này
+        
+    for i in range(overlap_start, min(overlap_end + 1, df_end + 1)):
+        # Đảm bảo không bị lỗi index out of bounds khi lấy prev
+        if (i - 1) in df.index:
+            prev = df.loc[i - 1]
+            for col in cols:
+                drift = np.random.uniform(0.95, 1.05)
+                df.at[i, col] = apply_noise(prev[col] * drift, 0.02)
 
     return df
 
 # =========================
 # Labels (AMBIGUOUS BOUNDARY)
 # =========================
-def apply_labels(df, indexes, is_fake=False):
+def apply_labels(df, overlap_indexes, anomaly_index_start, anomaly_index_end, is_fake=False):
     if "label" not in df.columns:
         df["label"] = 0
 
     if not is_fake:
-        n = len(indexes)
-        fade = max(3, int(0.15 * n))
+        anomaly_length = anomaly_index_end - anomaly_index_start
+        # Tính độ mờ dựa trên chiều dài sự cố GỐC
+        fade = max(3, int(0.15 * max(1, anomaly_length)))
 
-        for i, idx in enumerate(indexes):
-            if fade <= i <= n - fade:
+        for idx in overlap_indexes:
+            # Nếu điểm này nằm ở vùng lõi của sự cố (cách xa 2 biên)
+            if (anomaly_index_start + fade) <= idx <= (anomaly_index_end - fade):
                 df.at[idx, "label"] = 1
             else:
-                prob = i / fade if i < fade else (n - i) / fade
+                # Nếu nằm ở vùng biên khởi phát
+                if idx < (anomaly_index_start + fade):
+                    prob = (idx - anomaly_index_start + 1) / fade
+                # Nếu nằm ở vùng biên kết thúc
+                else:
+                    prob = (anomaly_index_end - idx + 1) / fade
+                
+                # Đảm bảo xác suất hợp lệ
+                prob = max(0.0, min(1.0, prob))
                 if np.random.rand() < prob:
                     df.at[idx, "label"] = 1
 
@@ -259,22 +303,29 @@ def apply_labels(df, indexes, is_fake=False):
 # Inject one
 # =========================
 def inject_one(df_clean, df, anomaly, position_map, name_id_map, is_fake=False):
-    df = df.copy()
-
     start = anomaly["start"]
     end = anomaly["end"]
-    anomaly_length = end-start
+    anomaly_length = end - start
     
-    indexes_start = df.index.tolist()[0]
-    indexes_end = df.index.tolist()[-1]
-    anomaly_index_start = np.random.randint(indexes_start, indexes_end - anomaly_length - 1)
+    indexes_start = df.index[0]
+    indexes_end = df.index[-1]
+    
+    # Cho phép sự cố bắt đầu TRƯỚC cửa sổ (để bắt đoạn đuôi) 
+    # Hoặc bắt đầu GẦN CUỐI cửa sổ (để bắt đoạn đầu)
+    min_start = indexes_start - anomaly_length + 1
+    max_start = indexes_end
+    
+    anomaly_index_start = np.random.randint(min_start, max_start + 1)
     anomaly_index_end = anomaly_index_start + anomaly_length
     
-    indexes = list(range( anomaly_index_start, 
-                         min(anomaly_index_end+1, indexes_end+1)))
+    # Tìm vùng giao thoa thực tế giữa sự cố và cửa sổ
+    overlap_start = max(indexes_start, anomaly_index_start)
+    overlap_end = min(indexes_end, anomaly_index_end)
 
-    if len(indexes) == 0:
-        return df
+    if overlap_start > overlap_end:
+        return df # Sự cố vô tình trượt hẳn ra ngoài, trả về sạch
+
+    indexes = list(range(overlap_start, min(overlap_end + 1, indexes_end + 1)))
 
     timeline_effects = build_timeline_effects(anomaly, position_map, name_id_map)
     anomaly_cols = set()
@@ -285,9 +336,9 @@ def inject_one(df_clean, df, anomaly, position_map, name_id_map, is_fake=False):
         df = apply_long_term_drift(df_clean, df, indexes, exclude_cols=anomaly_cols)
     if np.random.rand() < 0.3:
         df = apply_seasonal_shift(df_clean, df, indexes, exclude_cols=anomaly_cols)
-    df = apply_causal_injection(df_clean, df, indexes, timeline_effects)
-    df = apply_tail_effect(df_clean, df, indexes)
-    df = apply_labels(df, indexes, is_fake)
+    df = apply_causal_injection(df_clean, df, indexes, anomaly_index_start, anomaly_length, timeline_effects)
+    df = apply_tail_effect(df_clean, df, anomaly_index_end, anomaly_length)
+    df = apply_labels(df, indexes, anomaly_index_start, anomaly_index_end, is_fake)
 
     return df
 
