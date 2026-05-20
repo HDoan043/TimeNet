@@ -30,11 +30,34 @@ class Exp_Anomaly_Detection(Exp_Basic):
         if self.args.use_multi_gpu and self.args.use_gpu:
             model = nn.DataParallel(model, device_ids=self.args.device_ids)
 
-        # real_model = ( model.module if isinstance(model, nn.DataParallel) else model)
-        # for p in real_model.enc_embedding.parameters(): p.requires_grad=False
-        # for i in range(2): 
-        #     for p in real_model.model[i].parameters(): p.requires_grad=False
+        # 1. Trích xuất model gốc từ DataParallel (Giữ nguyên logic đúng của bạn)
+        real_model = model.module if isinstance(model, (nn.DataParallel, nn.parallel.DistributedDataParallel)) else model
+        
+        freeze_layers = self.args.freeze
+        
+        if freeze_layers and len(freeze_layers) > 0:
+            print(f"[☃️] Freezing layers matching: {freeze_layers}...")
             
+            # Tập hợp các layer đã tìm thấy để kiểm tra layer nào bị viết sai chính tả
+            matched_layers = set()
+            
+            # Duyệt qua từng module con trong mô hình
+            for module_name, module in real_model.named_modules():
+                # Kiểm tra xem module này có nằm trong danh sách cần freeze không
+                for target_layer in freeze_layers:
+                    # So khớp chính xác hoặc khớp lớp con (ví dụ: 'layers.0' sẽ khớp với 'layers.0.conv')
+                    if module_name == target_layer or module_name.startswith(target_layer + "."):
+                        matched_layers.add(target_layer)
+                        
+                        # Freeze toàn bộ parameter của module này
+                        for param in module.parameters():
+                            param.requires_grad = False
+        
+            # Cảnh báo nếu người dùng nhập sai tên layer từ môi trường ngoài
+            for target_layer in freeze_layers:
+                if target_layer not in matched_layers:
+                    print(f"[⚠️] Warning: Model has no module named '{target_layer}'")
+    
         return model
 
     def _get_data(self, flag, contrastive=False):
