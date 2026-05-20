@@ -298,9 +298,9 @@ class SeSimiLoss(nn.Module):
         batch_positive = z[pos_idx]            # [B, win_size, d_model]            
         batch_negative = z[neg_idx]            # [B, win_size, d_model]   
         # normalization
-        batch_anchor = nn.functional.normalize(batch_anchor, p=2, dim=-1)
-        batch_positive = nn.functional.normalize(batch_positive, p=2, dim=-1)
-        batch_negative = nn.functional.normalize(batch_negative, p=2, dim=-1)    
+        # batch_anchor = nn.functional.normalize(batch_anchor, p=2, dim=-1)
+        # batch_positive = nn.functional.normalize(batch_positive, p=2, dim=-1)
+        # batch_negative = nn.functional.normalize(batch_negative, p=2, dim=-1)    
             
         # attention on the abnormal timestamps base on labels
         blur_label = gaussian_blur_1d(labels).unsqueeze(-1)                        # [B, win_size, 1]
