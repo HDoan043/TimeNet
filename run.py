@@ -199,7 +199,7 @@ if __name__ == '__main__':
     parser.add_argument('--anomaly_list', type=str, help='path to anomaly file')
     parser.add_argument('--neighbor_sim_anchor', type=int, default=1, help='number of neighbors that are considered as positive samples of an anchor in contrastive learning')
     parser.add_argument('--neighbor_sim_pos', type=int, default=0, help='number of augmentations of neighbors that are considered as positive samples of an anchor in contrastive learning')
-    parser.add_argument('--temperature', type=float, default=1, help='temperature of smoothing the softmax')
+    parser.add_argument('--temperature', type=float, default=0.5, help='temperature of smoothing the softmax')
     # Positive samples generating control
     parser.add_argument('--augmentation_config', type=str, default=str(augmentation_config), help='config of augmentation to generating positive samples for contrastive learning')
     # NTXent Loss
@@ -209,7 +209,6 @@ if __name__ == '__main__':
     # SeSimi loss: Should enlarge the distance between anchor and the anomal region of negative window instead of the whole window
     parser.add_argument('--cross_association', type=int, default=0, help='Use cross association in SeSimi Loss')
     parser.add_argument('--hard_mask', type=int, default=1, help='Use hard mask when calculate attention in SeSimi or not')
-    parser.add_argument('--lambda_mag', type=float, default=0.1, help='Ratio of magnitude loss in comparison with the similarity loss')
     parser.add_argument('--max_ratio', type=float, default=0.7, help='SeSimi uses mask calculated by label and label.T, the 2 operators used are maximization and dot product, \
                                                                     max_ratio is the rate of maximization')
     parser.add_argument('--pos_ratio', type=float, default=0.5, help='Negative sample is a window including both the normal region and abnormal region, \
@@ -217,6 +216,7 @@ if __name__ == '__main__':
                                                                         also shorten the distance between the representation of the anchor and the normal region in negative sample,\
                                                                         while enlarge the distance between the represenation of the anchor and the abnormal region in negative sample.\
                                                                         pos_ratio is the contribution ratio of distance between hidden state of the anchor and its positive samples.')
+    parser.add_argument('--alpha_floor', type=float, default=0.2)
     
     args = parser.parse_args()
     if isinstance(args.moving_avg, list) and len(args.moving_avg) == 1:
