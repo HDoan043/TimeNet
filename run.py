@@ -38,6 +38,7 @@ if __name__ == '__main__':
                         help='model name, options: [Autoformer, Transformer, TimesNet]')
     parser.add_argument('--metric', type=str, default='threshold', help='threshold: use a threshold to classification and calculate accuracy, precision, recall, f1; pate: use pate score (not depend on threshold); roc-auc: use roc-auc; pr-auc: use pr-auc score')
     parser.add_argument('--aggregate', type=str, default='max', help='aggregation overlaping windows')
+    parser.add_argument('--freeze', type=str, nargs='+', default=[], help='Name of the layers that need to be freezed')
 
     # data loader
     parser.add_argument('--data', type=str, required=True, default='ETTh1', help='dataset type')
