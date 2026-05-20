@@ -209,7 +209,7 @@ if __name__ == '__main__':
     # SeSimi loss: Should enlarge the distance between anchor and the anomal region of negative window instead of the whole window
     parser.add_argument('--cross_association', type=int, default=0, help='Use cross association in SeSimi Loss')
     parser.add_argument('--hard_mask', type=int, default=1, help='Use hard mask when calculate attention in SeSimi or not')
-    parser.add_argument('--lambda_mask', type=float, default=0.1, help='Ratio of magnitude loss in comparison with the similarity loss')
+    parser.add_argument('--lambda_mag', type=float, default=0.1, help='Ratio of magnitude loss in comparison with the similarity loss')
     parser.add_argument('--max_ratio', type=float, default=0.7, help='SeSimi uses mask calculated by label and label.T, the 2 operators used are maximization and dot product, \
                                                                     max_ratio is the rate of maximization')
     parser.add_argument('--pos_ratio', type=float, default=0.5, help='Negative sample is a window including both the normal region and abnormal region, \
