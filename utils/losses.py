@@ -270,7 +270,6 @@ class SeSimiLoss(nn.Module):
         super().__init__()
         self.args = args
         self.margin = args.margin
-        self.label_guided_weight = args.label_guided_weight
         self.cross_association = args.cross_association
         self.reconstruct_weight = args.reconstruct_weight
         self.contrastive_weight = args.contrastive_weight
@@ -279,11 +278,14 @@ class SeSimiLoss(nn.Module):
         self.pos_ratio = args.pos_ratio
         self.mse = nn.MSELoss()
 
-        self.lambda_mag = getattr(args, 'lambda_mag', 0.1)
+        # Nhiệt độ cho Softmax
+        self.temperature = getattr(args, 'temperature', 0.5)
+        # Mức trọng số tối thiểu để cứu nhánh yếu (Chống sập)
+        self.alpha_floor = getattr(args, 'alpha_floor', 0.2)
         
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
         '''
-        My recommended loss: Semimi - Sequential Similarity
+        My recommended loss: Semimi - Sequential Similarity (Fully Adaptive & Bounded)
         '''
         # same device
         idx = idx.to(x.device)
@@ -313,8 +315,9 @@ class SeSimiLoss(nn.Module):
         soft_mask = self.max_ratio*t.maximum(blur_label, blur_label.transpose(1,2))\
              + (1-self.max_ratio)*t.matmul(blur_label, blur_label.transpose(1,2))  # [B, win_size, win_size]
         mask = hard_mask if self.hard_mask == 1 else soft_mask
+        
         anomaly_element = mask.sum(dim=(1,2))                                      # [B]
-        normal_element = (1-mask).sum(dim=(1,2))                              # [B]
+        normal_element = (1-mask).sum(dim=(1,2))                                   # [B]
             
         # ==========================================
         # 1. SIMILARITY BRANCH (Relation)
@@ -323,64 +326,81 @@ class SeSimiLoss(nn.Module):
         sim_p = t.matmul(batch_positive_norm, batch_positive_norm.transpose(1,2))  
         sim_n = t.matmul(batch_negative_norm, batch_negative_norm.transpose(1,2))  
             
-        # negative distance
         neg_anomaly_dist = (sim_a - sim_n)*mask                                  
         neg_anomaly_dist = (neg_anomaly_dist**2).sum(dim=(1,2))                  
-        neg_anomaly_dist = t.sqrt(neg_anomaly_dist/(anomaly_element+1e-9) + 1e-9)
+        neg_anomaly_dist = t.sqrt(neg_anomaly_dist/(anomaly_element+1e-9) + 1e-9)  # [B]
 
         neg_normal_dist = (sim_a - sim_n)*(1-mask)                               
         neg_normal_dist = (neg_normal_dist**2).sum(dim=(1,2))                    
-        neg_normal_dist = t.sqrt(neg_normal_dist/(normal_element+1e-9) + 1e-9)   
+        neg_normal_dist = t.sqrt(neg_normal_dist/(normal_element+1e-9) + 1e-9)     # [B]
         
-        # positive distance
-        pos_dist = t.sqrt(((sim_a - sim_p)**2).mean(dim=(1,2)) + 1e-9)           
+        pos_dist = t.sqrt(((sim_a - sim_p)**2).mean(dim=(1,2)) + 1e-9)             # [B]
         
-        # similar loss
         sim_loss = t.clamp(self.pos_ratio*pos_dist + (1-self.pos_ratio)*neg_normal_dist 
                        - neg_anomaly_dist + self.margin, min=0)                  # [B]
 
         # ==========================================
-        # 2. MAGNITUDE BRANCH (Energy/Scale)
+        # 2. MAGNITUDE BRANCH (Normalized Relative Distance)
         # ==========================================
-        # [CẢI TIẾN 1]: Dùng Log-Energy để ổn định độ lớn
-        mag_a = t.log(t.norm(batch_anchor, p=2, dim=-1) + 1e-6)                    # [B, win_size]
-        mag_p = t.log(t.norm(batch_positive, p=2, dim=-1) + 1e-6)                  # [B, win_size]
-        mag_n = t.log(t.norm(batch_negative, p=2, dim=-1) + 1e-6)                  # [B, win_size]
+        mag_a = t.norm(batch_anchor, p=2, dim=-1)                                  # [B, win_size]
+        mag_p = t.norm(batch_positive, p=2, dim=-1)                                # [B, win_size]
+        mag_n = t.norm(batch_negative, p=2, dim=-1)                                # [B, win_size]
 
-        # [CẢI TIẾN 2]: Dùng Squared Distance thay vì Absolute Distance
-        pos_mag_dist = ((mag_a - mag_p)**2).mean(dim=-1)                           # [B]
+        pos_mag_dist = ((mag_a - mag_p)**2) / ((mag_a + mag_p)**2 + 1e-9)          # [B, win_size]
+        pos_mag_dist = pos_mag_dist.mean(dim=-1)                                   # [B]
 
-        mag_label = hard_label if self.hard_mask == 1 else blur_label              # [B, win_size, 1]
-        mag_label = mag_label.squeeze(-1)                                          # [B, win_size]
+        mag_label = hard_label if self.hard_mask == 1 else blur_label              
+        mag_label = mag_label.squeeze(-1)                                          
         
-        mag_anomaly_element = mag_label.sum(dim=-1)                                # [B]
-        mag_normal_element = (1 - mag_label).sum(dim=-1)                           # [B]
+        mag_anomaly_element = mag_label.sum(dim=-1)                                
+        mag_normal_element = (1 - mag_label).sum(dim=-1)                           
 
-        neg_mag_dist = (mag_a - mag_n)**2                                          # [B, win_size]
+        neg_mag_dist = ((mag_a - mag_n)**2) / ((mag_a + mag_n)**2 + 1e-9)          # [B, win_size]
         
-        neg_mag_anomaly_dist = neg_mag_dist * mag_label                            # [B, win_size]
-        neg_mag_anomaly_dist = neg_mag_anomaly_dist.sum(dim=-1) / (mag_anomaly_element + 1e-9) # [B]
-        
-        neg_mag_normal_dist = neg_mag_dist * (1 - mag_label)                       # [B, win_size]
-        neg_mag_normal_dist = neg_mag_normal_dist.sum(dim=-1) / (mag_normal_element + 1e-9)    # [B]
-        
-        # [CẢI TIẾN 3]: Tách Margin nhẹ cho nhánh Magnitude
-        # Nếu muốn an toàn, có thể lấy margin_mag = margin / 2 (vì đã dùng log)
-        margin_mag = self.margin * 0.5
+        neg_mag_anomaly_dist = (neg_mag_dist * mag_label).sum(dim=-1) / (mag_anomaly_element + 1e-9)         # [B]
+        neg_mag_normal_dist = (neg_mag_dist * (1 - mag_label)).sum(dim=-1) / (mag_normal_element + 1e-9)     # [B]
         
         mag_loss = t.clamp(self.pos_ratio*pos_mag_dist + (1-self.pos_ratio)*neg_mag_normal_dist 
-                       - neg_mag_anomaly_dist + margin_mag, min=0)
-            
+                       - neg_mag_anomaly_dist + self.margin, min=0)                # [B]
+
         # ==========================================
-        # 3. TOTAL LOSS
+        # 3. TOTAL LOSS (Bounded Adaptive Routing)
         # ==========================================
         contrastive_weight = self.contrastive_weight
         reconstruct_weight = self.args.reconstruct_weight
 
-        # [CẢI TIẾN 4]: Cân bằng 2 nhánh bằng lambda_mag
-        total_contrastive_loss = sim_loss + self.lambda_mag * mag_loss
+        # CẢI TIẾN 1: Dùng Relative Confidence Score [-1, 1] để đo Semantic (Đã Detach)
+        score_sim = (neg_anomaly_dist - pos_dist) / (neg_anomaly_dist + pos_dist + 1e-9)
+        score_sim = score_sim.detach()
+        
+        score_mag = (neg_mag_anomaly_dist - pos_mag_dist) / (neg_mag_anomaly_dist + pos_mag_dist + 1e-9)
+        score_mag = score_mag.detach()
 
-        return reconstruct_weight*recon_loss + contrastive_weight*t.mean(total_contrastive_loss)
+        # CẢI TIẾN 2: CHUẨN HÓA (TRƯỚC KHI SOFTMAX)
+        if B > 1:
+            score_sim = (score_sim - score_sim.mean()) / (score_sim.std() + 1e-9)
+            score_mag = (score_mag - score_mag.mean()) / (score_mag.std() + 1e-9)
+        else:
+            score_sim = t.zeros_like(score_sim)
+            score_mag = t.zeros_like(score_mag)
+
+        # CẢI TIẾN 3: Đưa vào Softmax
+        scores = t.stack([score_sim, score_mag], dim=-1)                           # [B,2]
+        alphas = t.softmax(scores / self.temperature, dim=-1)                      # [B,2]
+
+        # CẢI TIẾN 4: Dùng Alpha Floor chống sập (Dao động trong khoảng [floor, 1 - floor])
+        # Ví dụ floor=0.2 -> alphas sẽ chạy từ 0.2 đến 0.8. Tổng 2 nhánh vẫn = 1.0
+        alpha_sim_base = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 0]
+        alpha_mag_base = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 1]
+
+        # Nhân 2.0 để bảo toàn tổng năng lượng Gradient của hàm Loss ban đầu
+        alpha_sim = alpha_sim_base * 2.0                                           # [B]
+        alpha_mag = alpha_mag_base * 2.0                                           # [B]
+
+        # Tính Loss Cuối cùng
+        sample_contrastive_loss = (alpha_sim * sim_loss) + (alpha_mag * mag_loss)
+        
+        return reconstruct_weight*recon_loss + contrastive_weight*t.mean(sample_contrastive_loss)
         # else:
         #     sim_a_p = t.matmul(batch_anchor, batch_positive.transpose(1,2))   # [B, win_size, win_size]
         #     sim_a_n = t.matmul(batch_anchor, batch_negative.transpose(1,2))   # [B, win_size, win_size]
