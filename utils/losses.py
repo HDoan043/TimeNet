@@ -399,8 +399,9 @@ class SeSimiLoss(nn.Module):
 
         # Tính Loss Cuối cùng
         sample_contrastive_loss = (alpha_sim * sim_loss) + (alpha_mag * mag_loss)
-        
-        return reconstruct_weight*recon_loss + contrastive_weight*t.mean(sample_contrastive_loss)
+
+        return reconstruct_weight*recon_loss + contrastive_weight*t.mean(mag_loss)
+        # return reconstruct_weight*recon_loss + contrastive_weight*t.mean(sample_contrastive_loss)
         # else:
         #     sim_a_p = t.matmul(batch_anchor, batch_positive.transpose(1,2))   # [B, win_size, win_size]
         #     sim_a_n = t.matmul(batch_anchor, batch_negative.transpose(1,2))   # [B, win_size, win_size]
