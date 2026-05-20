@@ -278,6 +278,8 @@ class SeSimiLoss(nn.Module):
         self.max_ratio = args.max_ratio 
         self.pos_ratio = args.pos_ratio
         self.mse = nn.MSELoss()
+
+        self.lambda_mag = getattr(args, 'lambda_mag', 0.1)
         
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling):
         '''
@@ -297,10 +299,11 @@ class SeSimiLoss(nn.Module):
         batch_anchor = z[idx]                  # [B, win_size, d_model]            
         batch_positive = z[pos_idx]            # [B, win_size, d_model]            
         batch_negative = z[neg_idx]            # [B, win_size, d_model]   
-        # normalization
-        # batch_anchor = nn.functional.normalize(batch_anchor, p=2, dim=-1)
-        # batch_positive = nn.functional.normalize(batch_positive, p=2, dim=-1)
-        # batch_negative = nn.functional.normalize(batch_negative, p=2, dim=-1)    
+        
+        # normalization for similarity
+        batch_anchor_norm = nn.functional.normalize(batch_anchor, p=2, dim=-1)
+        batch_positive_norm = nn.functional.normalize(batch_positive, p=2, dim=-1)
+        batch_negative_norm = nn.functional.normalize(batch_negative, p=2, dim=-1)    
             
         # attention on the abnormal timestamps base on labels
         blur_label = gaussian_blur_1d(labels).unsqueeze(-1)                        # [B, win_size, 1]
@@ -313,36 +316,71 @@ class SeSimiLoss(nn.Module):
         anomaly_element = mask.sum(dim=(1,2))                                      # [B]
         normal_element = (1-mask).sum(dim=(1,2))                              # [B]
             
-        # similarity
-        # if not self.cross_association:
-        d_k = batch_anchor.size(-1) 
-        scale_factor = d_k ** 0.5
-        sim_a = t.matmul(batch_anchor,   batch_anchor.transpose(1,2))/scale_factor          # [B, win_size, win_size]
-        sim_p = t.matmul(batch_positive, batch_positive.transpose(1,2))/scale_factor        # [B, win_size, win_size]
-        sim_n = t.matmul(batch_negative, batch_negative.transpose(1,2))/scale_factor        # [B, win_size, win_size]
+        # ==========================================
+        # 1. SIMILARITY BRANCH (Relation)
+        # ==========================================
+        sim_a = t.matmul(batch_anchor_norm,   batch_anchor_norm.transpose(1,2))    # [B, win_size, win_size]
+        sim_p = t.matmul(batch_positive_norm, batch_positive_norm.transpose(1,2))  
+        sim_n = t.matmul(batch_negative_norm, batch_negative_norm.transpose(1,2))  
             
         # negative distance
-        # abnormal region
-        neg_anomaly_dist = (sim_a - sim_n)*mask                                  # [B, win_size, win_size]
-        # normalize
-        neg_anomaly_dist = (neg_anomaly_dist**2).sum(dim=(1,2))                  # [B]
-        neg_anomaly_dist = t.sqrt(neg_anomaly_dist/(anomaly_element+1e-9) + 1e-9)# [B]
-        # normal region
-        neg_normal_dist = (sim_a - sim_n)*(1-mask)                               # [B]
-        neg_normal_dist = (neg_normal_dist**2).sum(dim=(1,2))                    # [B]
-        neg_normal_dist = t.sqrt(neg_normal_dist/(normal_element+1e-9) + 1e-9)   # [B]    
+        neg_anomaly_dist = (sim_a - sim_n)*mask                                  
+        neg_anomaly_dist = (neg_anomaly_dist**2).sum(dim=(1,2))                  
+        neg_anomaly_dist = t.sqrt(neg_anomaly_dist/(anomaly_element+1e-9) + 1e-9)
+
+        neg_normal_dist = (sim_a - sim_n)*(1-mask)                               
+        neg_normal_dist = (neg_normal_dist**2).sum(dim=(1,2))                    
+        neg_normal_dist = t.sqrt(neg_normal_dist/(normal_element+1e-9) + 1e-9)   
         
         # positive distance
-        pos_dist = t.sqrt(((sim_a - sim_p)**2).mean(dim=(1,2)) + 1e-9)           # [B]
+        pos_dist = t.sqrt(((sim_a - sim_p)**2).mean(dim=(1,2)) + 1e-9)           
         
-        # loss
-        loss = t.clamp(self.pos_ratio*pos_dist + (1-self.pos_ratio)*neg_normal_dist 
-                       - neg_anomaly_dist + self.margin, min=0)     # [B]
+        # similar loss
+        sim_loss = t.clamp(self.pos_ratio*pos_dist + (1-self.pos_ratio)*neg_normal_dist 
+                       - neg_anomaly_dist + self.margin, min=0)                  # [B]
 
+        # ==========================================
+        # 2. MAGNITUDE BRANCH (Energy/Scale)
+        # ==========================================
+        # [CẢI TIẾN 1]: Dùng Log-Energy để ổn định độ lớn
+        mag_a = t.log(t.norm(batch_anchor, p=2, dim=-1) + 1e-6)                    # [B, win_size]
+        mag_p = t.log(t.norm(batch_positive, p=2, dim=-1) + 1e-6)                  # [B, win_size]
+        mag_n = t.log(t.norm(batch_negative, p=2, dim=-1) + 1e-6)                  # [B, win_size]
+
+        # [CẢI TIẾN 2]: Dùng Squared Distance thay vì Absolute Distance
+        pos_mag_dist = ((mag_a - mag_p)**2).mean(dim=-1)                           # [B]
+
+        mag_label = hard_label if self.hard_mask == 1 else blur_label              # [B, win_size, 1]
+        mag_label = mag_label.squeeze(-1)                                          # [B, win_size]
+        
+        mag_anomaly_element = mag_label.sum(dim=-1)                                # [B]
+        mag_normal_element = (1 - mag_label).sum(dim=-1)                           # [B]
+
+        neg_mag_dist = (mag_a - mag_n)**2                                          # [B, win_size]
+        
+        neg_mag_anomaly_dist = neg_mag_dist * mag_label                            # [B, win_size]
+        neg_mag_anomaly_dist = neg_mag_anomaly_dist.sum(dim=-1) / (mag_anomaly_element + 1e-9) # [B]
+        
+        neg_mag_normal_dist = neg_mag_dist * (1 - mag_label)                       # [B, win_size]
+        neg_mag_normal_dist = neg_mag_normal_dist.sum(dim=-1) / (mag_normal_element + 1e-9)    # [B]
+        
+        # [CẢI TIẾN 3]: Tách Margin nhẹ cho nhánh Magnitude
+        # Nếu muốn an toàn, có thể lấy margin_mag = margin / 2 (vì đã dùng log)
+        margin_mag = self.margin * 0.5
+        
+        mag_loss = t.clamp(self.pos_ratio*pos_mag_dist + (1-self.pos_ratio)*neg_mag_normal_dist 
+                       - neg_mag_anomaly_dist + margin_mag, min=0)
+            
+        # ==========================================
+        # 3. TOTAL LOSS
+        # ==========================================
         contrastive_weight = self.contrastive_weight
         reconstruct_weight = self.args.reconstruct_weight
 
-        return reconstruct_weight*recon_loss + contrastive_weight*t.mean(loss)
+        # [CẢI TIẾN 4]: Cân bằng 2 nhánh bằng lambda_mag
+        total_contrastive_loss = sim_loss + self.lambda_mag * mag_loss
+
+        return reconstruct_weight*recon_loss + contrastive_weight*t.mean(total_contrastive_loss)
         # else:
         #     sim_a_p = t.matmul(batch_anchor, batch_positive.transpose(1,2))   # [B, win_size, win_size]
         #     sim_a_n = t.matmul(batch_anchor, batch_negative.transpose(1,2))   # [B, win_size, win_size]
