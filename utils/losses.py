@@ -315,9 +315,11 @@ class SeSimiLoss(nn.Module):
             
         # similarity
         # if not self.cross_association:
-        sim_a = t.matmul(batch_anchor,   batch_anchor.transpose(1,2))          # [B, win_size, win_size]
-        sim_p = t.matmul(batch_positive, batch_positive.transpose(1,2))        # [B, win_size, win_size]
-        sim_n = t.matmul(batch_negative, batch_negative.transpose(1,2))        # [B, win_size, win_size]
+        d_k = batch_anchor.size(-1) 
+        scale_factor = d_k ** 0.5
+        sim_a = t.matmul(batch_anchor,   batch_anchor.transpose(1,2))/scale_factor          # [B, win_size, win_size]
+        sim_p = t.matmul(batch_positive, batch_positive.transpose(1,2))/scale_factor        # [B, win_size, win_size]
+        sim_n = t.matmul(batch_negative, batch_negative.transpose(1,2))/scale_factor        # [B, win_size, win_size]
             
         # negative distance
         # abnormal region
