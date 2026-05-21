@@ -129,7 +129,7 @@ def contrastive_collate_fn(batch):
         negatives.append(torch.Tensor(neg))
         labels.append(torch.Tensor(label))
         batch_x_mark.append(torch.Tensor(seq_x_mark))
-        batch_base_mse.append(torch.Tensor(base_mse))
+        batch_base_mse.append(torch.tensor(base_mse))
 
     anchors = torch.stack(anchors)
     positives = torch.stack(positives)
