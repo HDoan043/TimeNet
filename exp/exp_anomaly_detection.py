@@ -420,9 +420,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
         timestamps = pd.to_datetime(timestamps, format='%Y-%m-%d %H:%M:%S')
         
         predict_df = pd.DataFrame({"date": timestamps, "score": test_energy, "label": gt})
+        
+        predict_df = aggregate(predict_df, self.args.aggregate)
         predict_df.to_csv(folder_path + "anomaly_score_df.csv")
-
-        gt, test_energy = aggregate(predict_df, self.args.aggregate)
+        gt = predict_df["label"].values
+        test_energy = predict_df["score"].values
         # pate_score = PATE(gt, test_energy, e_buffer=6, d_buffer=12, binary_scores=False)
         roc_auc = roc_auc_score(gt, test_energy)
         pr_auc = average_precision_score(gt, test_energy)
