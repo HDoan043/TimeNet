@@ -431,6 +431,18 @@ class Dataset_Custom(Dataset):
             with open(self.args.position_map, "r") as f:
                 self.position_map = json.load(f)
 
+            path = self.args.test_result_path + "train_reconstruct_loss.npy"
+            back_up_path = "scripts/" + "train_reconstruct_loss.npy"
+            if os.path.exists(path): main_path = path
+            elif os.path.exists(back_up_path): main_path = back_up_path
+            else: main_path = ""
+
+            if main_path == "":
+                print("[⚠️] Run test first to get MSE base")
+                self.base_mse = None
+            else:
+                self.base_mse = np.load(main_path)
+
     def __getitem__(self, index):
         index = self.possible_index[index]
         s_begin = index
@@ -470,12 +482,15 @@ class Dataset_Custom(Dataset):
                     positive = random_positive_sampler(x_index_start, self)
                 else:
                     positive = augmentation_positive_sampler(self, x_index_start, x_index_end)
+
+                # Get base mse
+                base_mse = self.base_mse[x_index_start].copy()
                 
                 assert positive.shape == seq_x.shape
                 assert not np.isnan(positive).any()
                 assert not np.isinf(positive).any()
                 
-                seq_x = (seq_x, positive, negative, label)
+                seq_x = (seq_x, positive, negative, label, base_mse)
             return seq_x, seq_y, seq_x_mark, seq_y_mark
     
     def __len__(self):
