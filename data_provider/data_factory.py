@@ -119,19 +119,22 @@ def contrastive_collate_fn(batch):
     positives = []
     negatives = []
     labels = []
+    batch_base_mse = []
     batch_x_mark = []
 
     for (x_tuple, _, seq_x_mark, _) in batch:
-        anchor, pos, neg, label = x_tuple
+        anchor, pos, neg, label, base_mse = x_tuple
         anchors.append(torch.Tensor(anchor))
         positives.append(torch.Tensor(pos))
         negatives.append(torch.Tensor(neg))
         labels.append(torch.Tensor(label))
         batch_x_mark.append(torch.Tensor(seq_x_mark))
+        batch_base_mse.append(base_mse)
 
     anchors = torch.stack(anchors)
     positives = torch.stack(positives)
     negatives = torch.stack(negatives)
+    all_base_mse = torch.stack(batch_base_mse)
 
     # concat thành 1 batch lớn
     all_samples = torch.cat([anchors, positives, negatives], dim=0)
@@ -146,4 +149,4 @@ def contrastive_collate_fn(batch):
     pos_idx = idx + batch_size
     neg_idx = idx + 2 * batch_size
 
-    return all_samples, all_x_mark, idx, pos_idx, neg_idx, labels
+    return all_samples, all_x_mark, all_base_mse, idx, pos_idx, neg_idx, labels
