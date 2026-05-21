@@ -422,4 +422,14 @@ class SeSimiLoss(nn.Module):
         # ==========================================
         # FINAL LOSS
         # ==========================================
-        return self.reconstruct_weight * raw_recon_loss + self.contrastive_weight * throttled_contrastive_loss
+        total_loss = self.reconstruct_weight * raw_recon_loss + self.contrastive_weight * throttled_contrastive_loss
+            
+        log_metrics = {
+            "loss_recon": raw_recon_loss.item(),
+            "loss_contrastive": throttled_contrastive_loss.item(),
+            "recon_gap": recon_gap.mean().item(), # Lấy mean vì recon_gap đang là tensor
+            "throttle": throttle.item(),
+            "alpha_sim": alpha_sim.mean().item(),
+            "alpha_mag": alpha_mag.mean().item()
+        }
+        return total_loss, log_metrics
