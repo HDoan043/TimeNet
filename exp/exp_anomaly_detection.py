@@ -201,12 +201,12 @@ class Exp_Anomaly_Detection(Exp_Basic):
                     loss = criterion(outputs, batch_x)
                     train_loss.append(loss.item())
                 else:
-                    batch_all_samples, batch_all_mark, idx, pos_idx, neg_idx, label = batch
+                    batch_all_samples, batch_all_mark, batch_base_mse, idx, pos_idx, neg_idx, label = batch
                     batch_x = batch_all_samples.float().to(self.device)
                     batch_x_mark = batch_all_mark.to(self.device)
                     
                     hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
-                    loss = criterion(batch_x, outputs, hidden_state, idx, pos_idx, neg_idx, label, attn_pooling)
+                    loss = criterion(batch_x, outputs, hidden_state, idx, pos_idx, neg_idx, label, attn_pooling, batch_base_mse)
                     train_loss.append(loss.item())
 
                 # speed = (time.time() - time_begin) / aggregate_steps
@@ -339,7 +339,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 if self.args.contrastive == 0:
                     outputs = self.model(batch_x, batch_x_mark, None, None)    
                 else:
-                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
+                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None, None)
                 # criterion
 
                 score = self.anomaly_criterion(batch_x, outputs)        # [B, win_size, channels]
@@ -370,7 +370,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 if self.args.contrastive == 0:
                     outputs = self.model(batch_x, batch_x_mark, None, None)
                 else:
-                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
+                    hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None, None)
                 if self.args.use_gpu:
                     torch.cuda.synchronize() # Đợi GPU chạy xong 100%
                 end_time = time.time()
