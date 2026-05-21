@@ -329,6 +329,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         torch.cuda.reset_peak_memory_stats(self.device)
         torch.cuda.empty_cache()
         # (1) stastic on the train set
+        save_train_loss = []
         with torch.no_grad():
             for i, batch in enumerate(train_loader):
                 (batch_x, batch_y, batch_x_mark, batch_y_mark) = batch
@@ -340,13 +341,19 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 else:
                     hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
                 # criterion
-            
-                score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
+
+                score = self.anomaly_criterion(batch_x, outputs)        # [B, win_size, channels]
+                win_score = score.mean(dim=(1,2)).detach().cpu().numpy()# [B]
+                save_train_loss.append(win_score)
+                score = torch.mean(score, dim=-1)                       # [B, win_size]
                 score = score.detach().cpu().numpy()
                 attens_energy.append(score)
 
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)            # attens_energy: [num_batch * batch_size * num_channels]
+        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)            # attens_energy: [num_batch * batch_size * win_size]
         train_energy = np.array(attens_energy)
+        save_train_loss = np.array(save_train_loss)                    # [B] x num_batch
+        save_train_loss = np.concatenate(save_train_loss, axis=0)      # [B * num_batch]
+        np.save(folder_path + "train_reconstruct_loss.npy", save_train_loss)
 
         # (2) find the threshold
         attens_energy = []
@@ -495,8 +502,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
             recall = best_re
             f_score = best_f1
             threshold = best_threshold
-        if self.args.metric.lower() == "pate": return [pate_score]
-        elif self.args.metric.lower() in ["roc_auc", "roc-auc", "roc", "rocauc"]: return [roc_auc]
+        # if self.args.metric.lower() == "pate": return [pate_score]
+        if self.args.metric.lower() in ["roc_auc", "roc-auc", "roc", "rocauc"]: return [roc_auc]
         elif self.args.metric.lower() in ["pr_auc", "pr-auc", "prauc", "pr", "average precision score"]: return [pr_auc]
         else: return accuracy, precision, recall, f_score, threshold
         
