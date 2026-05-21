@@ -232,12 +232,6 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 )
                 # Sau khi kết thúc vòng lặp Batch (Hết 1 Epoch):
         
-            num_batches = len(train_loader)
-            for key in epoch_logs.keys():
-                epoch_logs[key] /= num_batches # Tính trung bình cả Epoch
-            
-            # In ra màn hình hoặc ghi vào file log:
-            print(f"\nEpoch {epoch} | Recon: {epoch_logs['loss_recon']:.4f} | Cont: {epoch_logs['loss_contrastive']:.4f} | Gap: {epoch_logs['recon_gap']:.4f} | Throttle: {epoch_logs['throttle']:.4f}")
                 # if (i + 1) % 100 == 0:
                 #     print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
                 #     speed = (time.time() - time_now) / iter_count
@@ -250,8 +244,16 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 model_optim.step()
 
                 i+=1
-
+            
+            num_batches = len(train_loader)
+            for key in epoch_logs.keys():
+                epoch_logs[key] /= num_batches # Tính trung bình cả Epoch
+            
+            
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
+            # In ra màn hình hoặc ghi vào file log:
+            print(f"\nEpoch {epoch} | Recon: {epoch_logs['loss_recon']:.4f} | Cont: {epoch_logs['loss_contrastive']:.4f} | Gap: {epoch_logs['recon_gap']:.4f} | Throttle: {epoch_logs['throttle']:.4f}")
+            
             train_loss = np.average(train_loss)
             # vali_loss = self.vali(vali_data, vali_loader, corr_matrix, criterion)
             result = self.test(setting)
