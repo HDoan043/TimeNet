@@ -467,7 +467,7 @@ class SeSimiLoss(nn.Module):
         throttled_contrastive_loss = raw_contrastive_loss * throttle                                # [1]
 
         # KHÓA CHẶT "ĐƯỜNG TẮT" BẰNG L2-NORM PENALTY 
-        latent_norm_reg = t.norm(batch_anchor, p=2, dim=-1).mean()                                  # [1]
+        latent_norm_reg = t.sqrt(t.sum(batch_anchor**2, dim=-1) + 1e-5).mean()                     # [1]
 
         # ==========================================
         # FINAL LOSS
@@ -490,15 +490,21 @@ class SeSimiLoss(nn.Module):
         return total_loss, log_metrics
         
     def get_masked_std(self, x, m):
-        valid_elements = m.sum(dim=1, keepdim=True) + 1e-5             # [B, 1, 1]
-        local_mean = (x * m).sum(dim=1, keepdim=True) / valid_elements # [B, 1, d_model]
+        # 1. Ép kiểu sang float32 để chặn đứng lỗi Tràn bộ nhớ (Overflow) của FP16
+        x = x.float()
+        m = m.float()
         
-        # Bóp mẫu số từ [B, 1, 1] về [B, 1] để chia không bị lỗi Broadcasting
-        valid_elements_sq = valid_elements.squeeze(1)                  # [B, 1]
+        valid_elements = m.sum(dim=1, keepdim=True) + 1e-5             
+        local_mean = (x * m).sum(dim=1, keepdim=True) / valid_elements 
         
-        # Tử số sum(dim=1) sẽ ra [B, d_model]. 
-        # [B, d_model] chia [B, 1] sẽ ra đúng [B, d_model]
-        sum_sq = (((x - local_mean)**2) * m).sum(dim=1)                # [B, d_model]
-        local_var = sum_sq / valid_elements_sq                         # [B, d_model]
+        # 2. Nhân mask TRƯỚC KHI bình phương. Nếu m=0 thì diff=0, không bao giờ có chuyện Inf * 0 = NaN
+        diff = (x - local_mean) * m
+        sum_sq = (diff ** 2).sum(dim=1)
+        
+        valid_elements_sq = valid_elements.squeeze(1)
+        local_var = sum_sq / valid_elements_sq
+        
+        # 3. Kẹp giá trị chống số âm do sai số dấu phẩy động
         local_var = t.clamp(local_var, min=0.0)
-        return t.sqrt(local_var + 1e-5)                                # [B, d_model]
+        
+        return t.sqrt(local_var + 1e-5)
