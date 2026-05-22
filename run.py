@@ -217,6 +217,9 @@ if __name__ == '__main__':
                                                                         while enlarge the distance between the represenation of the anchor and the abnormal region in negative sample.\
                                                                         pos_ratio is the contribution ratio of distance between hidden state of the anchor and its positive samples.')
     parser.add_argument('--alpha_floor', type=float, default=0.2)
+    parser.add_argument('--throttle_beta', type=float, default=0.2)
+    parser.add_argument('--recon_tolerance', type=float, default=0.2)
+    parser.add_argument('--magnitude_mode', type=str, default="variance")
     
     args = parser.parse_args()
     if isinstance(args.moving_avg, list) and len(args.moving_avg) == 1:
