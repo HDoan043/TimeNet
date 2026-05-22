@@ -466,8 +466,9 @@ class SeSimiLoss(nn.Module):
         # ==========================================
         # FINAL LOSS
         # ==========================================
-        total_loss = self.reconstruct_weight * raw_recon_loss + self.contrastive_weight * throttled_contrastive_loss + 1e-4 * latent_norm_reg
-            
+        recon_penalty = t.relu(raw_recon_loss - batch_base_mse)
+        
+        total_loss = self.reconstruct_weight * recon_penalty + self.contrastive_weight * throttled_contrastive_loss + 1e-4 * latent_norm_reg            
         log_metrics = {
             "loss_recon": raw_recon_loss.item(),
             "loss_contrastive": throttled_contrastive_loss.item(),
