@@ -287,6 +287,9 @@ class SeSimiLoss(nn.Module):
         self.magnitude_mode = getattr(args, 'magnitude_mode', 'variance')
         
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling, base_mse):
+        if t.isnan(z).any() or t.isnan(x_hat).any():
+            print("\n[BÁO ĐỘNG ĐỎ]: Đầu vào z hoặc x_hat đã bị NaN từ mô hình TimesNet TRƯỚC KHI tính Loss!")
+            print(f"Có NaN ở z: {t.isnan(z).any().item()} | Có NaN ở x_hat: {t.isnan(x_hat).any().item()}")
         idx = idx.to(x.device)
         pos_idx = pos_idx.to(x.device)
         neg_idx = neg_idx.to(x.device)
