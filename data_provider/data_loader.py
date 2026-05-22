@@ -432,7 +432,7 @@ class Dataset_Custom(Dataset):
                 self.position_map = json.load(f)
 
             path = self.args.test_result_path + "train_reconstruct_loss.npy"
-            back_up_path = "scripts/" + "train_reconstruct_loss.npy"
+            back_up_path = "./scripts/" + "train_reconstruct_loss.npy"
             if os.path.exists(path): main_path = path
             elif os.path.exists(back_up_path): main_path = back_up_path
             else: main_path = ""
