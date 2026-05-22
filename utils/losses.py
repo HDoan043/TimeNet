@@ -315,10 +315,10 @@ class SeSimiLoss(nn.Module):
         batch_positive = z[pos_idx]                                                        # [B, win_size, d_model]
         batch_negative = z[neg_idx]                                                        # [B, win_size, d_model]
         
-        batch_anchor_norm = nn.functional.normalize(batch_anchor, p=2, dim=-1)             # [B, win_size, d_model]
-        batch_positive_norm = nn.functional.normalize(batch_positive, p=2, dim=-1)         # [B, win_size, d_model]
-        batch_negative_norm = nn.functional.normalize(batch_negative, p=2, dim=-1)         # [B, win_size, d_model]
-            
+        batch_anchor_norm = nn.functional.normalize(batch_anchor, p=2, dim=-1, eps=1e-5).float()
+        batch_positive_norm = nn.functional.normalize(batch_positive, p=2, dim=-1, eps=1e-5).float()
+        batch_negative_norm = nn.functional.normalize(batch_negative, p=2, dim=-1, eps=1e-5).float()
+        
         try:
             blur_label = gaussian_blur_1d(labels).unsqueeze(-1)                            # [B, win_size, 1]
         except NameError:
@@ -443,13 +443,20 @@ class SeSimiLoss(nn.Module):
         score_sim, score_mag = score_sim.detach(), score_mag.detach()
 
         if B > 1:
-            score_sim = (score_sim - score_sim.mean()) / (score_sim.std() + 1e-5)                # [B]
-            score_mag = (score_mag - score_mag.mean()) / (score_mag.std() + 1e-5)                # [B]
+            score_sim_std = score_sim.std(unbiased=False)
+            score_mag_std = score_mag.std(unbiased=False)
+
+            score_sim = (score_sim - score_sim.mean()) / (score_sim_std + 1e-5)                # [B]
+            score_mag = (score_mag - score_mag.mean()) / (score_mag_std + 1e-5)                # [B]
         else:
             score_sim, score_mag = t.zeros_like(score_sim), t.zeros_like(score_mag)
 
-        scores = t.stack([score_sim, score_mag], dim=-1)                                          # [B,2]
-        alphas = t.softmax(scores / self.temperature, dim=-1)                                     # [B,2]
+        scores = t.stack([score_sim, score_mag], dim=-1)
+
+        scaled_scores = scores / max(self.temperature, 1e-3)
+        scaled_scores = scaled_scores - scaled_scores.max(dim=-1, keepdim=True)[0]
+        
+        alphas = t.softmax(scaled_scores, dim=-1)
 
         # ĐÃ SỬA LỖI SCALE: Bỏ nhân 2 để tổng alpha luôn = 1.0
         alpha_sim = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 0]                # [B]
@@ -487,6 +494,9 @@ class SeSimiLoss(nn.Module):
             "active_anom_ratio": has_anom_global.mean().item(),
             "latent_norm": latent_norm_reg.item()
         }
+        for name, tensor in check_tensors.items():
+            if t.isnan(tensor).any() or t.isinf(tensor).any():
+                print(f"[NaN DETECTED] {name}")
         return total_loss, log_metrics
         
     def get_masked_std(self, x, m):
