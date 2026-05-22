@@ -394,25 +394,27 @@ class SeSimiLoss(nn.Module):
             anom_mask = hard_label if self.hard_mask == 1 else blur_label   
             norm_mask = 1.0 - anom_mask                                     
             
-            std_a_anom = self.get_masked_std(batch_anchor, anom_mask)                # [B, d_model]
-            std_p_anom = self.get_masked_std(batch_positive, anom_mask)              # [B, d_model]
-            std_n_anom = self.get_masked_std(batch_negative, anom_mask)              # [B, d_model]
+            std_a_anom = self.get_masked_std(batch_anchor, anom_mask)        
+            std_p_anom = self.get_masked_std(batch_positive, anom_mask)      
+            std_n_anom = self.get_masked_std(batch_negative, anom_mask)      
     
-            std_a_norm = self.get_masked_std(batch_anchor, norm_mask)                # [B, d_model]
-            std_p_norm = self.get_masked_std(batch_positive, norm_mask)              # [B, d_model]
-            std_n_norm = self.get_masked_std(batch_negative, norm_mask)              # [B, d_model]
+            std_a_norm = self.get_masked_std(batch_anchor, norm_mask)        
+            std_p_norm = self.get_masked_std(batch_positive, norm_mask)      
+            std_n_norm = self.get_masked_std(batch_negative, norm_mask)      
 
-            def bounded_dist(v1, v2):                                                # [B, d_model]
-                return ((v1 - v2)**2) / ((v1 + v2)**2 + 1e-9)                        # [B, d_model]
+            def bounded_dist(v1, v2):
+                return ((v1 - v2)**2) / ((v1 + v2)**2 + 1e-9)
 
-            pos_mag_anom_dist = bounded_dist(std_a_anom, std_p_anom).mean(dim=-1)    # [B]
-            pos_mag_norm_dist = bounded_dist(std_a_norm, std_p_norm).mean(dim=-1)    # [B]
+            # ÉP KIỂU VỀ 1D BẰNG .view(-1) ĐỂ CHỐNG BROADCASTING LỖI
+            pos_mag_anom_dist = bounded_dist(std_a_anom, std_p_anom).mean(dim=-1).view(-1)
+            pos_mag_norm_dist = bounded_dist(std_a_norm, std_p_norm).mean(dim=-1).view(-1)
             
-            has_norm_global = (norm_mask.sum(dim=(1,2)) > 0).float() 
+            has_norm_global = (norm_mask.sum(dim=(1,2)) > 0).float().view(-1)
+            has_anom_global = (hard_label.sum(dim=(1,2)) > 0).float().view(-1)
 
             pos_mag_dist = (pos_mag_anom_dist * has_anom_global) + (pos_mag_norm_dist * has_norm_global)
-            neg_mag_anomaly_dist = bounded_dist(std_a_anom, std_n_anom).mean(dim=-1) # [B]
-            neg_mag_normal_dist = bounded_dist(std_a_norm, std_n_norm).mean(dim=-1)  # [B]
+            neg_mag_anomaly_dist = bounded_dist(std_a_anom, std_n_anom).mean(dim=-1).view(-1)
+            neg_mag_normal_dist = bounded_dist(std_a_norm, std_n_norm).mean(dim=-1).view(-1)
 
             var_loss_full = t.clamp(
                 self.pos_ratio * pos_mag_dist 
@@ -423,8 +425,13 @@ class SeSimiLoss(nn.Module):
             ) 
             mag_loss_full = var_loss_full
 
+            has_anom_matrix = has_anom_matrix.view(-1)
+            
             score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-9)
             score_mag = (neg_mag_anomaly_dist * has_anom_global - pos_mag_anom_dist * has_anom_global) / (neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global + 1e-9)
+            
+            score_sim = score_sim.view(-1)
+            score_mag = score_mag.view(-1)
 
         mag_loss = mag_loss_full * has_anom_global 
 
