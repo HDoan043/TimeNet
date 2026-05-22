@@ -67,30 +67,16 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
     def _select_optimizer(self):
         real_model = ( self.model.module if isinstance(self.model, nn.DataParallel) else self.model)
+        
         if self.args.contrastive == 1 and self.args.is_training == 1:
-            base_params = []
-            projector_params = list(
-                real_model.contrastive_project.parameters()
-            )
-            projector_param_ids = {
-                id(p) for p in projector_params
-            }
-    
-            for p in real_model.parameters():
-                if id(p) not in projector_param_ids:
-                    base_params.append(p)
-    
-            model_optim = optim.AdamW([
-                {
-                    "params": base_params,
-                    "lr": self.args.learning_rate
-                },
-                {
-                    "params": projector_params,
-                    "lr": self.args.learning_rate * 100
-                }
-            ])
-    
+            # Lọc ra những Parameter ĐANG ĐƯỢC MỞ KHÓA (requires_grad = True)
+            # Việc này tự động tương thích với bất kỳ cấu hình Freeze nào của ông.
+            active_params = filter(lambda p: p.requires_grad, real_model.parameters())
+            
+            # Khởi tạo Optimizer với Learning Rate bằng nhau cho TẤT CẢ các lớp đang mở.
+            # Không nhân 100 nữa!
+            model_optim = optim.AdamW(active_params, lr=self.args.learning_rate)
+            
         else:
             model_optim = optim.Adam(
                 real_model.parameters(),
