@@ -342,11 +342,11 @@ class SeSimiLoss(nn.Module):
         dist_ap = (sim_a - sim_p)**2                                                        # [B, win_size, win_size]
         dist_an = (sim_a - sim_n)**2                                                        # [B, win_size, win_size]
 
-        pos_sim_anomaly = t.sqrt((dist_ap * mask).sum(dim=(1,2)) / (anomaly_element + 1e-9) + 1e-9)        # [B]
-        neg_sim_anomaly = t.sqrt((dist_an * mask).sum(dim=(1,2)) / (anomaly_element + 1e-9) + 1e-9)        # [B]
+        pos_sim_anomaly = t.sqrt((dist_ap * mask).sum(dim=(1,2)) / (anomaly_element + 1e-5) + 1e-5)        # [B]
+        neg_sim_anomaly = t.sqrt((dist_an * mask).sum(dim=(1,2)) / (anomaly_element + 1e-5) + 1e-5)        # [B]
 
-        pos_sim_normal = t.sqrt((dist_ap * (1-mask)).sum(dim=(1,2)) / (normal_element + 1e-9) + 1e-9)      # [B]
-        neg_sim_normal = t.sqrt((dist_an * (1-mask)).sum(dim=(1,2)) / (normal_element + 1e-9) + 1e-9)      # [B]
+        pos_sim_normal = t.sqrt((dist_ap * (1-mask)).sum(dim=(1,2)) / (normal_element + 1e-5) + 1e-5)      # [B]
+        neg_sim_normal = t.sqrt((dist_an * (1-mask)).sum(dim=(1,2)) / (normal_element + 1e-5) + 1e-5)      # [B]
 
         has_anom_matrix = (anomaly_element > 0).float()                                        # [B]
         has_norm_matrix = (normal_element > 0).float()                                         # [B]
@@ -370,7 +370,7 @@ class SeSimiLoss(nn.Module):
             mag_p = t.norm(batch_positive, p=2, dim=-1)                                        
             mag_n = t.norm(batch_negative, p=2, dim=-1)                                
     
-            pos_mag_dist = ((mag_a - mag_p)**2) / ((mag_a + mag_p)**2 + 1e-9)          
+            pos_mag_dist = ((mag_a - mag_p)**2) / ((mag_a + mag_p)**2 + 1e-5)          
             pos_mag_dist = pos_mag_dist.mean(dim=-1)                                   
     
             mag_label = hard_label if self.hard_mask == 1 else blur_label              
@@ -379,16 +379,16 @@ class SeSimiLoss(nn.Module):
             mag_anomaly_element = mag_label.sum(dim=-1)                                
             mag_normal_element = (1 - mag_label).sum(dim=-1)                           
     
-            neg_mag_dist = ((mag_a - mag_n)**2) / ((mag_a + mag_n)**2 + 1e-9)          
+            neg_mag_dist = ((mag_a - mag_n)**2) / ((mag_a + mag_n)**2 + 1e-5)          
             
-            neg_mag_anomaly_dist = (neg_mag_dist * mag_label).sum(dim=-1) / (mag_anomaly_element + 1e-9)         
-            neg_mag_normal_dist = (neg_mag_dist * (1 - mag_label)).sum(dim=-1) / (mag_normal_element + 1e-9)     
+            neg_mag_anomaly_dist = (neg_mag_dist * mag_label).sum(dim=-1) / (mag_anomaly_element + 1e-5)         
+            neg_mag_normal_dist = (neg_mag_dist * (1 - mag_label)).sum(dim=-1) / (mag_normal_element + 1e-5)     
             
             mag_loss_full = t.clamp(self.pos_ratio*pos_mag_dist + (1-self.pos_ratio)*neg_mag_normal_dist \
                            - neg_mag_anomaly_dist + self.margin, min=0)            
 
-            score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-9)
-            score_mag = (neg_mag_anomaly_dist - pos_mag_dist) / (neg_mag_anomaly_dist + pos_mag_dist + 1e-9)
+            score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-5)
+            score_mag = (neg_mag_anomaly_dist - pos_mag_dist) / (neg_mag_anomaly_dist + pos_mag_dist + 1e-5)
 
         else:
             anom_mask = hard_label if self.hard_mask == 1 else blur_label                           # [B, win_size, 1]
@@ -403,7 +403,7 @@ class SeSimiLoss(nn.Module):
             std_n_norm = self.get_masked_std(batch_negative, norm_mask)                              # [B, d_model]
 
             def bounded_dist(v1, v2):                                                                # [B, d_model]
-                return ((v1 - v2)**2) / ((v1 + v2)**2 + 1e-9)                                        # [B, d_model]
+                return ((v1 - v2)**2) / ((v1 + v2)**2 + 1e-5)                                        # [B, d_model]
 
             pos_mag_anom_dist = bounded_dist(std_a_anom, std_p_anom).mean(dim=-1)                    # [B]
             pos_mag_norm_dist = bounded_dist(std_a_norm, std_p_norm).mean(dim=-1)                    # [B]
@@ -425,9 +425,9 @@ class SeSimiLoss(nn.Module):
             mag_loss_full = var_loss_full                     # [B]
             
             score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix)\
-                / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-9)        # [B]
+                / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-5)        # [B]
             score_mag = (neg_mag_anomaly_dist * has_anom_global - pos_mag_anom_dist * has_anom_global)\
-                / (neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global + 1e-9) # [B]
+                / (neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global + 1e-5) # [B]
 
         mag_loss = mag_loss_full * has_anom_global            # [B]
 
@@ -437,8 +437,8 @@ class SeSimiLoss(nn.Module):
         score_sim, score_mag = score_sim.detach(), score_mag.detach()
 
         if B > 1:
-            score_sim = (score_sim - score_sim.mean()) / (score_sim.std() + 1e-9)                # [B]
-            score_mag = (score_mag - score_mag.mean()) / (score_mag.std() + 1e-9)                # [B]
+            score_sim = (score_sim - score_sim.mean()) / (score_sim.std() + 1e-5)                # [B]
+            score_mag = (score_mag - score_mag.mean()) / (score_mag.std() + 1e-5)                # [B]
         else:
             score_sim, score_mag = t.zeros_like(score_sim), t.zeros_like(score_mag)
 
@@ -455,7 +455,7 @@ class SeSimiLoss(nn.Module):
         # ==========================================
         # 4. GLOBAL MANIFOLD THROTTLING & REGULARIZATION
         # ==========================================
-        recon_gap = (batch_recon_stat - batch_base_stat) / (batch_base_stat + 1e-9)                # [1]
+        recon_gap = (batch_recon_stat - batch_base_stat) / (batch_base_stat + 1e-5)                # [1]
         over_drift = t.relu(recon_gap - self.recon_tolerance)                                       # [1]
         throttle = t.exp(-self.throttle_beta * over_drift)
         throttled_contrastive_loss = raw_contrastive_loss * throttle                                # [1]
@@ -483,7 +483,7 @@ class SeSimiLoss(nn.Module):
         return total_loss, log_metrics
         
     def get_masked_std(self, x, m):
-        valid_elements = m.sum(dim=1, keepdim=True) + 1e-9             # [B, 1, 1]
+        valid_elements = m.sum(dim=1, keepdim=True) + 1e-5             # [B, 1, 1]
         local_mean = (x * m).sum(dim=1, keepdim=True) / valid_elements # [B, 1, d_model]
         
         # Bóp mẫu số từ [B, 1, 1] về [B, 1] để chia không bị lỗi Broadcasting
@@ -494,4 +494,4 @@ class SeSimiLoss(nn.Module):
         sum_sq = (((x - local_mean)**2) * m).sum(dim=1)                # [B, d_model]
         local_var = sum_sq / valid_elements_sq                         # [B, d_model]
         
-        return t.sqrt(local_var + 1e-9)                                # [B, d_model]
+        return t.sqrt(local_var + 1e-5)                                # [B, d_model]
