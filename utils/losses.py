@@ -426,11 +426,14 @@ class SeSimiLoss(nn.Module):
                 min=0
             )                                                 # [B]
             mag_loss_full = var_loss_full                     # [B]
-            
-            score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix)\
-                / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-5)        # [B]
-            score_mag = (neg_mag_anomaly_dist * has_anom_global - pos_mag_anom_dist * has_anom_global)\
-                / (neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global + 1e-5) # [B]
+
+        
+            # Áp dụng t.clamp cho mẫu số để cấm nó rơi xuống mức quá nhỏ
+            sim_denom = t.clamp(neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix, min=1e-5)
+            score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / sim_denom
+
+            mag_denom = t.clamp(neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global, min=1e-5)
+            score_mag = (neg_mag_anomaly_dist * has_anom_global - pos_mag_anom_dist * has_anom_global) / mag_denom
 
         mag_loss = mag_loss_full * has_anom_global            # [B]
 
@@ -497,5 +500,5 @@ class SeSimiLoss(nn.Module):
         # [B, d_model] chia [B, 1] sẽ ra đúng [B, d_model]
         sum_sq = (((x - local_mean)**2) * m).sum(dim=1)                # [B, d_model]
         local_var = sum_sq / valid_elements_sq                         # [B, d_model]
-        
+        local_var = t.clamp(local_var, min=0.0)
         return t.sqrt(local_var + 1e-5)                                # [B, d_model]
