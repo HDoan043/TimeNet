@@ -276,40 +276,31 @@ class SeSimiLoss(nn.Module):
         self.max_ratio = getattr(args, 'max_ratio', 1.0)
         self.pos_ratio = getattr(args, 'pos_ratio', 0.5)
         
-        # Đổi lại thành reduction='none' để lấy Loss của TỪNG SAMPLE phục vụ tính Quantile
         self.mse_none = nn.MSELoss(reduction='none')
 
-        # Siêu tham số cho Routing và Throttling
         self.temperature = getattr(args, 'temperature', 0.5)
         self.alpha_floor = getattr(args, 'alpha_floor', 0.2)
         
-       # Ngưỡng chịu đựng và Hệ số phanh
         self.recon_tolerance = getattr(args, 'recon_tolerance', 0.2) 
-        self.throttle_beta = getattr(args, 'throttle_beta', 3.0) # Hệ số khuếch đại phanh
+        self.throttle_beta = getattr(args, 'throttle_beta', 3.0) 
+
+        self.magnitude_mode = getattr(args, 'magnitude_mode', 'variance')
         
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling, base_mse):
-        '''
-        SeSimiLoss: Minimalist Manifold-Preserving Adaptive Contrastive
-        '''
         idx = idx.to(x.device)
         pos_idx = pos_idx.to(x.device)
         neg_idx = neg_idx.to(x.device)
         attn_pooling = attn_pooling.to(x.device)
         labels = labels.to(x.device)
         
-        # Lấy giá trị trung bình vĩ mô của base_mse cho batch này
-        batch_base_mse = base_mse.mean().to(x.device).float()
-
         B = idx.shape[0]
 
         # ==========================================
-        # 0. RECONSTRUCT LOSS (Global Batch Level)
+        # 0. RECONSTRUCT LOSS
         # ==========================================
-        # Tính MSE chung cho cả batch
-        sample_recon = self.mse_none(x[idx], x_hat[idx]).mean(dim=(1,2)) 
+        sample_recon = self.mse_none(x[idx], x_hat[idx]).mean(dim=(1,2))             # [B]
         raw_recon_loss = sample_recon.mean() 
 
-        # Lấy phân vị 80% (Robust Statistics) để tránh bị mean che lấp
         if B > 1:
             batch_base_stat = t.quantile(base_mse, 0.8)
             batch_recon_stat = t.quantile(sample_recon.detach(), 0.8)
@@ -325,67 +316,121 @@ class SeSimiLoss(nn.Module):
         batch_positive_norm = nn.functional.normalize(batch_positive, p=2, dim=-1)
         batch_negative_norm = nn.functional.normalize(batch_negative, p=2, dim=-1)    
             
-        blur_label = gaussian_blur_1d(labels).unsqueeze(-1)                                # [B, win_size, 1] 
-        hard_label = labels.unsqueeze(-1)                                                  # [B, win_size, 1]
+        try:
+            blur_label = gaussian_blur_1d(labels).unsqueeze(-1)
+        except NameError:
+            blur_label = labels.unsqueeze(-1) 
+
+        hard_label = labels.unsqueeze(-1)                                          
         
         hard_mask = self.max_ratio*t.maximum(hard_label, hard_label.transpose(1,2))\
-             + (1-self.max_ratio)*t.matmul(hard_label, hard_label.transpose(1,2))          # [B, win_size, win_size]
+             + (1-self.max_ratio)*t.matmul(hard_label, hard_label.transpose(1,2))  
         soft_mask = self.max_ratio*t.maximum(blur_label, blur_label.transpose(1,2))\
-             + (1-self.max_ratio)*t.matmul(blur_label, blur_label.transpose(1,2))          # [B, win_size, win_size]
+             + (1-self.max_ratio)*t.matmul(blur_label, blur_label.transpose(1,2))  
         mask = hard_mask if self.hard_mask == 1 else soft_mask
         
         anomaly_element = mask.sum(dim=(1,2))                                      
         normal_element = (1-mask).sum(dim=(1,2))                                   
             
         # ==========================================
-        # 1. SIMILARITY BRANCH (Relation)
+        # 1. SIMILARITY BRANCH (Dual-Region)
         # ==========================================
         sim_a = t.matmul(batch_anchor_norm,   batch_anchor_norm.transpose(1,2))    
         sim_p = t.matmul(batch_positive_norm, batch_positive_norm.transpose(1,2))  
         sim_n = t.matmul(batch_negative_norm, batch_negative_norm.transpose(1,2))  
             
-        neg_anomaly_dist = (sim_a - sim_n)*mask                                  
-        neg_anomaly_dist = (neg_anomaly_dist**2).sum(dim=(1,2))                  
-        neg_anomaly_dist = t.sqrt(neg_anomaly_dist/(anomaly_element+1e-9) + 1e-9)  
+        dist_ap = (sim_a - sim_p)**2
+        dist_an = (sim_a - sim_n)**2
 
-        neg_normal_dist = (sim_a - sim_n)*(1-mask)                               
-        neg_normal_dist = (neg_normal_dist**2).sum(dim=(1,2))                    
-        neg_normal_dist = t.sqrt(neg_normal_dist/(normal_element+1e-9) + 1e-9)     
-        
-        pos_dist = t.sqrt(((sim_a - sim_p)**2).mean(dim=(1,2)) + 1e-9)             
-        
-        sim_loss = t.clamp(self.pos_ratio*pos_dist + (1-self.pos_ratio)*neg_normal_dist \
-                       - neg_anomaly_dist + self.margin, min=0)                  
+        pos_sim_anomaly = t.sqrt((dist_ap * mask).sum(dim=(1,2)) / (anomaly_element + 1e-9) + 1e-9)
+        neg_sim_anomaly = t.sqrt((dist_an * mask).sum(dim=(1,2)) / (anomaly_element + 1e-9) + 1e-9)
 
+        pos_sim_normal = t.sqrt((dist_ap * (1-mask)).sum(dim=(1,2)) / (normal_element + 1e-9) + 1e-9)
+        neg_sim_normal = t.sqrt((dist_an * (1-mask)).sum(dim=(1,2)) / (normal_element + 1e-9) + 1e-9)
+
+        has_anom_matrix = (anomaly_element > 0).float()
+        has_norm_matrix = (normal_element > 0).float()
+
+        sim_loss_full = t.clamp(
+            self.pos_ratio * (pos_sim_anomaly * has_anom_matrix + pos_sim_normal * has_norm_matrix) 
+            + (1 - self.pos_ratio) * (neg_sim_normal * has_norm_matrix)                             
+            - (neg_sim_anomaly * has_anom_matrix)                                                   
+            + self.margin, 
+            min=0
+        )
+        sim_loss = sim_loss_full * has_anom_matrix 
+        
         # ==========================================
-        # 2. MAGNITUDE BRANCH (Bounded Relative Distance)
+        # 2. MAGNITUDE / VARIANCE BRANCH
         # ==========================================
-        mag_a = t.norm(batch_anchor, p=2, dim=-1)                                  
-        mag_p = t.norm(batch_positive, p=2, dim=-1)                                
-        mag_n = t.norm(batch_negative, p=2, dim=-1)                                
-
-        pos_mag_dist = ((mag_a - mag_p)**2) / ((mag_a + mag_p)**2 + 1e-9)          
-        pos_mag_dist = pos_mag_dist.mean(dim=-1)                                   
-
-        mag_label = hard_label if self.hard_mask == 1 else blur_label              
-        mag_label = mag_label.squeeze(-1)                                          
+        has_anom_global = (hard_label.sum(dim=(1,2)) > 0).float() 
         
-        mag_anomaly_element = mag_label.sum(dim=-1)                                
-        mag_normal_element = (1 - mag_label).sum(dim=-1)                           
+        if self.magnitude_mode.lower() in ["point_wise", "point-wise", "point", "p"]:
+            mag_a = t.norm(batch_anchor, p=2, dim=-1)                                  
+            mag_p = t.norm(batch_positive, p=2, dim=-1)                                
+            mag_n = t.norm(batch_negative, p=2, dim=-1)                                
+    
+            pos_mag_dist = ((mag_a - mag_p)**2) / ((mag_a + mag_p)**2 + 1e-9)          
+            pos_mag_dist = pos_mag_dist.mean(dim=-1)                                   
+    
+            mag_label = hard_label if self.hard_mask == 1 else blur_label              
+            mag_label = mag_label.squeeze(-1)                                          
+            
+            mag_anomaly_element = mag_label.sum(dim=-1)                                
+            mag_normal_element = (1 - mag_label).sum(dim=-1)                           
+    
+            neg_mag_dist = ((mag_a - mag_n)**2) / ((mag_a + mag_n)**2 + 1e-9)          
+            
+            neg_mag_anomaly_dist = (neg_mag_dist * mag_label).sum(dim=-1) / (mag_anomaly_element + 1e-9)         
+            neg_mag_normal_dist = (neg_mag_dist * (1 - mag_label)).sum(dim=-1) / (mag_normal_element + 1e-9)     
+            
+            mag_loss_full = t.clamp(self.pos_ratio*pos_mag_dist + (1-self.pos_ratio)*neg_mag_normal_dist \
+                           - neg_mag_anomaly_dist + self.margin, min=0)            
 
-        neg_mag_dist = ((mag_a - mag_n)**2) / ((mag_a + mag_n)**2 + 1e-9)          
-        
-        neg_mag_anomaly_dist = (neg_mag_dist * mag_label).sum(dim=-1) / (mag_anomaly_element + 1e-9)         
-        neg_mag_normal_dist = (neg_mag_dist * (1 - mag_label)).sum(dim=-1) / (mag_normal_element + 1e-9)     
-        
-        mag_loss = t.clamp(self.pos_ratio*pos_mag_dist + (1-self.pos_ratio)*neg_mag_normal_dist \
-                       - neg_mag_anomaly_dist + self.margin, min=0)                
+            score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-9)
+            score_mag = (neg_mag_anomaly_dist - pos_mag_dist) / (neg_mag_anomaly_dist + pos_mag_dist + 1e-9)
+
+        else:
+            anom_mask = hard_label if self.hard_mask == 1 else blur_label   
+            norm_mask = 1.0 - anom_mask                                     
+            
+            std_a_anom = self.get_masked_std(batch_anchor, anom_mask)                # [B, d_model]
+            std_p_anom = self.get_masked_std(batch_positive, anom_mask)              # [B, d_model]
+            std_n_anom = self.get_masked_std(batch_negative, anom_mask)              # [B, d_model]
+    
+            std_a_norm = self.get_masked_std(batch_anchor, norm_mask)                # [B, d_model]
+            std_p_norm = self.get_masked_std(batch_positive, norm_mask)              # [B, d_model]
+            std_n_norm = self.get_masked_std(batch_negative, norm_mask)              # [B, d_model]
+
+            def bounded_dist(v1, v2):                                                # [B, d_model]
+                return ((v1 - v2)**2) / ((v1 + v2)**2 + 1e-9)                        # [B, d_model]
+
+            pos_mag_anom_dist = bounded_dist(std_a_anom, std_p_anom).mean(dim=-1)    # [B]
+            pos_mag_norm_dist = bounded_dist(std_a_norm, std_p_norm).mean(dim=-1)    # [B]
+            
+            has_norm_global = (norm_mask.sum(dim=(1,2)) > 0).float() 
+
+            pos_mag_dist = (pos_mag_anom_dist * has_anom_global) + (pos_mag_norm_dist * has_norm_global)
+            neg_mag_anomaly_dist = bounded_dist(std_a_anom, std_n_anom).mean(dim=-1) # [B]
+            neg_mag_normal_dist = bounded_dist(std_a_norm, std_n_norm).mean(dim=-1)  # [B]
+
+            var_loss_full = t.clamp(
+                self.pos_ratio * pos_mag_dist 
+                + (1 - self.pos_ratio) * (neg_mag_normal_dist * has_norm_global) 
+                - (neg_mag_anomaly_dist * has_anom_global)                       
+                + self.margin, 
+                min=0
+            ) 
+            mag_loss_full = var_loss_full
+
+            score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-9)
+            score_mag = (neg_mag_anomaly_dist * has_anom_global - pos_mag_anom_dist * has_anom_global) / (neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global + 1e-9)
+
+        mag_loss = mag_loss_full * has_anom_global 
 
         # ==========================================
         # 3. CONTRASTIVE LOSS (Adaptive Routing)
         # ==========================================
-        score_sim = (neg_anomaly_dist - pos_dist) / (neg_anomaly_dist + pos_dist + 1e-9)
-        score_mag = (neg_mag_anomaly_dist - pos_mag_dist) / (neg_mag_anomaly_dist + pos_mag_dist + 1e-9)
         score_sim, score_mag = score_sim.detach(), score_mag.detach()
 
         if B > 1:
@@ -397,39 +442,45 @@ class SeSimiLoss(nn.Module):
         scores = t.stack([score_sim, score_mag], dim=-1)                           
         alphas = t.softmax(scores / self.temperature, dim=-1)                      
 
-        alpha_sim = (self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 0]) * 2.0  
-        alpha_mag = (self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 1]) * 2.0  
+        # ĐÃ SỬA LỖI SCALE: Bỏ nhân 2 để tổng alpha luôn = 1.0
+        alpha_sim = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 0]
+        alpha_mag = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 1]
 
-        # Kết hợp nhánh bằng Softmax Routing
         sample_contrastive_loss = (alpha_sim * sim_loss) + (alpha_mag * mag_loss)
-        
-        # Loss thô chưa bóp phanh
         raw_contrastive_loss = t.mean(sample_contrastive_loss)
 
         # ==========================================
-        # 4. GLOBAL MANIFOLD THROTTLING (Phanh Vĩ Mô theo Góp ý của ChatGPT)
+        # 4. GLOBAL MANIFOLD THROTTLING & REGULARIZATION
         # ==========================================
-        # Tính khoảng hở (Gap) dựa trên phân vị 80% thay vì trung bình
         recon_gap = (batch_recon_stat - batch_base_stat) / (batch_base_stat + 1e-9)
         over_drift = t.relu(recon_gap - self.recon_tolerance)
-            
-        # Áp dụng hệ số Beta vào phanh để tạo hiệu ứng "bóp thắng" sắc nét hơn
         throttle = t.exp(-self.throttle_beta * over_drift)
-        
-        # Bóp phanh Contrastive Loss chung cho toàn batch
         throttled_contrastive_loss = raw_contrastive_loss * throttle
+
+        # KHÓA CHẶT "ĐƯỜNG TẮT" BẰNG L2-NORM PENALTY 
+        latent_norm_reg = t.norm(batch_anchor, p=2, dim=-1).mean()
 
         # ==========================================
         # FINAL LOSS
         # ==========================================
-        total_loss = self.reconstruct_weight * raw_recon_loss + self.contrastive_weight * throttled_contrastive_loss
+        total_loss = self.reconstruct_weight * raw_recon_loss + self.contrastive_weight * throttled_contrastive_loss + 1e-4 * latent_norm_reg
             
         log_metrics = {
             "loss_recon": raw_recon_loss.item(),
             "loss_contrastive": throttled_contrastive_loss.item(),
-            "recon_gap": recon_gap.mean().item(), # Lấy mean vì recon_gap đang là tensor
+            "loss_sim_raw": sim_loss.mean().item(),
+            "loss_var_raw": mag_loss.mean().item(),
+            "recon_gap": recon_gap.mean().item(), 
             "throttle": throttle.item(),
             "alpha_sim": alpha_sim.mean().item(),
-            "alpha_mag": alpha_mag.mean().item()
+            "alpha_mag": alpha_mag.mean().item(),
+            "active_anom_ratio": has_anom_global.mean().item(),
+            "latent_norm": latent_norm_reg.item()
         }
         return total_loss, log_metrics
+        
+    def get_masked_std(self, x, m):
+        valid_elements = m.sum(dim=1, keepdim=True) + 1e-9             
+        local_mean = (x * m).sum(dim=1, keepdim=True) / valid_elements 
+        local_var = ((((x - local_mean)**2) * m).sum(dim=1) / valid_elements).squeeze(1)
+        return t.sqrt(local_var + 1e-9)
