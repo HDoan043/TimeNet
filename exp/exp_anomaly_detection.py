@@ -241,6 +241,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 #     time_now = time.time()
 
                 loss.backward()
+                t.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 model_optim.step()
 
                 i+=1
