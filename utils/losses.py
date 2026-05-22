@@ -292,7 +292,7 @@ class SeSimiLoss(nn.Module):
         neg_idx = neg_idx.to(x.device)
         attn_pooling = attn_pooling.to(x.device)
         labels = labels.to(x.device)
-        
+        batch_base_mse = base_mse.mean().to(x.device).float()
         B = idx.shape[0]
 
         # ==========================================
