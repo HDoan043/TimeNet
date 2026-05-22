@@ -494,9 +494,9 @@ class SeSimiLoss(nn.Module):
             "active_anom_ratio": has_anom_global.mean().item(),
             "latent_norm": latent_norm_reg.item()
         }
-        for name, tensor in check_tensors.items():
-            if t.isnan(tensor).any() or t.isinf(tensor).any():
-                print(f"[NaN DETECTED] {name}")
+        # for name, tensor in check_tensors.items():
+        #     if t.isnan(tensor).any() or t.isinf(tensor).any():
+        #         print(f"[NaN DETECTED] {name}")
         return total_loss, log_metrics
         
     def get_masked_std(self, x, m):
