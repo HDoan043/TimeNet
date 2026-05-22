@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import json
 
+torch.autograd.set_detect_anomaly(True)
 warnings.filterwarnings('ignore')
 
 
