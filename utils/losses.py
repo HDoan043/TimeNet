@@ -480,21 +480,21 @@ class SeSimiLoss(nn.Module):
         sim_loss = self.similarity(batch_anchor_norm, batch_positive_norm, batch_negative_norm, mask, anomaly_element, normal_element) #[1]
         total_loss = self.reconstruct_weight*recon_loss + self.contrastive_weight*sim_loss
 
-        return total_loss
-        # log_metrics = {
-        #     "loss_recon": (self.reconstruct_weight * recon_loss).item(),
-        #     "loss_contrastive": (self.contrastive_weight * sim_loss).item(),
-        #     "loss_sim_raw": sim_loss.item(),
-        #     "loss_var_raw": 0,
-        #     "recon_gap": 0, 
-        #     "throttle": 1.0, # Giả lập throttle đang mở full
-        #     "alpha_sim": 1.0, # Đang dùng 100% sim
-        #     "alpha_mag": 0,
-        #     "active_anom_ratio": (hard_label.sum(dim=(1,2)) > 0).float().mean().item(),
-        #     "latent_norm": 0
-        # }
+        # return total_loss
+        log_metrics = {
+            "loss_recon": (self.reconstruct_weight * recon_loss).item(),
+            "loss_contrastive": (self.contrastive_weight * sim_loss).item(),
+            "loss_sim_raw": sim_loss.item(),
+            "loss_var_raw": 0,
+            "recon_gap": 0, 
+            "throttle": 1.0, # Giả lập throttle đang mở full
+            "alpha_sim": 1.0, # Đang dùng 100% sim
+            "alpha_mag": 0,
+            "active_anom_ratio": (hard_label.sum(dim=(1,2)) > 0).float().mean().item(),
+            "latent_norm": 0
+        }
         
-        # return total_loss, log_metrics
+        return total_loss, log_metrics
         # # ==========================================
         # # 3. CONTRASTIVE LOSS (Adaptive Routing)
         # # ==========================================
