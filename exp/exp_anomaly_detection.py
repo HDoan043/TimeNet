@@ -199,7 +199,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
                         metrics = loss[1]
                         loss = loss[0]
                         for key in epoch_logs.keys():
-                        epoch_logs[key] += metrics[key]
+                            epoch_logs[key] += metrics[key]
                     train_loss.append(loss.item())
 
                 speed = (time.time() - time_begin) / aggregate_steps
