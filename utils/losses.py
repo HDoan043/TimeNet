@@ -441,13 +441,13 @@ class SeSimiLoss(nn.Module):
                 "loss_recon": raw_recon_loss,
                 "loss_contrastive": sim_loss.mean(dim=0),
                 "loss_sim_raw": sim_loss.mean(dim=0),
-                "loss_var_raw": "Not use",
-                "recon_gap": "Not use", 
-                "throttle": "Not use",
-                "alpha_sim": "Not use",
-                "alpha_mag": "Not use",
-                "active_anom_ratio": "Not use",
-                "latent_norm": "Not use"
+                "loss_var_raw": 0,
+                "recon_gap": 0, 
+                "throttle": 0,
+                "alpha_sim": 0,
+                "alpha_mag": 0,
+                "active_anom_ratio": 0,
+                "latent_norm": 0
             }
             return total_loss, log_metrics
 
