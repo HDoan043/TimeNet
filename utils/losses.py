@@ -306,7 +306,7 @@ class SeSimiLoss(nn.Module):
             anom_recon_neg = anom_recon_neg.sum(dim=1)/(anom_elements + 1e-5)                 # [B]
 
             nor_recon_neg = recon_neg*(1-hard_label).squeeze(-1)                              # [B, win_size]
-            nor_elements = (1-hard_label).sum(dim=1)                                          # [B]
+            nor_elements = (1-hard_label).squeeze(-1).sum(dim=1)                              # [B]
             nor_recon_neg = nor_recon_neg.sum(dim=1)/(nor_elements + 1e-5)                    # [B]
 
             pos_recon = t.stack([recon_anchor, recon_pos, nor_recon_neg], dim=1)              # [B, 3]
