@@ -210,7 +210,7 @@ class Dataset_Custom(Dataset):
     def __init__(self, args, root_path, flag='train', task_name="long_term_forecasting",
                  size=None, features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='5min', 
-                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1, contrastive=False):
+                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1, contrastive=False, phase="train"):
         # size [seq_len, label_len, pred_len]
         self.args = args
         # info
@@ -249,6 +249,7 @@ class Dataset_Custom(Dataset):
         self.train_ratio = train_ratio
         self.test_ratio = test_ratio
         self.contrastive = contrastive
+        self.phase = phase
         self.__read_data__()
         
     def __read_data__(self):
@@ -491,6 +492,12 @@ class Dataset_Custom(Dataset):
                 assert not np.isinf(positive).any()
                 
                 seq_x = (seq_x, positive, negative, label, base_mse)
+
+            elif self.task_name == "supervise_5g_network" and self.phase=="train":
+                r = np.random.rand()
+                if r<0.6:
+                    seq_x, seq_y = negative_sampler(self, x_index_start, x_index_end)
+    
             return seq_x, seq_y, seq_x_mark, seq_y_mark
     
     def __len__(self):
