@@ -21,7 +21,7 @@ torch.autograd.set_detect_anomaly(True)
 warnings.filterwarnings('ignore')
 
 
-class Exp_Anomaly_Detection(Exp_Basic):
+class Exp_Supervise_5G_Network(Exp_Basic):
     def __init__(self, args):
         super(Exp_Anomaly_Detection, self).__init__(args)
 
