@@ -437,6 +437,19 @@ class SeSimiLoss(nn.Module):
         else:
             total_loss = self.reconstruct_weight * raw_recon_loss + \
                             self.contrastive_weight * sim_loss.mean(dim=0) 
+            log_metrics = {
+                "loss_recon": raw_recon_loss,
+                "loss_contrastive": sim_loss.mean(dim=0),
+                "loss_sim_raw": sim_loss.mean(dim=0),
+                "loss_var_raw": "Not use",
+                "recon_gap": "Not use", 
+                "throttle": "Not use",
+                "alpha_sim": "Not use",
+                "alpha_mag": "Not use",
+                "active_anom_ratio": "Not use",
+                "latent_norm": "Not use"
+            }
+            return total_loss, log_metrics
 
         mag_loss = mag_loss_full * has_anom_global            # [B]
 
