@@ -100,7 +100,7 @@ class Model(nn.Module):
             'TimesNetv1': TimesNet_update_v1,
             'TimesNetv2': TimesNet_update_v2
         }
-        self.base_model = self.model_dict[configs.base_model]
+        self.base_model = self.model_dict[configs.base_model].Model(configs).float()
         # load checkpoint
         self.base_model.load_state_dict(torch.load(configs.base_model_checkpoints))
         # freeze base_model
@@ -111,7 +111,7 @@ class Model(nn.Module):
         
         # corrector
         self.corrector = ContrastiveCorrector(
-            configs.c_in, configs.d_model, configs.contrastive_d_model, configs.corrector_layers)
+            configs.enc_in, configs.d_model, configs.contrastive_d_model, configs.corrector_layers)
         
     def forward(self, x, x_mark_enc, x_dec, x_mark_dec):        # [B,win_size,channels]
         # get the hidden state and the score from base model
