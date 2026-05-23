@@ -393,7 +393,7 @@ class SeSimiLoss(nn.Module):
             score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-5)
             score_mag = (neg_mag_anomaly_dist - pos_mag_dist) / (neg_mag_anomaly_dist + pos_mag_dist + 1e-5)
 
-        else:
+        elif self.magnitude_mode.lower() in ["variance", "var", "v"]:
             anom_mask = hard_label if self.hard_mask == 1 else blur_label                           # [B, win_size, 1]
             norm_mask = 1.0 - anom_mask                                                             # [B, win_size, 1]
             
@@ -434,6 +434,9 @@ class SeSimiLoss(nn.Module):
 
             mag_denom = t.clamp(neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global, min=1e-5)
             score_mag = (neg_mag_anomaly_dist * has_anom_global - pos_mag_anom_dist * has_anom_global) / mag_denom
+        else:
+            total_loss = self.reconstruct_weight * raw_recon_loss + \
+                            self.contrastive_weight * sim_loss.mean(dim=0) 
 
         mag_loss = mag_loss_full * has_anom_global            # [B]
 
