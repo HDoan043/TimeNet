@@ -194,11 +194,13 @@ class Exp_Anomaly_Detection(Exp_Basic):
                     batch_x_mark = batch_all_mark.to(self.device)
                     
                     hidden_state, outputs, attn_pooling = self.model(batch_x, batch_x_mark, None, None)
-                    loss, metrics = criterion(batch_x, outputs, hidden_state, idx, pos_idx, neg_idx, label, attn_pooling, batch_base_mse)
-                    train_loss.append(loss.item())
-
-                    for key in epoch_logs.keys():
+                    loss = criterion(batch_x, outputs, hidden_state, idx, pos_idx, neg_idx, label, attn_pooling, batch_base_mse)
+                    if isinstance(loss, tuple) or isinstance(loss, list):
+                        metrics = loss[1]
+                        loss = loss[0]
+                        for key in epoch_logs.keys():
                         epoch_logs[key] += metrics[key]
+                    train_loss.append(loss.item())
 
                 speed = (time.time() - time_begin) / aggregate_steps
                 left_time_s = speed * ((self.args.train_epochs - epoch) * train_steps - i)
