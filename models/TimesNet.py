@@ -211,10 +211,11 @@ class Model(nn.Module):
         x_enc = x_enc.div(stdev)
 
         # embedding
-        enc_out = self.enc_embedding(x_enc, x_enc_mark)  # [B,T,C]
+        enc_out = self.enc_embedding(x_enc, x_enc_mark)  # [B,T,d_model]
+        z = enc_out.clone()                              # [B,T,d_model]
         # TimesNet
         for i in range(self.layer):
-            enc_out = self.layer_norm(self.model[i](enc_out))
+            enc_out = self.layer_norm(self.model[i](enc_out))    # [B,T,d_model]
 
         # project back
         dec_out = self.projection(enc_out)
@@ -229,7 +230,7 @@ class Model(nn.Module):
                       1, sample_length, 1)))
         
         if self.configs.contrastive == 1:
-            z = self.contrastive_project(enc_out)                              # z: [B, win_size, contrastive_d_model]
+            z = self.contrastive_project(z)                                    # z: [B, win_size, contrastive_d_model]
             attn = self.collapse_attn(z)                                       # attn: [3B, win_size, 1]
             attn_score = torch.softmax(attn, dim=1)                            # attn_score: [3B, win_size, 1]
             return z, dec_out, attn_score
