@@ -12,7 +12,7 @@ data_dict = {
 }
 
 
-def data_provider(args, flag, contrastive=False):
+def data_provider(args, flag, contrastive=False, phase="train"):
     Data = data_dict[args.data]
     timeenc = 0 if args.embed != 'timeF' else 1
 
@@ -23,7 +23,37 @@ def data_provider(args, flag, contrastive=False):
     train_ratio = args.train_ratio
     test_ratio = args.test_ratio
 
-    if args.task_name == 'anomaly_detection':
+    if args.task_name == 'supervise_5g_network':
+        drop_last = True if flag == "train" or flag == "val" else False
+
+        data_set = Data(
+            args = args,
+            root_path=args.root_path,
+            task_name=args.task_name,
+            data_path=args.data_path,
+            flag=flag,
+            size=args.win_size,
+            step=args.step,
+            features=args.features,
+            target=args.target,
+            timeenc=timeenc,
+            freq=freq,
+            seasonal_patterns=args.seasonal_patterns,
+            train_ratio = train_ratio,
+            test_ratio = test_ratio,
+            phase = phase
+        )
+        print(flag, len(data_set))
+        data_loader = DataLoader(
+            data_set,
+            batch_size=batch_size,
+            shuffle=shuffle_flag,
+            num_workers=args.num_workers,
+            drop_last=drop_last
+        )
+        return data_set, data_loader
+
+    elif args.task_name == 'anomaly_detection':
         drop_last = True if flag == "train" or flag == "val" else False
         # data_set = Data(
         #     args = args,
