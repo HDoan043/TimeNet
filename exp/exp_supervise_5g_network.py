@@ -38,33 +38,23 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         return data_set, data_loader
 
     def _select_optimizer(self):
-        real_model = ( self.model.module if isinstance(self.model, nn.DataParallel) else self.model)
+        real_model = (self.model.module if isinstance(self.model, nn.DataParallel) else self.model)
         
-        if self.args.contrastive == 1 and self.args.is_training == 1:
-            # Lọc ra những Parameter ĐANG ĐƯỢC MỞ KHÓA (requires_grad = True)
-            # Việc này tự động tương thích với bất kỳ cấu hình Freeze nào của ông.
-            active_params = filter(lambda p: p.requires_grad, real_model.parameters())
+        # LUÔN LUÔN chỉ đưa vào Optimizer những parameter đang mở khóa
+        active_params = filter(lambda p: p.requires_grad, real_model.parameters())
+        
+        model_optim = optim.Adam(active_params, lr=self.args.learning_rate)
             
-            # Khởi tạo Optimizer với Learning Rate bằng nhau cho TẤT CẢ các lớp đang mở.
-            # Không nhân 100 nữa!
-            model_optim = optim.AdamW(active_params, lr=self.args.learning_rate)
-            
-        else:
-            model_optim = optim.Adam(
-                real_model.parameters(),
-                lr=self.args.learning_rate
-            )
-    
         return model_optim
-
+        
     def _select_criterion(self):
         criterion = CorrectorLoss(self.args)
         return criterion
       
     def train(self, setting, trial=None):
-        train_data, train_loader = self._get_data(flag='train', contrastive=self.args.contrastive)
-        vali_data, vali_loader = self._get_data(flag='val')
-        test_data, test_loader = self._get_data(flag='test')
+        train_data, train_loader = self._get_data(flag='train', contrastive=self.args.contrastive, phase="train")
+        vali_data, vali_loader = self._get_data(flag='val', phase="test")
+        test_data, test_loader = self._get_data(flag='test', phase="test")
 
         if self.args.from_pretrained != "":
             print(f'[⏯️]Training from pretrained model ...')
@@ -75,7 +65,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 self.model.load_state_dict(torch.load(checkpoint_path), strict=False)
             elif os.path.exists(backup_checkpoint_path):
                 self.model.load_state_dict(torch.load(backup_checkpoint_path), strict=False)
-            elif os.path.exist(backup_checkpoint_path2):
+            elif os.path.exists(backup_checkpoint_path2):
                 self.model.load_state_dict(torch.load(backup_checkpoint_path2), strict=False)
             else:
                 print(f'[⚠️] Cannot find the pretrained model, start training from 0...')
@@ -125,7 +115,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 batch_x, batch_y, batch_x_mark, batch_y_mark = batch
                 batch_x = batch_x.float().to(self.device)
                 batch_x_mark = batch_x_mark.to(self.device) 
-                batch_y = batch_y.float().to(self.device)
+                batch_y = batch_y.float().to(self.device).squeeze(-1)
 
                 outputs = self.model(batch_x, batch_x_mark, None, None)
                 loss = criterion(outputs, batch_y)
@@ -227,8 +217,8 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         return best_result
 
     def test(self, setting, test=0):
-        test_data, test_loader = self._get_data(flag='test')
-        train_data, train_loader = self._get_data(flag='train', contrastive=False)
+        test_data, test_loader = self._get_data(flag='test', phase="test")
+        train_data, train_loader = self._get_data(flag='train', contrastive=False, phase="test")
         timestamps = test_data.get_timestamps()
 
         inference_times = []
@@ -259,8 +249,9 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_x_mark = batch_x_mark.to(self.device) 
                 score = self.model(batch_x, batch_x_mark, None, None)    # [B, win_size]
-                score = score.detach().cpu().numpy()
-                attens_energy.append(score)
+                prob_score = torch.sigmoid(score) 
+                score_np = prob_score.detach().cpu().numpy()
+                attens_energy.append(score_np)
 
         attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)            # attens_energy: [num_batch * batch_size * win_size]
         train_energy = np.array(attens_energy)
@@ -284,8 +275,9 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 end_time = time.time()
     
                 inference_times.append((end_time - start_time) * 1000)            
-                score = score.detach().cpu().numpy()
-                attens_energy.append(score)                                              # attens_energy: [batch_size x win_size] x num_batch
+                prob_score = torch.sigmoid(score) 
+                score_np = prob_score.detach().cpu().numpy()
+                attens_energy.append(score_np)                                            # attens_energy: [batch_size x win_size] x num_batch
                 if i > len(test_loader) -2:
                     print("score: {}".format(score.shape))
                     print("batch_y: {}".format(batch_y.shape))
