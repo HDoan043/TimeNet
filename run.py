@@ -7,6 +7,7 @@ from exp.exp_imputation import Exp_Imputation
 from exp.exp_short_term_forecasting import Exp_Short_Term_Forecast
 from exp.exp_anomaly_detection import Exp_Anomaly_Detection
 from exp.exp_classification import Exp_Classification
+from exp.exp_supervise_5g_network import Exp_Supervise_5G_Network
 from utils.print_args import print_args
 import random
 import numpy as np
@@ -30,7 +31,7 @@ if __name__ == '__main__':
 
     # basic config
     parser.add_argument('--task_name', type=str, required=True, default='long_term_forecast',
-                        help='task name, options:[long_term_forecast, short_term_forecast, imputation, classification, anomaly_detection]')
+                        help='task name, options:[long_term_forecast, short_term_forecast, imputation, classification, anomaly_detection, supervise_5g_network]')
     parser.add_argument('--is_training', type=int, required=True, default=1, help='status: 1-train, 0-test, 2-tune by optuna')
     parser.add_argument('--infer', type=int, default=0) 
     parser.add_argument('--model_id', type=str, required=False, default='test', help='model id')
@@ -186,6 +187,8 @@ if __name__ == '__main__':
 
     # Network_5G_Supervise
     parser.add_argument('--corrector_layers', type=int, default=2, help="number of layers used in correctors of Network_5G_Supervise")
+    parser.add_argument('--base_model', type=str, default="TimesNet", help="base pretrained model for supervisin 5g network: TimesNet")
+    parser.add_argument('--base_model_checkpoint', type=str, default="", help="path to the pretrained checkpoint of base model")
     # Contrastive
     parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
     parser.add_argument('--contrastive_criterion', type=str, default="NTXent", help='NTXent: use NTXent Loss, Triplet: use Triplet')
@@ -257,6 +260,8 @@ if __name__ == '__main__':
         Exp = Exp_Anomaly_Detection
     elif args.task_name == 'classification':
         Exp = Exp_Classification
+    elif args.task_name == 'supervise_5g_network':
+        Exp = Exp_Supervise_5G_Network
     else:
         Exp = Exp_Long_Term_Forecast
 
