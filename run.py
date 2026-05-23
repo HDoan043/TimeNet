@@ -220,6 +220,7 @@ if __name__ == '__main__':
     parser.add_argument('--throttle_beta', type=float, default=0.2)
     parser.add_argument('--recon_tolerance', type=float, default=0.2)
     parser.add_argument('--magnitude_mode', type=str, default="variance")
+    parser.add_argument('--hidden_state_position', type=str, default="model.0", help="which hidden representation of input will be used for contrastive learning")
     
     args = parser.parse_args()
     if isinstance(args.moving_avg, list) and len(args.moving_avg) == 1:
