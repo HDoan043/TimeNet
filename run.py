@@ -184,6 +184,8 @@ if __name__ == '__main__':
     parser.add_argument('--mode_select', type=str, default="random", help="random, low")
     parser.add_argument('--modes', type=int, default=32, help="number of frequencies randomly selected to keep in FEB, too low --> loss information, too high --> overfit; ideal: 32, 64, 128")
 
+    # Network_5G_Supervise
+    parser.add_argument('--corrector_layers', type=int, default=2, help="number of layers used in correctors of Network_5G_Supervise")
     # Contrastive
     parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
     parser.add_argument('--contrastive_criterion', type=str, default="NTXent", help='NTXent: use NTXent Loss, Triplet: use Triplet')
