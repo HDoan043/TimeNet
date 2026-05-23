@@ -5,9 +5,9 @@ from models import Autoformer, Transformer, TimesNet, Nonstationary_Transformer,
     Koopa, TiDE, FreTS, TimeMixer, TSMixer, SegRNN, MambaSimple, TemporalFusionTransformer, SCINet, PAttn, TimeXer, \
     WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_update_v2, LSTMAE
 
-class ContrastiveCorrector(nn.Module):
+class Corrector(nn.Module):
     def __init__(self, raw_dim, hidden_dim_timesnet, d_model=128, lstm_layers=1):
-        super(ContrastiveCorrector, self).__init__()
+        super(Corrector, self).__init__()
         
         # Tổng số chiều đầu vào = Số biến gốc + Số chiều Latent của TimesNet + 1 (Điểm Base_Score)
         input_dim = raw_dim + hidden_dim_timesnet + 1
@@ -52,10 +52,8 @@ class ContrastiveCorrector(nn.Module):
         # 4. Tính Final Score
         # Có thể dùng hàm Tanh để kẹp Delta trong khoảng [-1, 1] (Sửa tối đa 1 điểm)
         delta_clipped = torch.tanh(delta) 
-        final_score = base_score + delta_clipped
+        final_score = base_score + delta_clipped        # (-inf, +inf)
         
-        # Ép điểm về khoảng [0, vô cùng] để tính Anomaly an toàn
-        final_score = torch.relu(final_score)           # [B, win_size, 1]
         final_score = final_score.squeeze()             # [B, win_size]
         
         return final_score, delta_clipped
@@ -110,8 +108,8 @@ class Model(nn.Module):
         self.reconstructor = nn.MSELoss(reduction='none')
         
         # corrector
-        self.corrector = ContrastiveCorrector(
-            configs.enc_in, configs.d_model, configs.contrastive_d_model, configs.corrector_layers)
+        self.corrector = Corrector(
+            configs.enc_in, configs.d_model, configs.corrector_d_model, configs.corrector_layers)
         
     def forward(self, x, x_mark_enc, x_dec, x_mark_dec):        # [B,win_size,channels]
         # get the hidden state and the score from base model
