@@ -5,7 +5,7 @@ import optuna
 from models import Autoformer, Transformer, TimesNet, Nonstationary_Transformer, DLinear, FEDformer, \
     Informer, LightTS, Reformer, ETSformer, Pyraformer, PatchTST, MICN, Crossformer, FiLM, iTransformer, \
     Koopa, TiDE, FreTS, TimeMixer, TSMixer, SegRNN, MambaSimple, TemporalFusionTransformer, SCINet, PAttn, TimeXer, \
-    WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_update_v2, LSTMAE
+    WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_update_v2, LSTMAE, Network_5G_Supervise
 
 
 class Exp_Basic(object):
@@ -46,7 +46,8 @@ class Exp_Basic(object):
             'MSGNet': MSGNet,
             'TimeFilter': TimeFilter,
             'TimesNetv1': TimesNet_update_v1,
-            'TimesNetv2': TimesNet_update_v2
+            'TimesNetv2': TimesNet_update_v2,
+            'Network_5G_Supervise': Network_5G_Supervise
         }
         if args.model == 'Mamba':
             print('Please make sure you have successfully installed mamba_ssm')
