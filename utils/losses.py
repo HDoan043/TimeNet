@@ -285,56 +285,42 @@ class SeSimiLoss(nn.Module):
         self.throttle_beta = getattr(args, 'throttle_beta', 3.0) 
 
         self.magnitude_mode = getattr(args, 'magnitude_mode', 'variance')
-        
-    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling, base_mse):
-        if t.isnan(z).any() or t.isnan(x_hat).any():
-            print("\n[BÁO ĐỘNG ĐỎ]: Đầu vào z hoặc x_hat đã bị NaN từ mô hình TimesNet TRƯỚC KHI tính Loss!")
-            print(f"Có NaN ở z: {t.isnan(z).any().item()} | Có NaN ở x_hat: {t.isnan(x_hat).any().item()}")
-        idx = idx.to(x.device)
-        pos_idx = pos_idx.to(x.device)
-        neg_idx = neg_idx.to(x.device)
-        attn_pooling = attn_pooling.to(x.device)
-        labels = labels.to(x.device)
-        batch_base_mse = base_mse.mean().to(x.device).float()
-        B = idx.shape[0]
+        self.reconstruct_negative = getattr(args, 'reconstruct_negative', 0)
 
-        # ==========================================
-        # 0. RECONSTRUCT LOSS
-        # ==========================================
-        sample_recon = self.mse_none(x[idx], x_hat[idx]).mean(dim=(1,2))             # [B]
-        raw_recon_loss = sample_recon.mean()                                         # [1]
-
-        if B > 1:
-            batch_base_stat = t.quantile(base_mse, 0.8)                                # [1]
-            batch_recon_stat = t.quantile(sample_recon.detach(), 0.8)                  # [1]
-        else:
-            batch_base_stat = base_mse.squeeze()
-            batch_recon_stat = sample_recon.detach().squeeze()
-                
-        batch_anchor = z[idx]                                                              # [B, win_size, d_model]
-        batch_positive = z[pos_idx]                                                        # [B, win_size, d_model]
-        batch_negative = z[neg_idx]                                                        # [B, win_size, d_model]
+    def reconstruct(self, x, x_hat, idx, pos_idx, neg_idx, hard_label):
+        batch_anchor_win = x[idx]                         # [B, win_size, channel]
+        batch_pos_win = x[pos_idx]                        # [B, win_size, channel]
+        batch_neg_win = x[neg_idx]                        # [B, win_size, channel]
+        batch_anchor_recon = x_hat[idx]                   # [B, win_size, channel]
+        batch_pos_recon = x_hat[pos_idx]                  # [B, win_size, channel]
+        batch_neg_recon = x_hat[neg_idx]                  # [B, win_size, channel]
         
-        batch_anchor_norm = nn.functional.normalize(batch_anchor, p=2, dim=-1, eps=1e-5).float()
-        batch_positive_norm = nn.functional.normalize(batch_positive, p=2, dim=-1, eps=1e-5).float()
-        batch_negative_norm = nn.functional.normalize(batch_negative, p=2, dim=-1, eps=1e-5).float()
-        
-        try:
-            blur_label = gaussian_blur_1d(labels).unsqueeze(-1)                            # [B, win_size, 1]
-        except NameError:
-            blur_label = labels.unsqueeze(-1)                                              # [B, win_size, 1]
-
-        hard_label = labels.unsqueeze(-1)                                                  # [B, win_size, 1]
-        
-        hard_mask = self.max_ratio*t.maximum(hard_label, hard_label.transpose(1,2))\
-             + (1-self.max_ratio)*t.matmul(hard_label, hard_label.transpose(1,2))          # [B, win_size, win_size]
-        soft_mask = self.max_ratio*t.maximum(blur_label, blur_label.transpose(1,2))\
-             + (1-self.max_ratio)*t.matmul(blur_label, blur_label.transpose(1,2))          # [B, win_size, win_size]
-        mask = hard_mask if self.hard_mask == 1 else soft_mask                             # [B, win_size, win_size]
-        
-        anomaly_element = mask.sum(dim=(1,2))                                              # [B]
-        normal_element = (1-mask).sum(dim=(1,2))                                           # [B]
+        if self.reconstruct_negative:
+            # reconstruct
+            recon_anchor = self.mse_none(batch_anchor_win, batch_anchor_recon).mean(dim=(1,2))# [B]
+            recon_pos = self.mse_none(batch_pos_win, batch_pos_recon).mean(dim=(1,2))         # [B]
+            recon_neg = self.mse_none(batch_neg_win, batch_neg_recon).mean(dim=2)             # [B, win_size]
             
+            anom_recon_neg = recon_neg*hard_label.squeeze(-1)                                 # [B, win_size]
+            anom_elements = hard_label.sum(dim=1)                                             # [B]
+            anom_recon_neg = anom_recon_neg.sum(dim=1)/(anom_elements + 1e-5)                 # [B]
+
+            nor_recon_neg = recon_neg*(1-hard_label).squeeze(-1)                              # [B, win_size]
+            nor_elements = (1-hard_label).sum(dim=1)                                          # [B]
+            nor_recon_neg = nor_recon_neg.sum(dim=1)/(nor_elements + 1e-5)                    # [B]
+
+            pos_recon = t.stack([recon_anchor, recon_pos, nor_recon_neg], dim=1)              # [B, 3]
+            
+            # Lấy [0] để chọn values, bỏ qua indices
+            max_pos_recon = t.max(pos_recon, dim=1)[0]                                        # [B]
+            raw_recon_loss = t.relu(max_pos_recon - anom_recon_neg + self.margin).mean()      # [1]
+        else: 
+            # VÁ LỖI CÚ PHÁP: Dùng dim=(1,2) hoặc .mean()
+            raw_recon_loss = self.mse_none(batch_anchor_win, batch_anchor_recon).mean()       # [1]
+            
+        return raw_recon_loss
+
+    def similarity(self, batch_anchor_norm, batch_positive_norm, batch_negative_norm, mask, anomaly_element, normal_element):
         # ==========================================
         # 1. SIMILARITY BRANCH (Dual-Region)
         # ==========================================
@@ -362,7 +348,10 @@ class SeSimiLoss(nn.Module):
             min=0
         )                                                                                        # [B]
         sim_loss = sim_loss_full * has_anom_matrix                                               # [B]
-        
+
+        return sim_loss.mean()                                                                    #[1]
+
+    def magnitude(self, hard_label, blur_label, batch_anchor, batch_positive, batch_negative):
         # ==========================================
         # 2. MAGNITUDE / VARIANCE BRANCH
         # ==========================================
@@ -390,8 +379,8 @@ class SeSimiLoss(nn.Module):
             mag_loss_full = t.clamp(self.pos_ratio*pos_mag_dist + (1-self.pos_ratio)*neg_mag_normal_dist \
                            - neg_mag_anomaly_dist + self.margin, min=0)            
 
-            score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-5)
-            score_mag = (neg_mag_anomaly_dist - pos_mag_dist) / (neg_mag_anomaly_dist + pos_mag_dist + 1e-5)
+            # score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / (neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix + 1e-5)
+            # score_mag = (neg_mag_anomaly_dist - pos_mag_dist) / (neg_mag_anomaly_dist + pos_mag_dist + 1e-5)
 
         elif self.magnitude_mode.lower() in ["variance", "var", "v"]:
             anom_mask = hard_label if self.hard_mask == 1 else blur_label                           # [B, win_size, 1]
@@ -429,91 +418,144 @@ class SeSimiLoss(nn.Module):
 
         
             # Áp dụng t.clamp cho mẫu số để cấm nó rơi xuống mức quá nhỏ
-            sim_denom = t.clamp(neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix, min=1e-5)
-            score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / sim_denom
+            # sim_denom = t.clamp(neg_sim_anomaly * has_anom_matrix + pos_sim_anomaly * has_anom_matrix, min=1e-5)
+            # score_sim = (neg_sim_anomaly * has_anom_matrix - pos_sim_anomaly * has_anom_matrix) / sim_denom
 
-            mag_denom = t.clamp(neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global, min=1e-5)
-            score_mag = (neg_mag_anomaly_dist * has_anom_global - pos_mag_anom_dist * has_anom_global) / mag_denom
-        else:
-            total_loss = self.reconstruct_weight * raw_recon_loss + \
-                            self.contrastive_weight * sim_loss.mean(dim=0) 
-            log_metrics = {
-                "loss_recon": self.reconstruct_weight*raw_recon_loss,
-                "loss_contrastive": self.contrastive_weight*sim_loss.mean(dim=0),
-                "loss_sim_raw": sim_loss.mean(dim=0),
-                "loss_var_raw": 0,
-                "recon_gap": 0, 
-                "throttle": 0,
-                "alpha_sim": 0,
-                "alpha_mag": 0,
-                "active_anom_ratio": 0,
-                "latent_norm": 0
-            }
-            return total_loss, log_metrics
+            # mag_denom = t.clamp(neg_mag_anomaly_dist * has_anom_global + pos_mag_anom_dist * has_anom_global, min=1e-5)
+            # score_mag = (neg_mag_anomaly_dist * has_anom_global - pos_mag_anom_dist * has_anom_global) / mag_denom
 
-        mag_loss = mag_loss_full * has_anom_global            # [B]
+            mag_loss_full = mag_loss_full * has_anom_global            # [B]
+        return mag_loss_full.mean()
+
+    def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling, base_mse):
+        if t.isnan(z).any() or t.isnan(x_hat).any():
+            print("\n[BÁO ĐỘNG ĐỎ]: Đầu vào z hoặc x_hat đã bị NaN từ mô hình TimesNet TRƯỚC KHI tính Loss!")
+            print(f"Có NaN ở z: {t.isnan(z).any().item()} | Có NaN ở x_hat: {t.isnan(x_hat).any().item()}")
+        idx = idx.to(x.device)
+        pos_idx = pos_idx.to(x.device)
+        neg_idx = neg_idx.to(x.device)
+        attn_pooling = attn_pooling.to(x.device)
+        labels = labels.to(x.device)
+        batch_base_mse = base_mse.mean().to(x.device).float()
+        B = idx.shape[0]
 
         # ==========================================
-        # 3. CONTRASTIVE LOSS (Adaptive Routing)
+        # 0. RECONSTRUCT LOSS
         # ==========================================
-        score_sim, score_mag = score_sim.detach(), score_mag.detach()
+        # Reconstruct anchor window
+        sample_recon = self.mse_none(x[idx], x_hat[idx]).mean(dim=(1,2))             # [B]
+        raw_recon_loss = sample_recon.mean()                                         # [1]
 
         if B > 1:
-            score_sim_std = score_sim.std(unbiased=False)
-            score_mag_std = score_mag.std(unbiased=False)
-
-            score_sim = (score_sim - score_sim.mean()) / (score_sim_std + 1e-5)                # [B]
-            score_mag = (score_mag - score_mag.mean()) / (score_mag_std + 1e-5)                # [B]
+            batch_base_stat = t.quantile(base_mse, 0.8)                                # [1]
+            batch_recon_stat = t.quantile(sample_recon.detach(), 0.8)                  # [1]
         else:
-            score_sim, score_mag = t.zeros_like(score_sim), t.zeros_like(score_mag)
+            batch_base_stat = base_mse.squeeze()
+            batch_recon_stat = sample_recon.detach().squeeze()
 
-        scores = t.stack([score_sim, score_mag], dim=-1)
-
-        scaled_scores = scores / max(self.temperature, 1e-3)
-        scaled_scores = scaled_scores - scaled_scores.max(dim=-1, keepdim=True)[0]
+        # Reconstruct negative window
+        batch_anchor = z[idx]                                                              # [B, win_size, d_model]
+        batch_positive = z[pos_idx]                                                        # [B, win_size, d_model]
+        batch_negative = z[neg_idx]                                                        # [B, win_size, d_model]
         
-        alphas = t.softmax(scaled_scores, dim=-1)
-
-        # ĐÃ SỬA LỖI SCALE: Bỏ nhân 2 để tổng alpha luôn = 1.0
-        alpha_sim = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 0]                # [B]
-        alpha_mag = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 1]                # [B]
-
-        sample_contrastive_loss = (alpha_sim * sim_loss) + (alpha_mag * mag_loss)                # [B]
-        raw_contrastive_loss = t.mean(sample_contrastive_loss)                                   # [1]
-
-        # ==========================================
-        # 4. GLOBAL MANIFOLD THROTTLING & REGULARIZATION
-        # ==========================================
-        recon_gap = (batch_recon_stat - batch_base_stat) / (batch_base_stat + 1e-5)                # [1]
-        over_drift = t.relu(recon_gap - self.recon_tolerance)                                       # [1]
-        throttle = t.exp(-self.throttle_beta * over_drift)
-        throttled_contrastive_loss = raw_contrastive_loss * throttle                                # [1]
-
-        # KHÓA CHẶT "ĐƯỜNG TẮT" BẰNG L2-NORM PENALTY 
-        latent_norm_reg = t.sqrt(t.sum(batch_anchor**2, dim=-1) + 1e-5).mean()                     # [1]
-
-        # ==========================================
-        # FINAL LOSS
-        # ==========================================
-        recon_penalty = t.relu(raw_recon_loss - batch_base_mse)
+        batch_anchor_norm = nn.functional.normalize(batch_anchor, p=2, dim=-1, eps=1e-5).float()
+        batch_positive_norm = nn.functional.normalize(batch_positive, p=2, dim=-1, eps=1e-5).float()
+        batch_negative_norm = nn.functional.normalize(batch_negative, p=2, dim=-1, eps=1e-5).float()
         
-        total_loss = self.reconstruct_weight * recon_penalty + self.contrastive_weight * throttled_contrastive_loss + 1e-4 * latent_norm_reg            
-        log_metrics = {
-            "loss_recon": raw_recon_loss.item(),
-            "loss_contrastive": throttled_contrastive_loss.item(),
-            "loss_sim_raw": sim_loss.mean().item(),
-            "loss_var_raw": mag_loss.mean().item(),
-            "recon_gap": recon_gap.mean().item(), 
-            "throttle": throttle.item(),
-            "alpha_sim": alpha_sim.mean().item(),
-            "alpha_mag": alpha_mag.mean().item(),
-            "active_anom_ratio": has_anom_global.mean().item(),
-            "latent_norm": latent_norm_reg.item()
-        }
-        # for name, tensor in check_tensors.items():
-        #     if t.isnan(tensor).any() or t.isinf(tensor).any():
-        #         print(f"[NaN DETECTED] {name}")
-        return total_loss, log_metrics
+        try:
+            blur_label = gaussian_blur_1d(labels).unsqueeze(-1)                            # [B, win_size, 1]
+        except NameError:
+            blur_label = labels.unsqueeze(-1)                                              # [B, win_size, 1]
+
+        hard_label = labels.unsqueeze(-1)                                                  # [B, win_size, 1]
+
+        mask_label = hard_label if self.hard_mask == 1 else blur_label                     # [B, win_size, 1]
+        mask = self.max_ratio*t.maximum(mask_label, mask_label.transpose(1,2))\
+             + (1-self.max_ratio)*t.matmul(mask_label, mask_label.transpose(1,2))          # [B, win_size, win_size]
+        
+        anomaly_element = mask.sum(dim=(1,2))                                              # [B]
+        normal_element = (1-mask).sum(dim=(1,2))                                           # [B]
+
+        recon_loss = self.reconstruct(x, x_hat, idx, pos_idx, neg_idx, hard_label)         # [1]
+        sim_loss = self.similarity(batch_anchor_norm, batch_positive_norm, batch_negative_norm, mask, anomaly_element, normal_element) #[1]
+        total_loss = self.reconstruct_weight*recon_loss + self.contrastive_weight*sim_loss
+
+        return total_loss
+        # log_metrics = {
+        #     "loss_recon": (self.reconstruct_weight * recon_loss).item(),
+        #     "loss_contrastive": (self.contrastive_weight * sim_loss).item(),
+        #     "loss_sim_raw": sim_loss.item(),
+        #     "loss_var_raw": 0,
+        #     "recon_gap": 0, 
+        #     "throttle": 1.0, # Giả lập throttle đang mở full
+        #     "alpha_sim": 1.0, # Đang dùng 100% sim
+        #     "alpha_mag": 0,
+        #     "active_anom_ratio": (hard_label.sum(dim=(1,2)) > 0).float().mean().item(),
+        #     "latent_norm": 0
+        # }
+        
+        # return total_loss, log_metrics
+        # # ==========================================
+        # # 3. CONTRASTIVE LOSS (Adaptive Routing)
+        # # ==========================================
+        # score_sim, score_mag = score_sim.detach(), score_mag.detach()
+
+        # if B > 1:
+        #     score_sim_std = score_sim.std(unbiased=False)
+        #     score_mag_std = score_mag.std(unbiased=False)
+
+        #     score_sim = (score_sim - score_sim.mean()) / (score_sim_std + 1e-5)                # [B]
+        #     score_mag = (score_mag - score_mag.mean()) / (score_mag_std + 1e-5)                # [B]
+        # else:
+        #     score_sim, score_mag = t.zeros_like(score_sim), t.zeros_like(score_mag)
+
+        # scores = t.stack([score_sim, score_mag], dim=-1)
+
+        # scaled_scores = scores / max(self.temperature, 1e-3)
+        # scaled_scores = scaled_scores - scaled_scores.max(dim=-1, keepdim=True)[0]
+        
+        # alphas = t.softmax(scaled_scores, dim=-1)
+
+        # # ĐÃ SỬA LỖI SCALE: Bỏ nhân 2 để tổng alpha luôn = 1.0
+        # alpha_sim = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 0]                # [B]
+        # alpha_mag = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 1]                # [B]
+
+        # sample_contrastive_loss = (alpha_sim * sim_loss) + (alpha_mag * mag_loss)                # [B]
+        # raw_contrastive_loss = t.mean(sample_contrastive_loss)                                   # [1]
+
+        # # ==========================================
+        # # 4. GLOBAL MANIFOLD THROTTLING & REGULARIZATION
+        # # ==========================================
+        # recon_gap = (batch_recon_stat - batch_base_stat) / (batch_base_stat + 1e-5)                # [1]
+        # over_drift = t.relu(recon_gap - self.recon_tolerance)                                       # [1]
+        # throttle = t.exp(-self.throttle_beta * over_drift)
+        # throttled_contrastive_loss = raw_contrastive_loss * throttle                                # [1]
+
+        # # KHÓA CHẶT "ĐƯỜNG TẮT" BẰNG L2-NORM PENALTY 
+        # latent_norm_reg = t.sqrt(t.sum(batch_anchor**2, dim=-1) + 1e-5).mean()                     # [1]
+
+        # # ==========================================
+        # # FINAL LOSS
+        # # ==========================================
+        # recon_penalty = t.relu(raw_recon_loss - batch_base_mse)
+        
+        # total_loss = self.reconstruct_weight * recon_penalty + self.contrastive_weight * throttled_contrastive_loss + 1e-4 * latent_norm_reg            
+        # log_metrics = {
+        #     "loss_recon": raw_recon_loss.item(),
+        #     "loss_contrastive": throttled_contrastive_loss.item(),
+        #     "loss_sim_raw": sim_loss.mean().item(),
+        #     "loss_var_raw": mag_loss.mean().item(),
+        #     "recon_gap": recon_gap.mean().item(), 
+        #     "throttle": throttle.item(),
+        #     "alpha_sim": alpha_sim.mean().item(),
+        #     "alpha_mag": alpha_mag.mean().item(),
+        #     "active_anom_ratio": has_anom_global.mean().item(),
+        #     "latent_norm": latent_norm_reg.item()
+        # }
+        # # for name, tensor in check_tensors.items():
+        # #     if t.isnan(tensor).any() or t.isinf(tensor).any():
+        # #         print(f"[NaN DETECTED] {name}")
+        # return total_loss, log_metrics
         
     def get_masked_std(self, x, m):
         # 1. Ép kiểu sang float32 để chặn đứng lỗi Tràn bộ nhớ (Overflow) của FP16
