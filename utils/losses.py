@@ -477,24 +477,24 @@ class SeSimiLoss(nn.Module):
         normal_element = (1-mask).sum(dim=(1,2))                                           # [B]
 
         recon_loss = self.reconstruct(x, x_hat, idx, pos_idx, neg_idx, hard_label)         # [1]
-        sim_loss = self.similarity(batch_anchor_norm, batch_positive_norm, batch_negative_norm, mask, anomaly_element, normal_element) #[1]
-        total_loss = self.reconstruct_weight*recon_loss + self.contrastive_weight*sim_loss
+        # sim_loss = self.similarity(batch_anchor_norm, batch_positive_norm, batch_negative_norm, mask, anomaly_element, normal_element) #[1]
+        # total_loss = self.reconstruct_weight*recon_loss + self.contrastive_weight*sim_loss
 
-        # return total_loss
-        log_metrics = {
-            "loss_recon": (self.reconstruct_weight * recon_loss).item(),
-            "loss_contrastive": (self.contrastive_weight * sim_loss).item(),
-            "loss_sim_raw": sim_loss.item(),
-            "loss_var_raw": 0,
-            "recon_gap": 0, 
-            "throttle": 1.0, # Giả lập throttle đang mở full
-            "alpha_sim": 1.0, # Đang dùng 100% sim
-            "alpha_mag": 0,
-            "active_anom_ratio": (hard_label.sum(dim=(1,2)) > 0).float().mean().item(),
-            "latent_norm": 0
-        }
+        return recon_loss
+        # log_metrics = {
+        #     "loss_recon": (self.reconstruct_weight * recon_loss).item(),
+        #     "loss_contrastive": (self.contrastive_weight * sim_loss).item(),
+        #     "loss_sim_raw": sim_loss.item(),
+        #     "loss_var_raw": 0,
+        #     "recon_gap": 0, 
+        #     "throttle": 1.0, # Giả lập throttle đang mở full
+        #     "alpha_sim": 1.0, # Đang dùng 100% sim
+        #     "alpha_mag": 0,
+        #     "active_anom_ratio": (hard_label.sum(dim=(1,2)) > 0).float().mean().item(),
+        #     "latent_norm": 0
+        # }
         
-        return total_loss, log_metrics
+        # return total_loss, log_metrics
         # # ==========================================
         # # 3. CONTRASTIVE LOSS (Adaptive Routing)
         # # ==========================================
@@ -576,3 +576,37 @@ class SeSimiLoss(nn.Module):
         local_var = t.clamp(local_var, min=0.0)
         
         return t.sqrt(local_var + 1e-5)
+            
+class CorrectorLoss(nn.Module):
+    def __init__(self, args):
+        super(CorrectorLoss, self).__init__()
+        self.margin = args.margin
+        self.bce = nn.BCELoss(reduction='none')
+        # Dùng BCE (Binary Cross Entropy) để ép điểm về 0 hoặc 1 là chuẩn nhất
+        
+    def forward(self, final_score, labels):
+        """
+        final_score: [B, win_size] (Điểm do Bi-LSTM xuất ra, đã qua relu)
+        labels: [B, win_size] (Nhãn thực tế từ file csv, 0 là bình thường/fake, 1 là lỗi)
+        """
+        # 1. Vì final_score có thể lớn hơn 1 (do Relu), ta cần dùng Sigmoid để kẹp nó về [0, 1]
+        # Điều này giúp hàm BCE không bị văng lỗi "Input must be between 0 and 1"
+        prob_score = torch.sigmoid(final_score)
+        
+        # 2. Tính Binary Cross Entropy Loss
+        # Nếu label=1, ép prob_score -> 1 (tức là final_score càng lớn càng tốt)
+        # Nếu label=0, ép prob_score -> 0 (tức là final_score càng nhỏ càng tốt)
+        loss_matrix = self.bce(prob_score, labels.float()) # [B, win_size]
+        
+        # 3. Tính Loss tổng
+        total_loss = loss_matrix.mean()
+        return total_loss
+        
+        # Trả về thêm log_metrics để tương thích với file train.py cũ
+        # log_metrics = {
+        #     "loss_corrector": total_loss.item(),
+        #     "avg_score_normal": prob_score[labels == 0].mean().item() if (labels == 0).any() else 0,
+        #     "avg_score_anom": prob_score[labels == 1].mean().item() if (labels == 1).any() else 0
+        # }
+        
+        # return total_loss, log_metrics
