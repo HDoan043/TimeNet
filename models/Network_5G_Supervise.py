@@ -50,12 +50,12 @@ class Corrector(nn.Module):
         
         # 4. Tính Final Score
         # Có thể dùng hàm Tanh để kẹp Delta trong khoảng [-1, 1] (Sửa tối đa 1 điểm)
-        delta_clipped = torch.tanh(delta) 
-        final_score = base_score + delta_clipped        # (-inf, +inf)
+        # delta_clipped = torch.tanh(delta) 
+        final_score = base_score + delta                # (-inf, +inf)
         
         final_score = final_score.squeeze()             # [B, win_size]
         
-        return final_score, delta_clipped
+        return final_score, delta
     
 class Model(nn.Module):
     def __init__(self, configs):
@@ -129,8 +129,14 @@ class Model(nn.Module):
         # calculate reconstruct score
         reconstruct_score = self.reconstructor(x, dec_out)                      # [B, win_size, channels]
         reconstruct_score = reconstruct_score.mean(dim=2, keepdim=True)         # [B, win_size, 1]
+
+        # MỚI: Tự động Normalize base_score trong từng cửa sổ (Instance Norm)
+        # Giúp base_score có mean=0, std=1.
+        score_mean = reconstruct_score.mean(dim=1, keepdim=True)
+        score_std = reconstruct_score.std(dim=1, keepdim=True) + 1e-5
+        reconstruct_score_norm = (reconstruct_score - score_mean) / score_std
         
-        # correction
-        final_score, delta_clipped = self.corrector(x, reconstruct_score)
+        # correction (Truyền bản Norm vào)
+        final_score, delta = self.corrector(x, reconstruct_score_norm)
         
         return final_score                                                      # [B, win_size]
