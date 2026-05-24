@@ -118,7 +118,7 @@ class Model(nn.Module):
                 self.seq_len, self.pred_len + self.seq_len)
             self.projection = nn.Linear(
                 configs.d_model, configs.c_out, bias=True)
-        if self.task_name == 'imputation' or self.task_name == 'anomaly_detection':
+        if self.task_name == 'imputation' or self.task_name == 'anomaly_detection' or self.task_name == 'supervise_5g_network':
             self.projection = nn.Linear(
                 configs.d_model, configs.c_out, bias=True)
         if self.task_name == 'classification':
