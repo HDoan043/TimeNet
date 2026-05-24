@@ -34,7 +34,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         return model
 
     def _get_data(self, flag, contrastive=False, phase='test'):
-        data_set, data_loader = data_provider(self.args, flag, contrastive=contrastive, phase)
+        data_set, data_loader = data_provider(self.args, flag, contrastive=contrastive, phase=phase)
         return data_set, data_loader
 
     def _select_optimizer(self):
