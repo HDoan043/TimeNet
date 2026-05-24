@@ -494,12 +494,12 @@ class Dataset_Custom(Dataset):
                 seq_x = (seq_x, positive, negative, label, base_mse)
 
             elif self.task_name == "supervise_5g_network" and self.set_type==0 and self.phase == "train":
-                print("Classification sampling...")
+                # print("Classification sampling...")
                 r = np.random.rand()
                 if r<0.6:
                     seq_x, seq_y = negative_sampler(self, x_index_start, x_index_end)
-            else:
-                print("Normal sampling...")
+            # else:
+            #     print("Normal sampling...")
                 
             return seq_x, seq_y, seq_x_mark, seq_y_mark
     
