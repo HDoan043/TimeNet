@@ -217,7 +217,7 @@ class Model(nn.Module):
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))    # [B,T,d_model]
-            if self.configs.hidden_state_position.lower() == f"base_model.model.{i}":
+            if self.configs.hidden_state_position.lower() == f"base_model.{i}":
                 z = enc_out.clone()                              # [B,T,d_model]
 
         # project back
