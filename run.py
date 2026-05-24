@@ -192,6 +192,7 @@ if __name__ == '__main__':
     parser.add_argument('--base_model_checkpoint', type=str, default="", help="path to the pretrained checkpoint of base model")
     parser.add_argument('--corrector_criterion', type=str, default="MILLoss", help="which criterion is used in training corrector")
     parser.add_argument('--top_k_ratio', type=float, default=0.2, help="top k ratio in MIL Loss")
+    parser.add_argument('--use_teacher_hidden', type=int, default=0, help="0: not use hidden state of base pretrained model as input, 1: use")
     # Contrastive
     parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
     parser.add_argument('--contrastive_criterion', type=str, default="NTXent", help='NTXent: use NTXent Loss, Triplet: use Triplet')
