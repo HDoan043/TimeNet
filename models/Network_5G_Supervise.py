@@ -100,7 +100,7 @@ class Model(nn.Module):
         }
         self.base_model = self.model_dict[configs.base_model].Model(configs).float()
         # load checkpoint
-        self.base_model.load_state_dict(torch.load(configs.base_model_checkpoints))
+        self.base_model.load_state_dict(torch.load(configs.base_model_checkpoint))
         # freeze base_model
         for p in self.base_model.parameters():
             p.requires_grad = False
