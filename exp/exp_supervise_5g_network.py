@@ -23,7 +23,7 @@ warnings.filterwarnings('ignore')
 
 class Exp_Supervise_5G_Network(Exp_Basic):
     def __init__(self, args):
-        super(Exp_Anomaly_Detection, self).__init__(args)
+        super(Exp_Supervise_5G_Network, self).__init__(args)
 
     def _build_model(self):
         model = self.model_dict[self.args.model].Model(self.args).float()
