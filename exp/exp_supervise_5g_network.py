@@ -48,7 +48,10 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         return model_optim
         
     def _select_criterion(self):
-        criterion = CorrectorLoss(self.args)
+        if self.args.corrector_loss.lower() in ["correctorbceloss", "correctorbce", "bce", "binary_cross_entropy_loss", "binary cross entropy"]:
+            criterion = CorrectorBCELoss(self.args)
+        else:
+            criterion = CorrectorMIL_Loss(self.args)
         return criterion
       
     def train(self, setting, trial=None):
