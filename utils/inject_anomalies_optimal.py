@@ -268,7 +268,7 @@ def inject_one(df_clean, df, anomaly, position_map, name_id_map, is_fake=False):
     
     indexes_start = df.index[0]
     indexes_end = df.index[-1]
-    
+    window_length = indexes_end - indexes_start + 1
     # Cho phép sự cố bắt đầu TRƯỚC cửa sổ (để bắt đoạn đuôi) 
     # Hoặc bắt đầu GẦN CUỐI cửa sổ (để bắt đoạn đầu)
     # ---------------------------------------------------------
