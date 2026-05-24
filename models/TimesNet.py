@@ -311,5 +311,5 @@ class Model(nn.Module):
             return dec_out  # [B, N]
         if self.task_name == 'supervise_5g_network':
             z, dec_out = self.supervise_5g_network(x_enc, x_mark_enc)
-            return dec_out
+            return z, dec_out
         return None
