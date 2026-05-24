@@ -212,12 +212,12 @@ class Model(nn.Module):
 
         # embedding
         enc_out = self.enc_embedding(x_enc, x_enc_mark)  # [B,T,d_model]
-        if self.configs.hidden_state_position.lower() == "enc_embedding":
+        if self.configs.hidden_state_position.lower() == "base_model.enc_embedding":
             z = enc_out.clone()                              # [B,T,d_model]
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))    # [B,T,d_model]
-            if self.configs.hidden_state_position.lower() == f"model.{i}":
+            if self.configs.hidden_state_position.lower() == f"base_model.model.{i}":
                 z = enc_out.clone()                              # [B,T,d_model]
 
         # project back
