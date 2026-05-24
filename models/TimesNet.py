@@ -212,14 +212,15 @@ class Model(nn.Module):
 
         # embedding
         enc_out = self.enc_embedding(x_enc, x_enc_mark)  # [B,T,d_model]
-        if self.configs.hidden_state_position.lower() == "base_model.enc_embedding":
+        z = None
+        if self.configs.hidden_state_position.lower() == "base_model.enc_embedding" and self.configs.use_teacher_hidden:
             z = enc_out.clone()                              # [B,T,d_model]
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))    # [B,T,d_model]
-            if self.configs.hidden_state_position.lower() == f"base_model.{i}":
+            if self.configs.hidden_state_position.lower() == f"base_model.{i}" and self.configs.use_teacher_hidden:
                 z = enc_out.clone()                              # [B,T,d_model]
-
+        if not z: z= enc_out
         # project back
         dec_out = self.projection(enc_out)
 
@@ -231,7 +232,7 @@ class Model(nn.Module):
         dec_out = dec_out.add(
                   (means[:, 0, :].unsqueeze(1).repeat(
                       1, sample_length, 1)))
-        
+
         return z, dec_out
 
 
@@ -309,6 +310,6 @@ class Model(nn.Module):
             dec_out = self.classification(x_enc, x_mark_enc)
             return dec_out  # [B, N]
         if self.task_name == 'supervise_5g_network':
-            dec_out = self.supervise_5g_network(x_enc, x_mark_enc)
+            z, dec_out = self.supervise_5g_network(x_enc, x_mark_enc)
             return dec_out
         return None
