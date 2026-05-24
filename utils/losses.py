@@ -591,7 +591,7 @@ class CorrectorLoss(nn.Module):
         """
         # 1. Vì final_score có thể lớn hơn 1 (do Relu), ta cần dùng Sigmoid để kẹp nó về [0, 1]
         # Điều này giúp hàm BCE không bị văng lỗi "Input must be between 0 and 1"
-        prob_score = torch.sigmoid(final_score)
+        prob_score = t.sigmoid(final_score)
         
         # 2. Tính Binary Cross Entropy Loss
         # Nếu label=1, ép prob_score -> 1 (tức là final_score càng lớn càng tốt)
