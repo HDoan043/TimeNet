@@ -56,8 +56,8 @@ class Exp_Supervise_5G_Network(Exp_Basic):
       
     def train(self, setting, trial=None):
         train_data, train_loader = self._get_data(flag='train', contrastive=self.args.contrastive, phase="train")
-        vali_data, vali_loader = self._get_data(flag='val', phase="test")
-        test_data, test_loader = self._get_data(flag='test', phase="test")
+        raw_train_data, raw_train_loader = self._get_data(flag='train', phase="test")
+        vali_data, vali_loader = self._get_data(flag='test', phase="test")
 
         if self.args.from_pretrained != "":
             print(f'[⏯️]Training from pretrained model ...')
@@ -110,8 +110,8 @@ class Exp_Supervise_5G_Network(Exp_Basic):
             pbar = ProgressBar(train_loader, bin=60)
             i = 0
 
-            # for batch in train_loader:
-            for batch in pbar:
+            for batch in train_loader:
+            # for batch in pbar:
                 aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
@@ -124,31 +124,31 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 loss = criterion(outputs, batch_y)
                 train_loss.append(loss.item())
         
-                speed = (time.time() - time_begin) / aggregate_steps
-                left_time_s = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                if left_time_s <60: 
-                    left_time = f"{round(left_time_s,4)}s"
-                elif left_time_s<3600:
-                    left_time = f"{round(left_time_s/60,4)}mins"
-                else: left_time = f"{round(left_time_s/3600,4)}hs"
+                # speed = (time.time() - time_begin) / aggregate_steps
+                # left_time_s = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                # if left_time_s <60: 
+                #     left_time = f"{round(left_time_s,4)}s"
+                # elif left_time_s<3600:
+                #     left_time = f"{round(left_time_s/60,4)}mins"
+                # else: left_time = f"{round(left_time_s/3600,4)}hs"
     
-                pbar.set_postfix(
-                    {
-                        "Epoch": epoch + 1,
-                        "Iteration": f"{i+1}/{train_steps}",
-                        "Loss": loss.item(),
-                        "Speed": f"{round(speed, 4)}s/iter",
-                        "Left time": left_time
-                    }
-                )
+                # pbar.set_postfix(
+                #     {
+                #         "Epoch": epoch + 1,
+                #         "Iteration": f"{i+1}/{train_steps}",
+                #         "Loss": loss.item(),
+                #         "Speed": f"{round(speed, 4)}s/iter",
+                #         "Left time": left_time
+                #     }
+                # )
         
-                # if (i + 1) % 100 == 0:
-                #     print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                #     speed = (time.time() - time_now) / iter_count
-                #     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                #     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                #     iter_count = 0
-                #     time_now = time.time()
+                if (i + 1) % 100 == 0:
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    speed = (time.time() - time_now) / iter_count
+                    left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    iter_count = 0
+                    time_now = time.time()
 
                 loss.backward()
                 t.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -159,8 +159,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             
             train_loss = np.average(train_loss)
-            # vali_loss = self.vali(vali_data, vali_loader, corr_matrix, criterion)
-            result = self.test(setting)
+            result = self.test(setting, train_load=(raw_train_data, raw_train_loader), test_load=(vali_data, vali_loader))
             if len(result)>1:
                 vali_best_acc, vali_best_pre, vali_best_rec, vali_best_f1, vali_best_threshold = result
                 if vali_best_f1 >= best_f1:
@@ -219,9 +218,24 @@ class Exp_Supervise_5G_Network(Exp_Basic):
 
         return best_result
 
-    def test(self, setting, test=0):
-        test_data, test_loader = self._get_data(flag='test', phase="test")
-        train_data, train_loader = self._get_data(flag='train', contrastive=False, phase="test")
+    def test(self, setting, test=0, train_load=None, test_load=None):
+        print("-"*80)
+        print("[VALIDATE]")
+        if train_load:
+            print("Train loader available")
+            train_data = train_load[0]
+            train_loader = train_load[1]
+        else:
+            print("Train loader not available")
+            train_data, train_loader = self._get_data(flag='train', contrastive=False, phase="test")
+        if test_load:
+            print("Test loader available")
+            test_data = test_load[0]
+            test_loader = test_load[1]
+        else:
+            print("Test loader not available")
+            test_data, test_loader = self._get_data(flag='test', phase="test")
+        
         timestamps = test_data.get_timestamps()
 
         inference_times = []
