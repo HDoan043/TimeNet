@@ -271,8 +271,25 @@ def inject_one(df_clean, df, anomaly, position_map, name_id_map, is_fake=False):
     
     # Cho phép sự cố bắt đầu TRƯỚC cửa sổ (để bắt đoạn đuôi) 
     # Hoặc bắt đầu GẦN CUỐI cửa sổ (để bắt đoạn đầu)
-    min_start = indexes_start - anomaly_length + 1
-    max_start = indexes_end
+    # ---------------------------------------------------------
+    # NEW LOGIC: Ép buộc tỷ lệ giao thoa tối thiểu (ví dụ 20%)
+    # ---------------------------------------------------------
+    overlap_ratio = 0.2
+    
+    # Số điểm tối thiểu phải lọt vào cửa sổ
+    min_overlap = max(1, int(anomaly_length * overlap_ratio))
+    
+    # Đảm bảo min_overlap không đòi hỏi nhiều hơn kích thước cửa sổ hiện tại
+    min_overlap = min(min_overlap, window_length)
+    
+    # Tính toán lại khoảng kẹp Random
+    min_start = indexes_start - anomaly_length + min_overlap
+    max_start = indexes_end - min_overlap + 1
+    
+    # Fallback an toàn nếu cửa sổ quá kỳ dị
+    if min_start > max_start:
+        min_start = indexes_start
+        max_start = indexes_end
     
     anomaly_index_start = np.random.randint(min_start, max_start + 1)
     anomaly_index_end = anomaly_index_start + anomaly_length
