@@ -110,8 +110,8 @@ class Exp_Supervise_5G_Network(Exp_Basic):
             pbar = ProgressBar(train_loader, bin=60)
             i = 0
 
-            # for batch in train_loader:
-            for batch in pbar:
+            for batch in train_loader:
+            # for batch in pbar:
                 aggregate_steps += 1
                 iter_count += 1
                 model_optim.zero_grad()
@@ -132,23 +132,23 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                     left_time = f"{round(left_time_s/60,4)}mins"
                 else: left_time = f"{round(left_time_s/3600,4)}hs"
     
-                pbar.set_postfix(
-                    {
-                        "Epoch": epoch + 1,
-                        "Iteration": f"{i+1}/{train_steps}",
-                        "Loss": loss.item(),
-                        "Speed": f"{round(speed, 4)}s/iter",
-                        "Left time": left_time
-                    }
-                )
+                # pbar.set_postfix(
+                #     {
+                #         "Epoch": epoch + 1,
+                #         "Iteration": f"{i+1}/{train_steps}",
+                #         "Loss": loss.item(),
+                #         "Speed": f"{round(speed, 4)}s/iter",
+                #         "Left time": left_time
+                #     }
+                # )
         
-                # if (i + 1) % 100 == 0:
-                #     print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                #     speed = (time.time() - time_now) / iter_count
-                #     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
-                #     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                #     iter_count = 0
-                #     time_now = time.time()
+                if (i + 1) % 100 == 0:
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    speed = (time.time() - time_now) / iter_count
+                    left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
+                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    iter_count = 0
+                    time_now = time.time()
 
                 loss.backward()
                 t.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
