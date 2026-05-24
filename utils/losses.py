@@ -614,7 +614,7 @@ class CorrectorMIL_Loss(nn.Module):
         
     def forward(self, final_score, labels):
         # 1. Ép về [0, 1]
-        prob_score = torch.sigmoid(final_score)
+        prob_score = t.sigmoid(final_score)
         
         # 2. Tính BCE Loss cho TỪNG ĐIỂM
         point_loss = self.bce_none(prob_score, labels.float()) # [B, win_size]
@@ -648,7 +648,7 @@ class CorrectorMIL_Loss(nn.Module):
                     k = max(1, int(num_anom_per_window[b].item() * self.top_k_ratio))
                     
                     # Lấy Top K loss của cửa sổ b
-                    topk_loss, _ = torch.topk(anom_loss_values[b], k)
+                    topk_loss, _ = t.topk(anom_loss_values[b], k)
                     
                     # Cộng dồn trung bình
                     anom_loss_total += topk_loss.mean()
