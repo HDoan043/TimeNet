@@ -202,6 +202,39 @@ class Model(nn.Module):
                       1, self.pred_len + self.seq_len, 1)))
         return dec_out
 
+    def supervise_5g_network(self, x_enc, x_enc_mark=None):
+        # Normalization from Non-stationary Transformer
+        means = x_enc.mean(1, keepdim=True).detach()
+        x_enc = x_enc.sub(means)
+        stdev = torch.sqrt(
+            torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
+        x_enc = x_enc.div(stdev)
+
+        # embedding
+        enc_out = self.enc_embedding(x_enc, x_enc_mark)  # [B,T,d_model]
+        if self.configs.contrastive == 1 and self.configs.hidden_state_position.lower() == "enc_embedding":
+            z = enc_out.clone()                              # [B,T,d_model]
+        # TimesNet
+        for i in range(self.layer):
+            enc_out = self.layer_norm(self.model[i](enc_out))    # [B,T,d_model]
+            if self.configs.contrastive == 1 and self.configs.hidden_state_position.lower() == f"model.{i}":
+                z = enc_out.clone()                              # [B,T,d_model]
+
+        # project back
+        dec_out = self.projection(enc_out)
+
+        # De-Normalization from Non-stationary Transformer
+        sample_length = self.pred_len + self.seq_len if self.task_name == "long_term_forecasting" else self.win_size
+        dec_out = dec_out.mul(
+                  (stdev[:, 0, :].unsqueeze(1).repeat(
+                      1, sample_length, 1)))
+        dec_out = dec_out.add(
+                  (means[:, 0, :].unsqueeze(1).repeat(
+                      1, sample_length, 1)))
+        
+        return z, dec_out
+
+
     def anomaly_detection(self, x_enc, x_enc_mark=None):
         # Normalization from Non-stationary Transformer
         means = x_enc.mean(1, keepdim=True).detach()
@@ -275,4 +308,7 @@ class Model(nn.Module):
         if self.task_name == 'classification':
             dec_out = self.classification(x_enc, x_mark_enc)
             return dec_out  # [B, N]
+        if self.task_name == 'supervise_5g_network':
+            z, dec_out = self.supervise_5g_network(x_enc, x_mark_enc)
+            return z, dec_out
         return None
