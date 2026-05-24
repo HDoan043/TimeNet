@@ -98,9 +98,21 @@ class Model(nn.Module):
             'TimesNetv1': TimesNet_update_v1,
             'TimesNetv2': TimesNet_update_v2
         }
+        
         self.base_model = self.model_dict[configs.base_model].Model(configs).float()
         # load checkpoint
-        self.base_model.load_state_dict(torch.load(configs.base_model_checkpoint))
+        checkpoint = torch.load(configs.base_model_checkpoints)
+        
+        # Tạo một dictionary mới để gọt bỏ chữ 'module.'
+        from collections import OrderedDict
+        new_state_dict = OrderedDict()
+        for k, v in checkpoint.items():
+            name = k[7:] if k.startswith('module.') else k # Bỏ 7 ký tự đầu ('module.')
+            new_state_dict[name] = v
+            
+        # Load lại dict đã gọt dũa
+        self.base_model.load_state_dict(new_state_dict)
+        
         # freeze base_model
         for p in self.base_model.parameters():
             p.requires_grad = False
