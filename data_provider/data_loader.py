@@ -469,7 +469,7 @@ class Dataset_Custom(Dataset):
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
-            if self.contrastive:
+            if self.contrastive and self.set_type==0 and self.phase == "train":
                 # Gen Negative sample
                 negative, label = negative_sampler(self, x_index_start, x_index_end)
         
@@ -494,7 +494,6 @@ class Dataset_Custom(Dataset):
                 seq_x = (seq_x, positive, negative, label, base_mse)
 
             elif self.task_name == "supervise_5g_network" and self.set_type==0 and self.phase == "train":
-                print("[Trainning] Sampling...")
                 r = np.random.rand()
                 if r<0.6:
                     seq_x, seq_y = negative_sampler(self, x_index_start, x_index_end)
