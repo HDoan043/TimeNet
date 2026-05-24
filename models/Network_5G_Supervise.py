@@ -6,11 +6,11 @@ from models import Autoformer, Transformer, TimesNet, Nonstationary_Transformer,
     WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_update_v2, LSTMAE
 
 class Corrector(nn.Module):
-    def __init__(self, raw_dim, hidden_dim_timesnet, d_model=128, lstm_layers=1):
+    def __init__(self, raw_dim, d_model=128, lstm_layers=1):
         super(Corrector, self).__init__()
         
-        # Tổng số chiều đầu vào = Số biến gốc + Số chiều Latent của TimesNet + 1 (Điểm Base_Score)
-        input_dim = raw_dim + hidden_dim_timesnet + 1
+        # Tổng số chiều đầu vào = Số biến gốc + 1 (Điểm Base_Score)
+        input_dim = raw_dim + 1
         
         # Khai báo Bi-LSTM siêu gọn nhẹ
         # batch_first=True nghĩa là Input shape phải là [Batch, Seq_len, Input_dim]
@@ -30,16 +30,15 @@ class Corrector(nn.Module):
             nn.Linear(d_model, 1) # Xuất ra 1 giá trị (Delta) cho mỗi timestamp
         )
         
-    def forward(self, raw_x, timesnet_latent, base_score):
+    def forward(self, raw_x, base_score):
         """
         raw_x: [B, win_size, raw_dim] (Dữ liệu 5G gốc)
-        timesnet_latent: [B, win_size, hidden_dim_timesnet] (Não của mô hình gốc)
         base_score: [B, win_size, 1] (Điểm do mô hình gốc phán)
         """
         
         # 1. Gộp tất cả thông tin lại làm Đầu vào
         # Shape sau khi nối: [B, win_size, input_dim]
-        combined_input = torch.cat([raw_x, timesnet_latent, base_score], dim=-1)
+        combined_input = torch.cat([raw_x, base_score], dim=-1)
         
         # 2. Đưa qua Bi-LSTM
         # lstm_out shape: [B, win_size, d_model * 2]
@@ -121,17 +120,17 @@ class Model(nn.Module):
         
         # corrector
         self.corrector = Corrector(
-            configs.enc_in, configs.d_model, configs.corrector_d_model, configs.corrector_layers)
+            configs.enc_in, configs.corrector_d_model, configs.corrector_layers)
         
     def forward(self, x, x_mark_enc, x_dec, x_mark_dec):        # [B,win_size,channels]
         # get the hidden state and the score from base model
-        hidden_state, dec_out = self.base_model(x, x_mark_enc, x_dec, x_mark_dec)
+        dec_out = self.base_model(x, x_mark_enc, x_dec, x_mark_dec)
         
         # calculate reconstruct score
         reconstruct_score = self.reconstructor(x, dec_out)                      # [B, win_size, channels]
         reconstruct_score = reconstruct_score.mean(dim=2, keepdim=True)         # [B, win_size, 1]
         
         # correction
-        final_score, delta_clipped = self.corrector(x, hidden_state, reconstruct_score)
+        final_score, delta_clipped = self.corrector(x, reconstruct_score)
         
         return final_score                                                      # [B, win_size]
