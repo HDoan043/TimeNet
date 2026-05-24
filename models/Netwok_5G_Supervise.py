@@ -113,7 +113,7 @@ class Model(nn.Module):
         
     def forward(self, x, x_mark_enc, x_dec, x_mark_dec):        # [B,win_size,channels]
         # get the hidden state and the score from base model
-        hidden_state, dec_out, _ = self.base_model(x, x_mark_enc, x_dec, x_mark_dec)
+        hidden_state, dec_out = self.base_model(x, x_mark_enc, x_dec, x_mark_dec)
         
         # calculate reconstruct score
         reconstruct_score = self.reconstructor(x, dec_out)                      # [B, win_size, channels]
