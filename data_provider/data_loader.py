@@ -401,7 +401,7 @@ class Dataset_Custom(Dataset):
         self.data_stamp = data_stamp
 
         # =========================== CONTRASTIVE LEARNING ==============================
-        if self.args.contrastive == 1 and self.set_type==0:
+        if (self.args.contrastive == 1 or self.args.task_name == 'supervise_5g_network') and self.set_type==0:
             # Augmentation define
             try:
                 self.augmentation_config = json.loads(self.args.augmentation_config)
