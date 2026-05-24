@@ -577,7 +577,7 @@ class SeSimiLoss(nn.Module):
         
         return t.sqrt(local_var + 1e-5)
             
-class CorrectorLoss(nn.Module):
+class CorrectorBCELoss(nn.Module):
     def __init__(self, args):
         super(CorrectorLoss, self).__init__()
         self.margin = args.margin
@@ -601,12 +601,64 @@ class CorrectorLoss(nn.Module):
         # 3. Tính Loss tổng
         total_loss = loss_matrix.mean()
         return total_loss
+
+# Multiple Instance Leanring
+class CorrectorMIL_Loss(nn.Module):
+    def __init__(self, args):
+        super(CorrectorMIL_Loss, self).__init__()
+        self.args = args
+        self.bce_none = nn.BCELoss(reduction='none')
+        # top_k_ratio = 0.2 nghĩa là ta chỉ ép 20% số điểm cao nhất trong vùng lỗi phải tiến về 1.
+        # 80% còn lại tha bổng.
+        self.top_k_ratio = args.top_k_ratio 
         
-        # Trả về thêm log_metrics để tương thích với file train.py cũ
-        # log_metrics = {
-        #     "loss_corrector": total_loss.item(),
-        #     "avg_score_normal": prob_score[labels == 0].mean().item() if (labels == 0).any() else 0,
-        #     "avg_score_anom": prob_score[labels == 1].mean().item() if (labels == 1).any() else 0
-        # }
+    def forward(self, final_score, labels):
+        # 1. Ép về [0, 1]
+        prob_score = torch.sigmoid(final_score)
         
-        # return total_loss, log_metrics
+        # 2. Tính BCE Loss cho TỪNG ĐIỂM
+        point_loss = self.bce_none(prob_score, labels.float()) # [B, win_size]
+        
+        # 3. Phân rã Mask
+        normal_mask = (labels == 0).float()
+        anom_mask = (labels == 1).float()
+        
+        # 4. LOSS VÙNG BÌNH THƯỜNG (Ép TẤT CẢ xuống)
+        normal_loss = (point_loss * normal_mask).sum() / (normal_mask.sum() + 1e-5)
+        
+        # 5. LOSS VÙNG BẤT THƯỜNG (Top-K trên TỪNG CỬA SỔ)
+        # Chỉ giữ lại loss của các điểm nhãn 1, các điểm nhãn 0 bị ép về 0
+        anom_loss_values = point_loss * anom_mask # [B, win_size]
+        
+        # Đếm số lượng điểm lỗi TRONG TỪNG CỬA SỔ
+        num_anom_per_window = anom_mask.sum(dim=1) # [B]
+        
+        # Tìm các cửa sổ có chứa lỗi
+        valid_windows = num_anom_per_window > 0
+        
+        if valid_windows.any():
+            anom_loss_total = 0.0
+            valid_count = 0
+            
+            # (BUỘC PHẢI DÙNG VÒNG LẶP trên các cửa sổ hợp lệ vì mỗi cửa sổ có số K khác nhau)
+            # Tuy nhiên vì số lượng cửa sổ lỗi trong batch nhỏ (vd 5-10 cái), vòng lặp này rất nhanh.
+            for b in range(labels.shape[0]):
+                if valid_windows[b]:
+                    # Tính K cho cửa sổ này
+                    k = max(1, int(num_anom_per_window[b].item() * self.top_k_ratio))
+                    
+                    # Lấy Top K loss của cửa sổ b
+                    topk_loss, _ = torch.topk(anom_loss_values[b], k)
+                    
+                    # Cộng dồn trung bình
+                    anom_loss_total += topk_loss.mean()
+                    valid_count += 1
+            
+            anom_loss = anom_loss_total / valid_count
+        else:
+            anom_loss = 0.0
+            
+        # 6. Tổng Loss
+        total_loss = normal_loss + anom_loss
+        
+        return total_loss
