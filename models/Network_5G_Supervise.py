@@ -6,11 +6,14 @@ from models import Autoformer, Transformer, TimesNet, Nonstationary_Transformer,
     WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_update_v2, LSTMAE
 
 class Corrector(nn.Module):
-    def __init__(self, raw_dim, d_model=128, lstm_layers=1):
+    def __init__(self, raw_dim, d_model=128, lstm_layers=1, teacher_d_model=None):
         super(Corrector, self).__init__()
         
         # Tổng số chiều đầu vào = Số biến gốc + 1 (Điểm Base_Score)
-        input_dim = raw_dim + 1
+        if not teacher_d_model:
+            input_dim = raw_dim + 1
+        else:
+            input_dim = raw_dim + teacher_d_model + 1
         
         # Khai báo Bi-LSTM siêu gọn nhẹ
         # batch_first=True nghĩa là Input shape phải là [Batch, Seq_len, Input_dim]
@@ -30,16 +33,20 @@ class Corrector(nn.Module):
             nn.Linear(d_model, 1) # Xuất ra 1 giá trị (Delta) cho mỗi timestamp
         )
         
-    def forward(self, raw_x, base_score):
+    def forward(self, raw_x, base_score, teacher_hidden_state=None):
         """
         raw_x: [B, win_size, raw_dim] (Dữ liệu 5G gốc)
         base_score: [B, win_size, 1] (Điểm do mô hình gốc phán)
+        teacher_hidden_state: [B, win_size, d_model] (Không gian ẩn của mô hình pretrain)
         """
         
         # 1. Gộp tất cả thông tin lại làm Đầu vào
         # Shape sau khi nối: [B, win_size, input_dim]
-        combined_input = torch.cat([raw_x, base_score], dim=-1)
-        
+        if not teacher_hidden_state:
+            combined_input = torch.cat([raw_x, base_score], dim=-1)
+        else:
+            combined_input = torch.cat([raw_x, teacher_hidden_state, base_score], dim=-1)
+            
         # 2. Đưa qua Bi-LSTM
         # lstm_out shape: [B, win_size, d_model * 2]
         lstm_out, (h_n, c_n) = self.bilstm(combined_input)
@@ -97,6 +104,7 @@ class Model(nn.Module):
             'TimesNetv1': TimesNet_update_v1,
             'TimesNetv2': TimesNet_update_v2
         }
+        self.configs = configs
         
         self.base_model = self.model_dict[configs.base_model].Model(configs).float()
         # load checkpoint
@@ -117,14 +125,15 @@ class Model(nn.Module):
             p.requires_grad = False
         
         self.reconstructor = nn.MSELoss(reduction='none')
-        
+
+        teacher_d_model = configs.d_model if configs.use_teacher_hidden == 1 else None
         # corrector
         self.corrector = Corrector(
-            configs.enc_in, configs.corrector_d_model, configs.corrector_layers)
+            configs.enc_in, configs.corrector_d_model, configs.corrector_layers, teacher_d_model)
         
     def forward(self, x, x_mark_enc, x_dec, x_mark_dec):        # [B,win_size,channels]
         # get the hidden state and the score from base model
-        dec_out = self.base_model(x, x_mark_enc, x_dec, x_mark_dec)
+        hidden_state, dec_out = self.base_model(x, x_mark_enc, x_dec, x_mark_dec)
         
         # calculate reconstruct score
         reconstruct_score = self.reconstructor(x, dec_out)                      # [B, win_size, channels]
@@ -137,6 +146,9 @@ class Model(nn.Module):
         reconstruct_score_norm = (reconstruct_score - score_mean) / score_std
         
         # correction (Truyền bản Norm vào)
-        final_score, delta = self.corrector(x, reconstruct_score_norm)
+        if self.configs.use_teacher_hidden == 1:
+            final_score, delta = self.corrector(x, reconstruct_score_norm, hidden_state)
+        else:
+            final_score, delta = self.corrector(x, reconstruct_score_norm)
         
         return final_score                                                      # [B, win_size]
