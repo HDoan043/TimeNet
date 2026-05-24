@@ -33,7 +33,7 @@ def print_args(args):
         print("\033[1m" + "Supervise 5G Network Task" + "\033[0m")
         print(f'  {"Anomaly Ratio:":<20}{str(args.anomaly_ratio):<20}')
         print(f'  {"Corrector Criterion:":<20}{str(args.corrector_criterion):<20}')
-        print(f'  {"Corrector Layer:":<20}{str(args.corrector_layer):<20}')
+        print(f'  {"Corrector Layer:":<20}{str(args.corrector_layers):<20}')
         print(f'  {"Corrector d model:":<20}{str(args.corrector_d_model):<20}')
         print(f'  {"Top k ratio:":<20}{str(args.top_k_ratio):<20}')
         print(f'  {"Base model:":<20}{str(args.base_model):<20}')
