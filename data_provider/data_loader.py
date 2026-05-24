@@ -401,7 +401,7 @@ class Dataset_Custom(Dataset):
         self.data_stamp = data_stamp
 
         # =========================== CONTRASTIVE LEARNING ==============================
-        if (self.args.contrastive == 1 or self.args.task_name == 'supervise_5g_network') and self.set_type==0:
+        if (self.args.contrastive == 1 or self.args.task_name == 'supervise_5g_network') and self.set_type==0 and self.phase == "train":
             # Augmentation define
             try:
                 self.augmentation_config = json.loads(self.args.augmentation_config)
@@ -493,7 +493,7 @@ class Dataset_Custom(Dataset):
                 
                 seq_x = (seq_x, positive, negative, label, base_mse)
 
-            elif self.task_name == "supervise_5g_network" and self.phase=="train":
+            elif self.task_name == "supervise_5g_network" and self.set_type==0 and self.phase == "train":
                 r = np.random.rand()
                 if r<0.6:
                     seq_x, seq_y = negative_sampler(self, x_index_start, x_index_end)
