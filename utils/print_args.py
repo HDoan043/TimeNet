@@ -29,6 +29,16 @@ def print_args(args):
         print(f'  {"Contrastive Criterion:":<20}{str(args.contrastive_criterion):<20}')
         print()
 
+    if args.task_name == 'supervise_5g_network':
+        print("\033[1m" + "Supervise 5G Network Task" + "\033[0m")
+        print(f'  {"Anomaly Ratio:":<20}{str(args.anomaly_ratio):<20}')
+        print(f'  {"Corrector Criterion:":<20}{str(args.corrector_criterion):<20}')
+        print(f'  {"Corrector Layer:":<20}{str(args.corrector_layer):<20}')
+        print(f'  {"Corrector d model:":<20}{str(args.corrector_d_model):<20}')
+        print(f'  {"Top k ratio:":<20}{str(args.top_k_ratio):<20}')
+        print(f'  {"Base model:":<20}{str(args.base_model):<20}')
+        print()
+
     print("\033[1m" + "Model Parameters" + "\033[0m")
     print(f'  {"Top k:":<20}{args.top_k:<20}{"Num Kernels:":<20}{args.num_kernels:<20}')
     print(f'  {"Enc In:":<20}{args.enc_in:<20}{"Dec In:":<20}{args.dec_in:<20}')
