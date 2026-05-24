@@ -101,7 +101,7 @@ class Model(nn.Module):
         
         self.base_model = self.model_dict[configs.base_model].Model(configs).float()
         # load checkpoint
-        checkpoint = torch.load(configs.base_model_checkpoints)
+        checkpoint = torch.load(configs.base_model_checkpoint)
         
         # Tạo một dictionary mới để gọt bỏ chữ 'module.'
         from collections import OrderedDict
