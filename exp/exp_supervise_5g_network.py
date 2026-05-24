@@ -34,7 +34,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         return model
 
     def _get_data(self, flag, contrastive=False, phase='test'):
-        data_set, data_loader = data_provider(self.args, flag, contrastive=contrastive)
+        data_set, data_loader = data_provider(self.args, flag, contrastive=contrastive, phase)
         return data_set, data_loader
 
     def _select_optimizer(self):
@@ -222,18 +222,12 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         print("-"*80)
         print("[VALIDATE]")
         if train_load:
-            print("Train loader available")
-            train_data = train_load[0]
-            train_loader = train_load[1]
+            train_data, train_loader = train_load
         else:
-            print("Train loader not available")
             train_data, train_loader = self._get_data(flag='train', contrastive=False, phase="test")
         if test_load:
-            print("Test loader available")
-            test_data = test_load[0]
-            test_loader = test_load[1]
+            test_data, test_loader = test_load
         else:
-            print("Test loader not available")
             test_data, test_loader = self._get_data(flag='test', phase="test")
         
         timestamps = test_data.get_timestamps()
