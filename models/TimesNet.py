@@ -220,7 +220,7 @@ class Model(nn.Module):
             enc_out = self.layer_norm(self.model[i](enc_out))    # [B,T,d_model]
             if self.configs.hidden_state_position.lower() == f"base_model.{i}" and self.configs.use_teacher_hidden:
                 z = enc_out.clone()                              # [B,T,d_model]
-        if not z: z= enc_out
+        if not isinstance(z,torch.Tensor): z= enc_out
         # project back
         dec_out = self.projection(enc_out)
 
