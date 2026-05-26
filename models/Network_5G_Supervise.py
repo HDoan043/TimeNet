@@ -42,7 +42,7 @@ class Corrector(nn.Module):
         
         # 1. Gộp tất cả thông tin lại làm Đầu vào
         # Shape sau khi nối: [B, win_size, input_dim]
-        if not teacher_hidden_state:
+        if not isinstance(teacher_hidden_state, torch.Tensor):
             combined_input = torch.cat([raw_x, base_score], dim=-1)
         else:
             combined_input = torch.cat([raw_x, teacher_hidden_state, base_score], dim=-1)
