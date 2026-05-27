@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import torch.nn.functional as F
 
 class LSTM_Corrector(nn.Module):
     def __init__(self, raw_dim, d_model=128, lstm_layers=1, teacher_d_model=None, apply_causal=False):
