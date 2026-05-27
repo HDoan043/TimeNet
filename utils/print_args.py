@@ -31,10 +31,12 @@ def print_args(args):
 
     if args.task_name == 'supervise_5g_network':
         print("\033[1m" + "Supervise 5G Network Task" + "\033[0m")
-        print(f'  {"Anomaly Ratio:":<20}{str(args.anomaly_ratio):<20}')
+        print(f'  {"Corrector:":<20}{str(args.corrector):<20}')
+        print(f'  {"Apply Causal Mask:":<20}{str(args.apply_causal):<20}')
         print(f'  {"Corrector Criterion:":<20}{str(args.corrector_criterion):<20}')
         print(f'  {"Corrector Layer:":<20}{str(args.corrector_layers):<20}')
         print(f'  {"Corrector d model:":<20}{str(args.corrector_d_model):<20}')
+        print(f'  {"Corrector kernel size:":<20}{str(args.corrector_kernel_size):<20}')
         print(f'  {"Top k ratio:":<20}{str(args.top_k_ratio):<20}')
         print(f'  {"Base model:":<20}{str(args.base_model):<20}')
         print()
