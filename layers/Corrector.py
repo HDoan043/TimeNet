@@ -91,6 +91,8 @@ class TemporalBlock(nn.Module):
         # QUAN TRỌNG NHẤT: Padding lệch trái (Nhìn quá khứ)
         if self.apply_causal:
             out = F.pad(x, (self.pad_size, 0)) # Thêm 0 vào trái, không thêm gì vào phải
+        else:
+            out = x
         out = self.relu1(self.conv1(out))
 
         if self.apply_causal:
