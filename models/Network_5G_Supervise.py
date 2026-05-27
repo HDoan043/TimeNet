@@ -72,20 +72,15 @@ class Model(nn.Module):
 
         teacher_d_model = configs.d_model if configs.use_teacher_hidden == 1 else None
 
-        corrector = LSTM_Corrector if configs.corrector.lower() in ["lstm", "lstm_corrector", "lstm-corrector"] else TCN_Corrector
-
-        corrector_parameter = {
-            "lstm": {
-                "raw_dim": configs.enc_in, "d_model": configs.corrector_d_model, "lstm_layers"=configs.corrector_layers, 
-                "teacher_d_model": teacher_d_model, "apply_causal": configs.apply_causal
-            },
-            "tcn": {
-                "raw_dim": configs.enc_in, "num_channels": list(np.round(np.linespace()))
-            }
-        }
-        # corrector
-        self.corrector = corrector(
-            configs.enc_in, configs.corrector_d_model, configs.corrector_layers, teacher_d_model, apply_causal = configs.apply_causal)
+        if configs.corrector.lower() in ["lstm", "lstm_corrector", "lstm-corrector"]:
+            self.corrector = LSTM_Corrector(
+                configs.enc_in, configs.corrector_d_model, configs.corrector_layers, teacher_d_model, apply_causal = configs.apply_causal)
+        else: 
+            self.corrector = TCN_Corrector(
+                configs.enc_in, configs.corrector_d_model, configs.corrector_layers, 
+                configs.corrector_kernel_size, teacher_d_model, apply_causal = configs.apply_causal
+            )
+        
         
     def forward(self, x, x_mark_enc, x_dec, x_mark_dec):        # [B,win_size,channels]
         # get the hidden state and the score from base model
