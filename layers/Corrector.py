@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 class LSTM_Corrector(nn.Module):
     def __init__(self, raw_dim, d_model=128, lstm_layers=1, teacher_d_model=None, apply_causal=False):
@@ -98,10 +99,12 @@ class TemporalBlock(nn.Module):
         return self.relu(out + res)
     
 class TCN_Corrector(nn.Module):
-    def __init__(self, raw_dim, num_channels=[64, 128, 128], kernel_size=3, dropout=0.2, apply_causal=False):
+    def __init__(self, raw_dim, d_model, layers, kernel_size = 12, teacher_d_model=None, apply_causal=False):
         super(TCN_Corrector, self).__init__()
-        input_dim = raw_dim + 1
-        
+        input_dim = raw_dim + 1 + (0 if not isinstance(teacher_d_model, int) else teacher_d_model)
+
+        num_channels = list(np.round(np.linespace(input_dim, d_model, layers+1)))
+        num_channels = num_channels[1:]
         layers = []
         for i in range(len(num_channels)):
             dilation_size = 2 ** i # Giãn nở: 1, 2, 4...
