@@ -4,7 +4,7 @@ import numpy as np
 
 class LSTM_Corrector(nn.Module):
     def __init__(self, raw_dim, d_model=128, lstm_layers=1, teacher_d_model=None, apply_causal=False):
-        super(Corrector, self).__init__()
+        super(LSTM_Corrector, self).__init__()
         
         # Tổng số chiều đầu vào = Số biến gốc + 1 (Điểm Base_Score)
         if not teacher_d_model:
@@ -65,7 +65,7 @@ class LSTM_Corrector(nn.Module):
 
 class TemporalBlock(nn.Module):
     def __init__(self, n_inputs, n_outputs, kernel_size, stride, dilation, dropout=0.2, apply_causal=False):
-        super(CausalTemporalBlock, self).__init__()
+        super(TemporalBlock, self).__init__()
 
         # TÍNH PADDING: Đủ để kernel nhìn xa mà không làm tụt độ dài
         self.pad_size = (kernel_size - 1) * dilation
