@@ -116,8 +116,11 @@ class TCN_Corrector(nn.Module):
         self.tcn = nn.Sequential(*layers)
         self.projector = nn.Linear(num_channels[-1], 1)
 
-    def forward(self, raw_x, base_score):
-        combined = torch.cat([raw_x, base_score], dim=-1)
+    def forward(self, raw_x, base_score, teacher_hidden_state=None):
+        if isinstance(teacher_hidden_state, torch.Tensor):
+            combined = torch.cat([raw_x, teacher_hidden_state, base_score], dim=-1)
+        else:
+            combined = torch.cat([raw_x, base_score], dim=-1)
         combined = combined.transpose(1, 2)  # Đưa Channel lên giữa cho Conv1d
         
         tcn_out = self.tcn(combined)         # Chạy qua TCN
