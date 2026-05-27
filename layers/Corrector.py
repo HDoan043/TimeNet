@@ -88,11 +88,11 @@ class TemporalBlock(nn.Module):
         res = x if self.downsample is None else self.downsample(x)
         
         # QUAN TRỌNG NHẤT: Padding lệch trái (Nhìn quá khứ)
-        if not self.apply_causal:
+        if self.apply_causal:
             out = F.pad(x, (self.pad_size, 0)) # Thêm 0 vào trái, không thêm gì vào phải
         out = self.relu1(self.conv1(out))
 
-        if not self.apply_causal:
+        if self.apply_causal:
             out = F.pad(out, (self.pad_size, 0))
         out = self.relu2(self.conv2(out))
         
@@ -103,17 +103,19 @@ class TCN_Corrector(nn.Module):
         super(TCN_Corrector, self).__init__()
         input_dim = raw_dim + 1 + (0 if not isinstance(teacher_d_model, int) else teacher_d_model)
 
-        num_channels = list(np.round(np.linespace(input_dim, d_model, layers+1)))
-        num_channels = num_channels[1:]
-        layers = []
+        # ĐÃ SỬA: linspace thay vì linespace, và ép kiểu về int
+        num_channels = [int(c) for c in np.round(np.linspace(input_dim, d_model, layers+1))[1:]]
+        
+        layers_list = [] # Tránh trùng tên biến layers ở trên
+        dropout = 0.2
         for i in range(len(num_channels)):
             dilation_size = 2 ** i # Giãn nở: 1, 2, 4...
             in_channels = input_dim if i == 0 else num_channels[i-1]
             out_channels = num_channels[i]
             
-            layers.append(TemporalBlock(in_channels, out_channels, kernel_size, 1, dilation_size, dropout, apply_causal))
+            layers_list.append(TemporalBlock(in_channels, out_channels, kernel_size, 1, dilation_size, dropout, apply_causal))
 
-        self.tcn = nn.Sequential(*layers)
+        self.tcn = nn.Sequential(*layers_list)
         self.projector = nn.Linear(num_channels[-1], 1)
 
     def forward(self, raw_x, base_score, teacher_hidden_state=None):
@@ -121,6 +123,7 @@ class TCN_Corrector(nn.Module):
             combined = torch.cat([raw_x, teacher_hidden_state, base_score], dim=-1)
         else:
             combined = torch.cat([raw_x, base_score], dim=-1)
+        
         combined = combined.transpose(1, 2)  # Đưa Channel lên giữa cho Conv1d
         
         tcn_out = self.tcn(combined)         # Chạy qua TCN
@@ -130,4 +133,3 @@ class TCN_Corrector(nn.Module):
         
         final_score = base_score + delta
         return final_score.squeeze(-1), delta
-        
