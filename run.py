@@ -186,6 +186,7 @@ if __name__ == '__main__':
     parser.add_argument('--modes', type=int, default=32, help="number of frequencies randomly selected to keep in FEB, too low --> loss information, too high --> overfit; ideal: 32, 64, 128")
 
     # Network_5G_Supervise
+    parser.add_argument('--corrector', type=str, default="lstm", help="Type of corrector branch: [LSTM, Temporal 1D CNN(TCN)]")
     parser.add_argument('--corrector_layers', type=int, default=2, help="number of layers used in correctors of Network_5G_Supervise")
     parser.add_argument('--corrector_d_model', type=int, default=128, help="d_model of the presentation in corrector")
     parser.add_argument('--base_model', type=str, default="TimesNet", help="base pretrained model for supervisin 5g network: TimesNet")
@@ -193,6 +194,8 @@ if __name__ == '__main__':
     parser.add_argument('--corrector_criterion', type=str, default="MILLoss", help="which criterion is used in training corrector")
     parser.add_argument('--top_k_ratio', type=float, default=0.2, help="top k ratio in MIL Loss")
     parser.add_argument('--use_teacher_hidden', type=int, default=0, help="0: not use hidden state of base pretrained model as input, 1: use")
+    parser.add_argument('--corrector_kernel_size', type=int, default=3, help="kernel size of 1D Temporal Corrector")
+    parser.add_argument('--apply_causal', type=int, default=0, help="0: no causal in predict: allow predict timestamps in the middle of windows, 1: apply causal mask: allow predict latest timestamp")
     # Contrastive
     parser.add_argument('--contrastive', type=int, default=0, help='1: contrastive learning, 0: unsupervised learning')
     parser.add_argument('--contrastive_criterion', type=str, default="NTXent", help='NTXent: use NTXent Loss, Triplet: use Triplet')
