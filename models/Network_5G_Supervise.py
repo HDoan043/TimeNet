@@ -1,69 +1,13 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from models import Autoformer, Transformer, TimesNet, Nonstationary_Transformer, DLinear, FEDformer, \
     Informer, LightTS, Reformer, ETSformer, Pyraformer, PatchTST, MICN, Crossformer, FiLM, iTransformer, \
     Koopa, TiDE, FreTS, TimeMixer, TSMixer, SegRNN, MambaSimple, TemporalFusionTransformer, SCINet, PAttn, TimeXer, \
     WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_update_v2, LSTMAE
 
-class Corrector(nn.Module):
-    def __init__(self, raw_dim, d_model=128, lstm_layers=1, teacher_d_model=None):
-        super(Corrector, self).__init__()
-        
-        # Tổng số chiều đầu vào = Số biến gốc + 1 (Điểm Base_Score)
-        if not teacher_d_model:
-            input_dim = raw_dim + 1
-        else:
-            input_dim = raw_dim + teacher_d_model + 1
-        
-        # Khai báo Bi-LSTM siêu gọn nhẹ
-        # batch_first=True nghĩa là Input shape phải là [Batch, Seq_len, Input_dim]
-        self.bilstm = nn.LSTM(
-            input_size=input_dim,
-            hidden_size=d_model,
-            num_layers=lstm_layers,
-            batch_first=True,
-            bidirectional=True # BI-LSTM chính là nhờ cái cờ này!
-        )
-        
-        # Đầu ra của Bi-LSTM sẽ có số chiều là: d_model * 2 (Vì có 2 chiều)
-        # Ta dùng một lớp Linear nhỏ để nén nó về 1 giá trị Delta
-        self.projector = nn.Sequential(
-            nn.Linear(d_model * 2, d_model),
-            nn.ReLU(),
-            nn.Linear(d_model, 1) # Xuất ra 1 giá trị (Delta) cho mỗi timestamp
-        )
-        
-    def forward(self, raw_x, base_score, teacher_hidden_state=None):
-        """
-        raw_x: [B, win_size, raw_dim] (Dữ liệu 5G gốc)
-        base_score: [B, win_size, 1] (Điểm do mô hình gốc phán)
-        teacher_hidden_state: [B, win_size, d_model] (Không gian ẩn của mô hình pretrain)
-        """
-        
-        # 1. Gộp tất cả thông tin lại làm Đầu vào
-        # Shape sau khi nối: [B, win_size, input_dim]
-        if not isinstance(teacher_hidden_state, torch.Tensor):
-            combined_input = torch.cat([raw_x, base_score], dim=-1)
-        else:
-            combined_input = torch.cat([raw_x, teacher_hidden_state, base_score], dim=-1)
-            
-        # 2. Đưa qua Bi-LSTM
-        # lstm_out shape: [B, win_size, d_model * 2]
-        lstm_out, (h_n, c_n) = self.bilstm(combined_input)
-        
-        # 3. Phóng nó ra thành Delta Score
-        # delta shape: [B, win_size, 1]
-        delta = self.projector(lstm_out)
-        
-        # 4. Tính Final Score
-        # Có thể dùng hàm Tanh để kẹp Delta trong khoảng [-1, 1] (Sửa tối đa 1 điểm)
-        # delta_clipped = torch.tanh(delta) 
-        final_score = base_score + delta                # (-inf, +inf)
-        
-        final_score = final_score.squeeze()             # [B, win_size]
-        
-        return final_score, delta
-    
+from layers.Corrector import *
+
 class Model(nn.Module):
     def __init__(self, configs):
         super(Model, self).__init__()
@@ -127,9 +71,21 @@ class Model(nn.Module):
         self.reconstructor = nn.MSELoss(reduction='none')
 
         teacher_d_model = configs.d_model if configs.use_teacher_hidden == 1 else None
+
+        corrector = LSTM_Corrector if configs.corrector.lower() in ["lstm", "lstm_corrector", "lstm-corrector"] else TCN_Corrector
+
+        corrector_parameter = {
+            "lstm": {
+                "raw_dim": configs.enc_in, "d_model": configs.corrector_d_model, "lstm_layers"=configs.corrector_layers, 
+                "teacher_d_model": teacher_d_model, "apply_causal": configs.apply_causal
+            },
+            "tcn": {
+                "raw_dim": configs.enc_in, "num_channels": list(np.round(np.linespace()))
+            }
+        }
         # corrector
-        self.corrector = Corrector(
-            configs.enc_in, configs.corrector_d_model, configs.corrector_layers, teacher_d_model)
+        self.corrector = corrector(
+            configs.enc_in, configs.corrector_d_model, configs.corrector_layers, teacher_d_model, apply_causal = configs.apply_causal)
         
     def forward(self, x, x_mark_enc, x_dec, x_mark_dec):        # [B,win_size,channels]
         # get the hidden state and the score from base model
