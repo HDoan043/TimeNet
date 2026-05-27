@@ -71,34 +71,41 @@ class TemporalBlock(nn.Module):
         # TÍNH PADDING: Đủ để kernel nhìn xa mà không làm tụt độ dài
         self.pad_size = (kernel_size - 1) * dilation
         self.apply_causal = apply_causal
-
-        if apply_causal:
-            self.conv1 = nn.Conv1d(n_inputs, n_outputs, kernel_size, stride=stride, padding=0, dilation=dilation)
-            self.conv2 = nn.Conv1d(n_outputs, n_outputs, kernel_size, stride=stride, padding=0, dilation=dilation)
-        else:
-            self.conv1 = nn.Conv1d(n_inputs, n_outputs, kernel_size, stride=stride, padding=self.pad_size//2, dilation=dilation)
-            self.conv2 = nn.Conv1d(n_outputs, n_outputs, kernel_size, stride=stride, padding=self.pad_size//2, dilation=dilation)
-            
+        
+        self.conv1 = nn.Conv1d(n_inputs, n_outputs, kernel_size, stride=stride, padding=0, dilation=dilation)
+        self.conv2 = nn.Conv1d(n_outputs, n_outputs, kernel_size, stride=stride, padding=0, dilation=dilation)
+       
         self.relu1 = nn.ReLU()
         self.relu2 = nn.ReLU()
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
         
         self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None
         self.relu = nn.ReLU()
 
     def forward(self, x):
         res = x if self.downsample is None else self.downsample(x)
-        
+        out = x
         # QUAN TRỌNG NHẤT: Padding lệch trái (Nhìn quá khứ)
         if self.apply_causal:
             out = F.pad(x, (self.pad_size, 0)) # Thêm 0 vào trái, không thêm gì vào phải
         else:
-            out = x
+            pad_left = self.pad_size // 2
+            pad_right = self.pad_size - pad_left # Bù phần lẻ vào bên phải
+            out = F.pad(out, (pad_left, pad_right))
         out = self.relu1(self.conv1(out))
-
+        out = self.dropout1(out)
+        
         if self.apply_causal:
             out = F.pad(out, (self.pad_size, 0))
+        else:
+            # SỬA LỖI Ở ĐÂY
+            pad_left = self.pad_size // 2
+            pad_right = self.pad_size - pad_left
+            out = F.pad(out, (pad_left, pad_right))
+            
         out = self.relu2(self.conv2(out))
-        
+        out = self.dropout2(out)
         return self.relu(out + res)
     
 class TCN_Corrector(nn.Module):
