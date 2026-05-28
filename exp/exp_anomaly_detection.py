@@ -61,8 +61,8 @@ class Exp_Anomaly_Detection(Exp_Basic):
     
         return model
 
-    def _get_data(self, flag, contrastive=False):
-        data_set, data_loader = data_provider(self.args, flag, contrastive=contrastive)
+    def _get_data(self, flag, phase="test"):
+        data_set, data_loader = data_provider(self.args, flag, phase=phase)
         return data_set, data_loader
 
     def _select_optimizer(self):
@@ -120,7 +120,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
         return total_loss
 
     def train(self, setting, trial=None):
-        train_data, train_loader = self._get_data(flag='train', contrastive=self.args.contrastive)
+        train_data, train_loader = self._get_data(flag='train', phase = "train")
         vali_data, vali_loader = self._get_data(flag='val')
         test_data, test_loader = self._get_data(flag='test')
 
@@ -307,7 +307,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')
-        train_data, train_loader = self._get_data(flag='train', contrastive=False)
+        train_data, train_loader = self._get_data(flag='train', phase="test")
         timestamps = test_data.get_timestamps()
 
         inference_times = []
