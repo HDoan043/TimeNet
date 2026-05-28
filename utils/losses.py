@@ -118,6 +118,7 @@ class NTXentLoss(nn.Module):
         self.reconstruct_weight = args.reconstruct_weight
         self.contrastive_weight = args.contrastive_weight
         self.top_k_ratio = args.top_k_ratio
+        self.reconstruct_negative = args.reconstruct_negative
 
     def reconstruct(self, x, x_hat, idx, pos_idx, neg_idx, hard_label):
         batch_anchor_win = x[idx]                         # [B, win_size, channel]
@@ -280,6 +281,7 @@ class TripletLoss(nn.Module):
         self.contrastive_weight = args.contrastive_weight
         self.triplet = nn.TripletMarginLoss(margin=args.margin, p=2)
         self.top_k_ratio = args.top_k_ratio
+        self.reconstruct_negative = args.reconstruct_negative
         
     def reconstruct(self, x, x_hat, idx, pos_idx, neg_idx, hard_label):
         batch_anchor_win = x[idx]                         # [B, win_size, channel]
@@ -407,7 +409,7 @@ class SeSimiLoss(nn.Module):
 
         self.magnitude_mode = getattr(args, 'magnitude_mode', 'variance')
         self.reconstruct_negative = getattr(args, 'reconstruct_negative', 0)
-
+        
     def reconstruct(self, x, x_hat, idx, pos_idx, neg_idx, hard_label):
         batch_anchor_win = x[idx]                         # [B, win_size, channel]
         batch_pos_win = x[pos_idx]                        # [B, win_size, channel]
