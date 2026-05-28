@@ -141,7 +141,7 @@ class NTXentLoss(nn.Module):
 
             # Tìm các cửa sổ có chứa lỗi
             valid_windows = anom_elements > 0
-            num_anom_per_window = anom_recon_neg.sum(dim=1)
+            num_anom_per_window = (hard_label == 1).sum(dim=1)
             if valid_windows.any():
                 anom_loss_total = 0.0
                 valid_count = 0
@@ -305,7 +305,7 @@ class TripletLoss(nn.Module):
 
             # Tìm các cửa sổ có chứa lỗi
             valid_windows = anom_elements > 0
-            num_anom_per_window = anom_recon_neg.sum(dim=1)
+            num_anom_per_window = (hard_label == 1).sum(dim=1)
                 
             if valid_windows.any():
                 anom_loss_total = 0.0
@@ -433,7 +433,7 @@ class SeSimiLoss(nn.Module):
 
             # Tìm các cửa sổ có chứa lỗi
             valid_windows = anom_elements > 0
-            num_anom_per_window = anom_recon_neg.sum(dim=1)
+            num_anom_per_window = (hard_label == 1).sum(dim=1)
                 
             if valid_windows.any():
                 anom_loss_total = 0.0
