@@ -151,7 +151,7 @@ class NTXentLoss(nn.Module):
                 for b in range(hard_label.shape[0]):
                     if valid_windows[b]:
                         # Tính K cho cửa sổ này
-                        k = max(1, int(num_anom_per_window[b].item() * self.top_k_ratio))
+                        k = max(1, int(anom_recon_neg[b].item() * self.top_k_ratio))
                         
                         # Lấy Top K loss của cửa sổ b
                         topk_loss, _ = t.topk(anom_recon_neg[b], k)
@@ -315,7 +315,7 @@ class TripletLoss(nn.Module):
                 for b in range(hard_label.shape[0]):
                     if valid_windows[b]:
                         # Tính K cho cửa sổ này
-                        k = max(1, int(num_anom_per_window[b].item() * self.top_k_ratio))
+                        k = max(1, int(anom_recon_neg[b].item() * self.top_k_ratio))
                         
                         # Lấy Top K loss của cửa sổ b
                         topk_loss, _ = t.topk(anom_recon_neg[b], k)
@@ -442,7 +442,7 @@ class SeSimiLoss(nn.Module):
                 for b in range(hard_label.shape[0]):
                     if valid_windows[b]:
                         # Tính K cho cửa sổ này
-                        k = max(1, int(num_anom_per_window[b].item() * self.top_k_ratio))
+                        k = max(1, int(anom_recon_neg[b].item() * self.top_k_ratio))
                         
                         # Lấy Top K loss của cửa sổ b
                         topk_loss, _ = t.topk(anom_recon_neg[b], k)
