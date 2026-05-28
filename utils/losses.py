@@ -341,6 +341,7 @@ class SeSimiLoss(nn.Module):
         self.hard_mask = args.hard_mask
         self.max_ratio = getattr(args, 'max_ratio', 1.0)
         self.pos_ratio = getattr(args, 'pos_ratio', 0.5)
+        self.top_k_ratio = getattr(args, 'top_k_ratio', 0.3)
         
         self.mse_none = nn.MSELoss(reduction='none')
 
