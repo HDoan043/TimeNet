@@ -118,6 +118,39 @@ class NTXentLoss(nn.Module):
         self.reconstruct_weight = args.reconstruct_weight
         self.contrastive_weight = args.contrastive_weight
 
+    def reconstruct(self, x, x_hat, idx, pos_idx, neg_idx, hard_label):
+        batch_anchor_win = x[idx]                         # [B, win_size, channel]
+        batch_pos_win = x[pos_idx]                        # [B, win_size, channel]
+        batch_neg_win = x[neg_idx]                        # [B, win_size, channel]
+        batch_anchor_recon = x_hat[idx]                   # [B, win_size, channel]
+        batch_pos_recon = x_hat[pos_idx]                  # [B, win_size, channel]
+        batch_neg_recon = x_hat[neg_idx]                  # [B, win_size, channel]
+        
+        if self.reconstruct_negative:
+            # reconstruct
+            recon_anchor = self.mse_none(batch_anchor_win, batch_anchor_recon).mean(dim=(1,2))# [B]
+            recon_pos = self.mse_none(batch_pos_win, batch_pos_recon).mean(dim=(1,2))         # [B]
+            recon_neg = self.mse_none(batch_neg_win, batch_neg_recon).mean(dim=2)             # [B, win_size]
+            
+            anom_recon_neg = recon_neg*hard_label.squeeze(-1)                                 # [B, win_size]
+            anom_elements = hard_label.sum(dim=1)                                             # [B]
+            anom_recon_neg = anom_recon_neg.sum(dim=1)/(anom_elements + 1e-5)                 # [B]
+
+            nor_recon_neg = recon_neg*(1-hard_label).squeeze(-1)                              # [B, win_size]
+            nor_elements = (1-hard_label).squeeze(-1).sum(dim=1)                              # [B]
+            nor_recon_neg = nor_recon_neg.sum(dim=1)/(nor_elements + 1e-5)                    # [B]
+
+            pos_recon = t.stack([recon_anchor, recon_pos, nor_recon_neg], dim=1)              # [B, 3]
+            
+            # Lấy [0] để chọn values, bỏ qua indices
+            max_pos_recon = t.max(pos_recon, dim=1)[0]                                        # [B]
+            raw_recon_loss = t.relu(max_pos_recon - anom_recon_neg + self.margin).mean()      # [1]
+        else: 
+            # VÁ LỖI CÚ PHÁP: Dùng dim=(1,2) hoặc .mean()
+            raw_recon_loss = self.mse_none(batch_anchor_win, batch_anchor_recon).mean()       # [1]
+            
+        return raw_recon_loss
+        
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling, base_mse):
         # same device
         idx = idx.to(x.device)
@@ -128,7 +161,8 @@ class NTXentLoss(nn.Module):
 
         # reconstruct loss (anchor only)
         B = idx.shape[0]
-        recon_loss = self.mse(x[idx], x_hat[idx])
+        hard_label = labels.unsqueeze(-1)                                                  # [B, win_size, 1]
+        recon_loss = self.reconstruct(x, x_hat, idx, pos_idx, neg_idx, hard_label)
 
         # normalize
         # collapse
@@ -192,16 +226,6 @@ class NTXentLoss(nn.Module):
         weights = t.ones_like(exp_sim[idx], device=exp_sim.device)               # weights: [B, 3B]
         weights[idx, neg_idx] += self.emphasize_negative
         
-        # chọn top-k hardest negatives
-        # k = int(0.1 * weights.shape[1])
-        # hard_neg_mask = torch.zeros_like(weights)
-        # topk_idx = torch.topk(neg_sim, k=k, dim=1).indices
-        
-        # hard_neg_mask.scatter_(1, topk_idx, 1)
-        
-        # weights = weights * (1 + alpha * hard_neg_mask)
-        # weights = weights / weights.sum(dim=1, keepdim=True)
-        
         denom = (exp_sim[idx]*weights).sum(dim=1)                                    # denom: [B]
 
         loss = -t.log(pos_sum / denom)
@@ -214,7 +238,12 @@ class NTXentLoss(nn.Module):
         # ------------------- FIXED WEIGHT -------------------
         contrastive_weight = self.contrastive_weight
         reconstruct_weight = self.args.reconstruct_weight
-        return reconstruct_weight*recon_loss + contrastive_weight*loss.mean()
+        log_loss = {
+            "loss_reconstruct": recon_loss.item(),
+            "loss_contrastive": loss.item()
+        }
+        return reconstruct_weight*recon_loss + contrastive_weight*loss, log_loss
+
         
 class TripletLoss(nn.Module):
     def __init__(self, args):
@@ -223,7 +252,39 @@ class TripletLoss(nn.Module):
         self.reconstruct_weight = args.reconstruct_weight
         self.contrastive_weight = args.contrastive_weight
         self.triplet = nn.TripletMarginLoss(margin=args.margin, p=2)
-        self.mse = nn.MSELoss()
+        
+    def reconstruct(self, x, x_hat, idx, pos_idx, neg_idx, hard_label):
+        batch_anchor_win = x[idx]                         # [B, win_size, channel]
+        batch_pos_win = x[pos_idx]                        # [B, win_size, channel]
+        batch_neg_win = x[neg_idx]                        # [B, win_size, channel]
+        batch_anchor_recon = x_hat[idx]                   # [B, win_size, channel]
+        batch_pos_recon = x_hat[pos_idx]                  # [B, win_size, channel]
+        batch_neg_recon = x_hat[neg_idx]                  # [B, win_size, channel]
+        
+        if self.reconstruct_negative:
+            # reconstruct
+            recon_anchor = self.mse_none(batch_anchor_win, batch_anchor_recon).mean(dim=(1,2))# [B]
+            recon_pos = self.mse_none(batch_pos_win, batch_pos_recon).mean(dim=(1,2))         # [B]
+            recon_neg = self.mse_none(batch_neg_win, batch_neg_recon).mean(dim=2)             # [B, win_size]
+            
+            anom_recon_neg = recon_neg*hard_label.squeeze(-1)                                 # [B, win_size]
+            anom_elements = hard_label.sum(dim=1)                                             # [B]
+            anom_recon_neg = anom_recon_neg.sum(dim=1)/(anom_elements + 1e-5)                 # [B]
+
+            nor_recon_neg = recon_neg*(1-hard_label).squeeze(-1)                              # [B, win_size]
+            nor_elements = (1-hard_label).squeeze(-1).sum(dim=1)                              # [B]
+            nor_recon_neg = nor_recon_neg.sum(dim=1)/(nor_elements + 1e-5)                    # [B]
+
+            pos_recon = t.stack([recon_anchor, recon_pos, nor_recon_neg], dim=1)              # [B, 3]
+            
+            # Lấy [0] để chọn values, bỏ qua indices
+            max_pos_recon = t.max(pos_recon, dim=1)[0]                                        # [B]
+            raw_recon_loss = t.relu(max_pos_recon - anom_recon_neg + self.margin).mean()      # [1]
+        else: 
+            # VÁ LỖI CÚ PHÁP: Dùng dim=(1,2) hoặc .mean()
+            raw_recon_loss = self.mse_none(batch_anchor_win, batch_anchor_recon).mean()       # [1]
+            
+        return raw_recon_loss
     def forward(self, x, x_hat, z, idx, pos_idx, neg_idx, labels, attn_pooling, base_mse):
         # same device
         idx = idx.to(x.device)
@@ -234,7 +295,8 @@ class TripletLoss(nn.Module):
         
         # reconstruct loss (anchor only)
         B = idx.shape[0]
-        recon_loss = self.mse(x[idx], x_hat[idx])
+        hard_label = labels.unsqueeze(-1)                                                  # [B, win_size, 1]
+        recon_loss = self.reconstruct(x, x_hat, idx, pos_idx, neg_idx, hard_label)
 
         # normalize
         # -------------- ATTENTION POOLING -------------------
@@ -263,7 +325,11 @@ class TripletLoss(nn.Module):
         loss = self.triplet(z_anchor, z_pos, z_neg)
         reconstruct_weight = self.reconstruct_weight
         contrastive_weight = self.contrastive_weight
-        return reconstruct_weight*recon_loss + contrastive_weight*loss
+        log_loss = {
+            "loss_reconstruct": recon_loss.item(),
+            "loss_contrastive": loss.item()
+        }
+        return reconstruct_weight*recon_loss + contrastive_weight*loss, log_loss
 
 class SeSimiLoss(nn.Module):
     def __init__(self, args):
@@ -477,86 +543,24 @@ class SeSimiLoss(nn.Module):
         normal_element = (1-mask).sum(dim=(1,2))                                           # [B]
 
         recon_loss = self.reconstruct(x, x_hat, idx, pos_idx, neg_idx, hard_label)         # [1]
-        # sim_loss = self.similarity(batch_anchor_norm, batch_positive_norm, batch_negative_norm, mask, anomaly_element, normal_element) #[1]
-        # total_loss = self.reconstruct_weight*recon_loss + self.contrastive_weight*sim_loss
+        sim_loss = self.similarity(batch_anchor_norm, batch_positive_norm, batch_negative_norm, mask, anomaly_element, normal_element) #[1]
+        total_loss = self.reconstruct_weight*recon_loss + self.contrastive_weight*sim_loss
 
-        return recon_loss
-        # log_metrics = {
-        #     "loss_recon": (self.reconstruct_weight * recon_loss).item(),
-        #     "loss_contrastive": (self.contrastive_weight * sim_loss).item(),
-        #     "loss_sim_raw": sim_loss.item(),
-        #     "loss_var_raw": 0,
-        #     "recon_gap": 0, 
-        #     "throttle": 1.0, # Giả lập throttle đang mở full
-        #     "alpha_sim": 1.0, # Đang dùng 100% sim
-        #     "alpha_mag": 0,
-        #     "active_anom_ratio": (hard_label.sum(dim=(1,2)) > 0).float().mean().item(),
-        #     "latent_norm": 0
-        # }
+        log_metrics = {
+            "loss_reconstruct": (recon_loss).item(),
+            "loss_contrastive": (sim_loss).item(),
+            # "loss_sim_raw": sim_loss.item(),
+            # "loss_var_raw": 0,
+            # "recon_gap": 0, 
+            # "throttle": 1.0, # Giả lập throttle đang mở full
+            # "alpha_sim": 1.0, # Đang dùng 100% sim
+            # "alpha_mag": 0,
+            # "active_anom_ratio": (hard_label.sum(dim=(1,2)) > 0).float().mean().item(),
+            # "latent_norm": 0
+        }
         
-        # return total_loss, log_metrics
-        # # ==========================================
-        # # 3. CONTRASTIVE LOSS (Adaptive Routing)
-        # # ==========================================
-        # score_sim, score_mag = score_sim.detach(), score_mag.detach()
-
-        # if B > 1:
-        #     score_sim_std = score_sim.std(unbiased=False)
-        #     score_mag_std = score_mag.std(unbiased=False)
-
-        #     score_sim = (score_sim - score_sim.mean()) / (score_sim_std + 1e-5)                # [B]
-        #     score_mag = (score_mag - score_mag.mean()) / (score_mag_std + 1e-5)                # [B]
-        # else:
-        #     score_sim, score_mag = t.zeros_like(score_sim), t.zeros_like(score_mag)
-
-        # scores = t.stack([score_sim, score_mag], dim=-1)
-
-        # scaled_scores = scores / max(self.temperature, 1e-3)
-        # scaled_scores = scaled_scores - scaled_scores.max(dim=-1, keepdim=True)[0]
-        
-        # alphas = t.softmax(scaled_scores, dim=-1)
-
-        # # ĐÃ SỬA LỖI SCALE: Bỏ nhân 2 để tổng alpha luôn = 1.0
-        # alpha_sim = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 0]                # [B]
-        # alpha_mag = self.alpha_floor + (1 - 2 * self.alpha_floor) * alphas[:, 1]                # [B]
-
-        # sample_contrastive_loss = (alpha_sim * sim_loss) + (alpha_mag * mag_loss)                # [B]
-        # raw_contrastive_loss = t.mean(sample_contrastive_loss)                                   # [1]
-
-        # # ==========================================
-        # # 4. GLOBAL MANIFOLD THROTTLING & REGULARIZATION
-        # # ==========================================
-        # recon_gap = (batch_recon_stat - batch_base_stat) / (batch_base_stat + 1e-5)                # [1]
-        # over_drift = t.relu(recon_gap - self.recon_tolerance)                                       # [1]
-        # throttle = t.exp(-self.throttle_beta * over_drift)
-        # throttled_contrastive_loss = raw_contrastive_loss * throttle                                # [1]
-
-        # # KHÓA CHẶT "ĐƯỜNG TẮT" BẰNG L2-NORM PENALTY 
-        # latent_norm_reg = t.sqrt(t.sum(batch_anchor**2, dim=-1) + 1e-5).mean()                     # [1]
-
-        # # ==========================================
-        # # FINAL LOSS
-        # # ==========================================
-        # recon_penalty = t.relu(raw_recon_loss - batch_base_mse)
-        
-        # total_loss = self.reconstruct_weight * recon_penalty + self.contrastive_weight * throttled_contrastive_loss + 1e-4 * latent_norm_reg            
-        # log_metrics = {
-        #     "loss_recon": raw_recon_loss.item(),
-        #     "loss_contrastive": throttled_contrastive_loss.item(),
-        #     "loss_sim_raw": sim_loss.mean().item(),
-        #     "loss_var_raw": mag_loss.mean().item(),
-        #     "recon_gap": recon_gap.mean().item(), 
-        #     "throttle": throttle.item(),
-        #     "alpha_sim": alpha_sim.mean().item(),
-        #     "alpha_mag": alpha_mag.mean().item(),
-        #     "active_anom_ratio": has_anom_global.mean().item(),
-        #     "latent_norm": latent_norm_reg.item()
-        # }
-        # # for name, tensor in check_tensors.items():
-        # #     if t.isnan(tensor).any() or t.isinf(tensor).any():
-        # #         print(f"[NaN DETECTED] {name}")
-        # return total_loss, log_metrics
-        
+        return total_loss, log_metrics
+  
     def get_masked_std(self, x, m):
         # 1. Ép kiểu sang float32 để chặn đứng lỗi Tràn bộ nhớ (Overflow) của FP16
         x = x.float()
