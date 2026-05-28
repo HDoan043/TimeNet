@@ -258,7 +258,7 @@ class NTXentLoss(nn.Module):
         denom = (exp_sim[idx]*weights).sum(dim=1)                                    # denom: [B]
 
         loss = -t.log(pos_sum / denom)
-        
+        loss = loss.mean()
         # print(f"reconstruct_loss: {recon_loss.item()}")
         # print(f"NT-Xent Loss: {contrastive_weight*loss.mean().item()}")
         # ------------------ ADAPTIVE WEIGHT -----------------
