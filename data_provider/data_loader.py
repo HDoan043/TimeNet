@@ -210,7 +210,7 @@ class Dataset_Custom(Dataset):
     def __init__(self, args, root_path, flag='train', task_name="long_term_forecasting",
                  size=None, features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='5min', 
-                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1, contrastive=False, phase="test"):
+                 seasonal_patterns=None, train_ratio = 0.7, test_ratio = 0.2, step = 1, phase="test"):
         # size [seq_len, label_len, pred_len]
         self.args = args
         # info
@@ -248,7 +248,6 @@ class Dataset_Custom(Dataset):
         self.data_path = data_path
         self.train_ratio = train_ratio
         self.test_ratio = test_ratio
-        self.contrastive = contrastive
         self.phase = phase
         self.__read_data__()
         
@@ -469,7 +468,7 @@ class Dataset_Custom(Dataset):
             seq_x_mark = self.data_stamp[x_index_start:x_index_end]
             seq_y_mark = self.data_stamp[y_index_start:y_index_end]
 
-            if self.contrastive and self.set_type==0 and self.phase == "train":
+            if self.args.contrastive == 1 and self.set_type==0 and self.phase == "train":
                 # Gen Negative sample
                 negative, label = negative_sampler(self, x_index_start, x_index_end)
         
