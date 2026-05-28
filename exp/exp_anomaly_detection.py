@@ -242,7 +242,7 @@ class Exp_Anomaly_Detection(Exp_Basic):
             
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             # In ra màn hình hoặc ghi vào file log:
-            print(f"\n[LOGGING EPOCH LOSS] Epoch {epoch} | Recon: {epoch_logs['loss_recon']:.4f} | Cont: {epoch_logs['loss_contrastive']:.4f}")
+            print(f"\n[LOGGING EPOCH LOSS] Epoch {epoch} | Recon: {epoch_logs['loss_reconstruct']:.4f} | Cont: {epoch_logs['loss_contrastive']:.4f}")
             
             train_loss = np.average(train_loss)
             # vali_loss = self.vali(vali_data, vali_loader, corr_matrix, criterion)
