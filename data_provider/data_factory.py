@@ -12,7 +12,7 @@ data_dict = {
 }
 
 
-def data_provider(args, flag, contrastive=False, phase="train"):
+def data_provider(args, flag, phase="train"):
     Data = data_dict[args.data]
     timeenc = 0 if args.embed != 'timeF' else 1
 
@@ -22,6 +22,7 @@ def data_provider(args, flag, contrastive=False, phase="train"):
     freq = args.freq
     train_ratio = args.train_ratio
     test_ratio = args.test_ratio
+    contrastive = args.contrastive
 
     if args.task_name == 'supervise_5g_network':
         drop_last = True if flag == "train" or flag == "val" else False
@@ -78,10 +79,10 @@ def data_provider(args, flag, contrastive=False, phase="train"):
             seasonal_patterns=args.seasonal_patterns,
             train_ratio = train_ratio,
             test_ratio = test_ratio,
-            contrastive = contrastive
+            phase = phase
         )
         print(flag, len(data_set))
-        if contrastive:
+        if contrastive == 1 and phase.lower() == "train" and flag == "train":
             data_loader = DataLoader(
                 data_set,
                 batch_size=batch_size,
