@@ -368,9 +368,35 @@ class SeSimiLoss(nn.Module):
             recon_neg = self.mse_none(batch_neg_win, batch_neg_recon).mean(dim=2)             # [B, win_size]
             
             anom_recon_neg = recon_neg*hard_label.squeeze(-1)                                 # [B, win_size]
-            anom_elements = hard_label.sum(dim=1)                                             # [B]
-            anom_recon_neg = anom_recon_neg.sum(dim=1)/(anom_elements + 1e-5)                 # [B]
+            anom_elements = hard_label.squeeze(-1).sum(dim=1)                                 # [B]
+            # anom_recon_neg = anom_recon_neg.sum(dim=1)/(anom_elements + 1e-5)                 # [B]
 
+            # Tìm các cửa sổ có chứa lỗi
+            valid_windows = anom_elements > 0
+            
+            if valid_windows.any():
+                anom_loss_total = 0.0
+                valid_count = 0
+                
+                # (BUỘC PHẢI DÙNG VÒNG LẶP trên các cửa sổ hợp lệ vì mỗi cửa sổ có số K khác nhau)
+                # Tuy nhiên vì số lượng cửa sổ lỗi trong batch nhỏ (vd 5-10 cái), vòng lặp này rất nhanh.
+                for b in range(hard_label.shape[0]):
+                    if valid_windows[b]:
+                        # Tính K cho cửa sổ này
+                        k = max(1, int(num_anom_per_window[b].item() * self.top_k_ratio))
+                        
+                        # Lấy Top K loss của cửa sổ b
+                        topk_loss, _ = t.topk(anom_recon_neg[b], k)
+                        
+                        # Cộng dồn trung bình
+                        anom_loss_total += topk_loss.mean()
+                        valid_count += 1
+                
+                anom_loss = anom_loss_total / valid_count
+            else:
+                anom_loss = 0.0
+            
+            anom_recon_neg = anom_loss
             nor_recon_neg = recon_neg*(1-hard_label).squeeze(-1)                              # [B, win_size]
             nor_elements = (1-hard_label).squeeze(-1).sum(dim=1)                              # [B]
             nor_recon_neg = nor_recon_neg.sum(dim=1)/(nor_elements + 1e-5)                    # [B]
