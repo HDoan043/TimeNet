@@ -33,8 +33,8 @@ class Exp_Supervise_5G_Network(Exp_Basic):
     
         return model
 
-    def _get_data(self, flag, contrastive=False, phase='test'):
-        data_set, data_loader = data_provider(self.args, flag, contrastive=contrastive, phase=phase)
+    def _get_data(self, flag, phase='test'):
+        data_set, data_loader = data_provider(self.args, flag, phase=phase)
         return data_set, data_loader
 
     def _select_optimizer(self):
@@ -55,7 +55,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         return criterion
       
     def train(self, setting, trial=None):
-        train_data, train_loader = self._get_data(flag='train', contrastive=self.args.contrastive, phase="train")
+        train_data, train_loader = self._get_data(flag='train', phase="train")
         raw_train_data, raw_train_loader = self._get_data(flag='train', phase="test")
         vali_data, vali_loader = self._get_data(flag='test', phase="test")
 
@@ -222,7 +222,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         if train_load:
             train_data, train_loader = train_load
         else:
-            train_data, train_loader = self._get_data(flag='train', contrastive=False, phase="test")
+            train_data, train_loader = self._get_data(flag='train', phase="test")
         if test_load:
             test_data, test_loader = test_load
         else:
