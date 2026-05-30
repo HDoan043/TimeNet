@@ -62,7 +62,7 @@ class Model(nn.Module):
             new_state_dict[name] = v
             
         # Load lại dict đã gọt dũa
-        self.base_model.load_state_dict(new_state_dict)
+        self.base_model.load_state_dict(new_state_dict, strict=False)
         
         # freeze base_model
         for p in self.base_model.parameters():
