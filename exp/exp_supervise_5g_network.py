@@ -251,13 +251,18 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         self.model.eval()
         torch.cuda.reset_peak_memory_stats(self.device)
         torch.cuda.empty_cache()
+        criterion = nn.MSELoss(reduction=False)
         # (1) stastic on the train set
         with torch.no_grad():
             for i, batch in enumerate(train_loader):
                 (batch_x, batch_y, batch_x_mark, batch_y_mark) = batch
                 batch_x = batch_x.float().to(self.device)
                 batch_x_mark = batch_x_mark.to(self.device) 
-                score = self.model(batch_x, batch_x_mark, None, None)    # [B, win_size]
+                z, out = self.model(batch_x, batch_x_mark, None, None)    # [B, win_size]
+                # ADD SCORE CALCULATION
+                score = criterion(out,batch_x)                            # [B, win_size, c_in]
+                score = score.mean(dim=-1)                                # [B, win_size]
+                # END ADD SCORE CALCULATION
                 prob_score = torch.sigmoid(score) 
                 score_np = prob_score.detach().cpu().numpy()
                 attens_energy.append(score_np)
@@ -282,7 +287,12 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 if self.args.use_gpu:
                     torch.cuda.synchronize() # Đợi GPU chạy xong 100%
                 end_time = time.time()
-    
+
+                # ADD SCORE CALCULATION
+                score = criterion(out,batch_x)                            # [B, win_size, c_in]
+                score = score.mean(dim=-1)                                # [B, win_size]
+                # END ADD SCORE CALCULATION
+                
                 inference_times.append((end_time - start_time) * 1000)            
                 prob_score = torch.sigmoid(score) 
                 score_np = prob_score.detach().cpu().numpy()
