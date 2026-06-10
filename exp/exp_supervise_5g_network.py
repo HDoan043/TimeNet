@@ -259,10 +259,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 batch_x = batch_x.float().to(self.device)
                 batch_x_mark = batch_x_mark.to(self.device) 
                 z, out = self.model(batch_x, batch_x_mark, None, None)    # [B, win_size]
-                # ADD SCORE CALCULATION
-                score = criterion(out,batch_x)                            # [B, win_size, c_in]
-                score = score.mean(dim=-1)                                # [B, win_size]
-                # END ADD SCORE CALCULATION
+            
                 prob_score = torch.sigmoid(score) 
                 score_np = prob_score.detach().cpu().numpy()
                 attens_energy.append(score_np)
@@ -287,11 +284,6 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 if self.args.use_gpu:
                     torch.cuda.synchronize() # Đợi GPU chạy xong 100%
                 end_time = time.time()
-
-                # ADD SCORE CALCULATION
-                score = criterion(out,batch_x)                            # [B, win_size, c_in]
-                score = score.mean(dim=-1)                                # [B, win_size]
-                # END ADD SCORE CALCULATION
                 
                 inference_times.append((end_time - start_time) * 1000)            
                 prob_score = torch.sigmoid(score) 
