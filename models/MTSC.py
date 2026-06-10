@@ -163,15 +163,14 @@ class TimesNetExpert(nn.Module):
         return dec_out  # [B, L, D]
 
 class Model(nn.Module):
-    def __init__(self, 
-                 num_experts, 
-                 c_in, 
-                 d_model, 
-                 win_size, 
-                 expert_layers = 1, 
-                 expert_num_kernels=6,
-                 expert_top_k = 2):
+    def __init__(self, configs):
         super(Model, self).__init__()
+        num_experts = configs.num_experts
+        c_in = configs.c_in
+        d_model = configs.d_model
+        win_size = configs.win_size
+        expert_layers = configs.e_layers
+        expert_top_k = configs.top_k
         self.c_in = c_in
         self.d_model = d_model
         self.num_experts = num_experts
@@ -191,7 +190,7 @@ class Model(nn.Module):
         
         self.decoder = nn.Linear(in_features= d_model, out_features=win_size)
         
-    def forward(self, x):                                   # [B, win_size, c_in]
+    def forward(self, x, x_mark, x_dec, x_mark_dec):                                   # [B, win_size, c_in]
         # Normalization from Non-stationary Transformer
         means = x.mean(1, keepdim=True).detach()
         x = x - means
@@ -230,190 +229,3 @@ class Model(nn.Module):
         x_rec = x_hat * stdev + means
         
         return x_rec
-    
-class MTSC():
-    '''
-    MTSC - Multi TimesNets for Seperate Channels
-    '''
-    def __init__(self,
-                num_experts = 5, 
-                enc_in = 1, 
-                d_model = 8, 
-                win_size = 64, 
-                expert_layers = 3, 
-                expert_num_kernels=2,
-                expert_top_k = 2,
-                epochs=10,
-                batch_size=128,
-                lr=1e-4,
-                patience=3,
-                features="M",
-                lradj="type1",
-                validation_size=0.2):
-        super().__init__()
-
-        self.win_size = win_size
-        self.enc_in = enc_in
-        self.batch_size = batch_size
-        self.lr = lr
-        self.patience = patience
-        self.epochs = epochs
-        self.features = features
-        self.lradj = lradj
-        self.validation_size = validation_size
-
-        self.__anomaly_score = None
-        
-        cuda = True
-        # cuda = False
-        self.y_hats = None
-        
-        self.cuda = cuda
-        self.device = get_gpu(self.cuda)
-            
-        self.model = Model(
-            num_experts=num_experts,
-            c_in = enc_in,
-            d_model = d_model,
-            win_size = win_size,
-            expert_layers= expert_layers,
-            expert_num_kernels= expert_num_kernels,
-            expert_top_k= expert_top_k
-            ).float().to(self.device)
-        self.model_optim = optim.Adam(self.model.parameters(), lr=self.lr)
-        self.criterion = nn.MSELoss()
-        
-        self.early_stopping = EarlyStoppingTorch(None, patience=self.patience)
-        
-        self.input_shape = (self.batch_size, self.win_size, self.enc_in)
-      
-    def fit(self, data):
-        tsTrain = data[:int((1-self.validation_size)*len(data))]
-        tsValid = data[int((1-self.validation_size)*len(data)):]
-
-        train_loader = DataLoader(
-            dataset=ReconstructDataset(tsTrain, window_size=self.win_size),
-            batch_size=self.batch_size,
-            shuffle=True
-        )
-        
-        valid_loader = DataLoader(
-            dataset=ReconstructDataset(tsValid, window_size=self.win_size),
-            batch_size=self.batch_size,
-            shuffle=False
-        )
-        
-        train_steps = len(train_loader)
-        for epoch in range(1, self.epochs + 1):
-            ## Training
-            train_loss = 0
-            self.model.train()
-            
-            loop = tqdm.tqdm(enumerate(train_loader),total=len(train_loader),leave=True)
-            for i, (batch_x, _) in loop:
-                self.model_optim.zero_grad()
-                
-                batch_x = batch_x.float().to(self.device)
-                
-                outputs = self.model(batch_x)
-                loss = self.criterion(outputs, batch_x)
-                
-                loss.backward()
-                self.model_optim.step()
-                
-                train_loss += loss.cpu().item()
-                
-                loop.set_description(f'Training Epoch [{epoch}/{self.epochs}]')
-                loop.set_postfix(loss=loss.item(), avg_loss=train_loss/(i+1))
-            
-            ## Validation
-            self.model.eval()
-            total_loss = []
-            
-            loop = tqdm.tqdm(enumerate(valid_loader),total=len(valid_loader),leave=True)
-            with torch.no_grad():
-                for i, (batch_x, _) in loop:
-                    batch_x = batch_x.float().to(self.device)
-
-                    outputs = self.model(batch_x)
-
-                    f_dim = -1 if self.features == 'MS' else 0
-                    outputs = outputs[:, :, f_dim:]
-                    pred = outputs.detach().cpu()
-                    true = batch_x.detach().cpu()
-
-                    loss = self.criterion(pred, true)
-                    total_loss.append(loss)
-                    loop.set_description(f'Valid Epoch [{epoch}/{self.epochs}]')
-                    
-            valid_loss = np.average(total_loss)
-            loop.set_postfix(loss=loss.item(), valid_loss=valid_loss)
-            self.early_stopping(valid_loss, self.model)
-            if self.early_stopping.early_stop:
-                print("   Early stopping<<<")
-                break
-            
-            adjust_learning_rate(self.model_optim, epoch + 1, self.lradj, self.lr)
-                        
-    def decision_function(self, data):
-        test_loader = DataLoader(
-            dataset=ReconstructDataset(data, window_size=self.win_size),
-            batch_size=self.batch_size,
-            shuffle=False
-        )
-        
-        self.model.eval()
-        attens_energy = []
-        y_hats = []
-        self.anomaly_criterion = nn.MSELoss(reduction='none')
-        
-        loop = tqdm.tqdm(enumerate(test_loader),total=len(test_loader),leave=True)
-        with torch.no_grad():
-            for i, (batch_x, _) in loop:
-                batch_x = batch_x.float().to(self.device)
-                # reconstruction
-                outputs = self.model(batch_x)
-                # criterion
-                score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
-                y_hat = torch.squeeze(outputs, -1)
-
-                score = score.mean(dim=1).detach().cpu().numpy()
-                y_hat = y_hat.detach().cpu().numpy()[:, self.win_size // 2]
-                
-                attens_energy.append(score)
-                y_hats.append(y_hat)
-                loop.set_description(f'Testing Phase: ')
-
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
-        scores = np.array(attens_energy)
-        
-        y_hats = np.concatenate(y_hats, axis=0).reshape(-1)
-        y_hats = np.array(y_hats)
-
-        assert scores.ndim == 1
-        
-        import shutil
-        self.save_path = None
-        if self.save_path and os.path.exists(self.save_path):
-            shutil.rmtree(self.save_path)
-            
-        self.__anomaly_score = scores
-        self.y_hats = y_hats
-
-        if self.__anomaly_score.shape[0] < len(data):
-            self.__anomaly_score = np.array([self.__anomaly_score[0]]*math.ceil((self.win_size-1)/2) + 
-                        list(self.__anomaly_score) + [self.__anomaly_score[-1]]*((self.win_size-1)//2))
-        
-        return self.__anomaly_score
-
-    def anomaly_score(self) -> np.ndarray:
-        return self.__anomaly_score
-    
-    def get_y_hat(self) -> np.ndarray:
-        return self.y_hats
-    
-    def param_statistic(self, save_file):
-        model_stats = torchinfo.summary(self.model, self.input_shape, verbose=0)
-        with open(save_file, 'w') as f:
-            f.write(str(model_stats))
-    
