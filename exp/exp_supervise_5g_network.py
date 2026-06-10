@@ -251,7 +251,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
         self.model.eval()
         torch.cuda.reset_peak_memory_stats(self.device)
         torch.cuda.empty_cache()
-        criterion = nn.MSELoss(reduction=False)
+        criterion = nn.MSELoss(reduce=None)
         # (1) stastic on the train set
         with torch.no_grad():
             for i, batch in enumerate(train_loader):
