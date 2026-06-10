@@ -164,6 +164,9 @@ if __name__ == '__main__':
     # TimeXer
     parser.add_argument('--patch_len', type=int, default=16, help='patch length')
 
+    # MTSC
+    parser.add_argument('--num_experts', type=int, default=10, help='number of experts in MTSC')
+
     # GCN
     parser.add_argument('--node_dim', type=int, default=10, help='each node embbed to dim dimentions')
     parser.add_argument('--gcn_depth', type=int, default=2, help='')
