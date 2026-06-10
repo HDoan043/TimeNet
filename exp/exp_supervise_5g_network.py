@@ -258,7 +258,7 @@ class Exp_Supervise_5G_Network(Exp_Basic):
                 (batch_x, batch_y, batch_x_mark, batch_y_mark) = batch
                 batch_x = batch_x.float().to(self.device)
                 batch_x_mark = batch_x_mark.to(self.device) 
-                z, out = self.model(batch_x, batch_x_mark, None, None)    # [B, win_size]
+                score = self.model(batch_x, batch_x_mark, None, None)    # [B, win_size]
             
                 prob_score = torch.sigmoid(score) 
                 score_np = prob_score.detach().cpu().numpy()
