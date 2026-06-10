@@ -5,7 +5,7 @@ import optuna
 from models import Autoformer, Transformer, TimesNet, Nonstationary_Transformer, DLinear, FEDformer, \
     Informer, LightTS, Reformer, ETSformer, Pyraformer, PatchTST, MICN, Crossformer, FiLM, iTransformer, \
     Koopa, TiDE, FreTS, TimeMixer, TSMixer, SegRNN, MambaSimple, TemporalFusionTransformer, SCINet, PAttn, TimeXer, \
-    WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_update_v2, LSTMAE, Network_5G_Supervise
+    WPMixer, MultiPatchFormer, KANAD, MSGNet, TimeFilter, TimesNet_update_v1, TimesNet_update_v2, LSTMAE, Network_5G_Supervise, MTSC
 
 
 class Exp_Basic(object):
@@ -26,6 +26,7 @@ class Exp_Basic(object):
             'PatchTST': PatchTST,
             'Pyraformer': Pyraformer,
             'MICN': MICN,
+            'MTSC': MTSC,
             'Crossformer': Crossformer,
             'FiLM': FiLM,
             'iTransformer': iTransformer,
