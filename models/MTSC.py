@@ -163,7 +163,7 @@ class Model(nn.Module):
     def __init__(self, configs):
         super(Model, self).__init__()
         num_experts = configs.num_experts
-        c_in = configs.c_in
+        c_in = configs.enc_in
         d_model = configs.d_model
         win_size = configs.win_size
         expert_layers = configs.e_layers
