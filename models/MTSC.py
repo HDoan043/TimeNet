@@ -171,6 +171,7 @@ class Model(nn.Module):
         win_size = configs.win_size
         expert_layers = configs.e_layers
         expert_top_k = configs.top_k
+        expert_num_kernels = configs.num_kernels
         self.c_in = c_in
         self.d_model = d_model
         self.num_experts = num_experts
